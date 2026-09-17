@@ -28,15 +28,27 @@ export default function BrandingSettings({
   onUploadTechnoMentorSig,
   technoConfig,
   onChangeTechnoConfig,
-  // MongoDB Save Handler
+  // GDGoC Branding Props
+  gdgocClubLogo,
+  onUploadGdgocClubLogo,
+  gdgocOrganizerSig,
+  onUploadGdgocOrganizerSig,
+  gdgocAdvisorSig,
+  onUploadGdgocAdvisorSig,
+  gdgocMentorSig,
+  onUploadGdgocMentorSig,
+  gdgocConfig,
+  onChangeGdgocConfig,
+  // Database / Local Save Handler
   onSaveToDatabase,
   isSavingToDb,
   dbSaveStatus
 }) {
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
   
-  // Selected club module in Branding Settings (Super Admin can switch between AWS_SBG and TECHNO_LAB, regular admin is locked to their org)
+  // Selected club module in Branding Settings (Super Admin can switch between AWS_SBG, TECHNO_LAB, GDGOC)
   const [selectedModule, setSelectedModule] = useState(isSuperAdmin ? activeOrg : (currentUser?.organization || 'AWS_SBG'));
+  const [subtitleSavedToast, setSubtitleSavedToast] = useState(false);
 
   const itmbuInputRef = useRef(null);
   const clubLogoInputRef = useRef(null);
@@ -46,21 +58,33 @@ export default function BrandingSettings({
 
   const activeClub = CLUB_CONFIGS[selectedModule] || CLUB_CONFIGS.AWS_SBG;
   const isAWS = selectedModule === 'AWS_SBG';
+  const isTechno = selectedModule === 'TECHNO_LAB';
+  const isGdgoc = selectedModule === 'GDGOC';
 
-  // Active module getters & handlers based on selectedModule
-  const currentClubLogo = isAWS ? awsClubLogo : technoClubLogo;
-  const onUploadCurrentClubLogo = isAWS ? onUploadAwsClubLogo : onUploadTechnoClubLogo;
+  // Active module getters based on selectedModule
+  const currentClubLogo = isAWS ? awsClubLogo : (isTechno ? technoClubLogo : gdgocClubLogo);
+  const onUploadCurrentClubLogo = isAWS ? onUploadAwsClubLogo : (isTechno ? onUploadTechnoClubLogo : onUploadGdgocClubLogo);
 
-  const currentOrganizerSig = isAWS ? awsOrganizerSig : technoOrganizerSig;
-  const onUploadCurrentOrganizerSig = isAWS ? onUploadAwsOrganizerSig : onUploadTechnoOrganizerSig;
+  const currentOrganizerSig = isAWS ? awsOrganizerSig : (isTechno ? technoOrganizerSig : gdgocOrganizerSig);
+  const onUploadCurrentOrganizerSig = isAWS ? onUploadAwsOrganizerSig : (isTechno ? onUploadTechnoOrganizerSig : onUploadGdgocOrganizerSig);
 
-  const currentAdvisorSig = isAWS ? awsAdvisorSig : technoAdvisorSig;
-  const onUploadCurrentAdvisorSig = isAWS ? onUploadAwsAdvisorSig : onUploadTechnoAdvisorSig;
+  const currentAdvisorSig = isAWS ? awsAdvisorSig : (isTechno ? technoAdvisorSig : gdgocAdvisorSig);
+  const onUploadCurrentAdvisorSig = isAWS ? onUploadAwsAdvisorSig : (isTechno ? onUploadTechnoAdvisorSig : onUploadGdgocAdvisorSig);
 
-  const currentMentorSig = isAWS ? awsMentorSig : technoMentorSig;
-  const onUploadCurrentMentorSig = isAWS ? onUploadAwsMentorSig : onUploadTechnoMentorSig;
+  const currentMentorSig = isAWS ? awsMentorSig : (isTechno ? technoMentorSig : gdgocMentorSig);
+  const onUploadCurrentMentorSig = isAWS ? onUploadAwsMentorSig : (isTechno ? onUploadTechnoMentorSig : onUploadGdgocMentorSig);
 
-  const currentConfig = isAWS ? awsConfig : technoConfig;
+  const currentConfig = isAWS ? awsConfig : (isTechno ? technoConfig : gdgocConfig);
+
+  const updateCurrentConfig = (updater) => {
+    if (isAWS && onChangeAwsConfig) {
+      onChangeAwsConfig(updater);
+    } else if (isTechno && onChangeTechnoConfig) {
+      onChangeTechnoConfig(updater);
+    } else if (isGdgoc && onChangeGdgocConfig) {
+      onChangeGdgocConfig(updater);
+    }
+  };
 
   const handleFileUpload = (e, callback) => {
     const file = e.target.files[0];
@@ -77,12 +101,20 @@ export default function BrandingSettings({
     if (onSaveToDatabase) {
       onSaveToDatabase(selectedModule);
     }
+    setSubtitleSavedToast(true);
+    setTimeout(() => setSubtitleSavedToast(false), 3000);
   };
 
   const handleSaveBoth = () => {
     if (onSaveToDatabase) {
       onSaveToDatabase('ALL');
     }
+  };
+
+  const getChipClass = () => {
+    if (isAWS) return 'chip-aws';
+    if (isTechno) return 'chip-techno';
+    return 'chip-gdgoc';
   };
 
   return (
@@ -92,8 +124,8 @@ export default function BrandingSettings({
       <div className="branding-hero-banner">
         <div className="branding-hero-content">
           <div className="branding-top-badges">
-            <span className={`branding-badge ${isAWS ? 'chip-aws' : 'chip-techno'}`}>
-              {isSuperAdmin ? '👑 SUPER ADMIN &bull; UNIVERSAL BRANDING SUITE' : `${activeClub.shortName} &bull; BRAND ASSET MANAGEMENT`}
+            <span className={`branding-badge ${getChipClass()}`}>
+              {isSuperAdmin ? '👑 SUPER ADMIN • TRIO CLUB BRANDING SUITE' : `${activeClub.shortName} • BRAND ASSET MANAGEMENT`}
             </span>
             {dbSaveStatus && (
               <span className="db-save-toast">
@@ -103,15 +135,15 @@ export default function BrandingSettings({
           </div>
           <h2>🎨 University Branding & Digital Signature Suite</h2>
           <p>
-            Configure official institutional crests for <strong>ITM (sls) BARODA UNIVERSITY</strong>, customize club emblems, and upload high-resolution digital signatures directly to <strong>MongoDB Compass</strong>.
+            Configure official institutional crests for <strong>ITM (sls) BARODA UNIVERSITY</strong>, customize chapter emblems, and upload high-resolution digital signatures directly for <strong>{activeClub.name}</strong>.
           </p>
         </div>
 
         {/* Global Save Action Card */}
         <div className="branding-hero-action">
           <div className="db-sync-info">
-            <span className="db-pill-live">● MongoDB Compass Live Sync</span>
-            <small>Collection: <code>brandings</code></small>
+            <span className="db-pill-live">● Cloud & Local Live Sync</span>
+            <small>Active Chapter: <code>{selectedModule}</code></small>
           </div>
           
           <div className="save-btn-group">
@@ -120,7 +152,7 @@ export default function BrandingSettings({
               onClick={handleSaveCurrent}
               disabled={isSavingToDb}
             >
-              {isSavingToDb ? '⏳ Saving to MongoDB...' : `💾 Save ${activeClub.shortName} Branding to MongoDB`}
+              {isSavingToDb ? '⏳ Saving...' : `💾 Save ${activeClub.shortName} Branding`}
             </button>
             {isSuperAdmin && (
               <button
@@ -128,7 +160,7 @@ export default function BrandingSettings({
                 onClick={handleSaveBoth}
                 disabled={isSavingToDb}
               >
-                ⚡ Save All (AWS + Techno)
+                ⚡ Save All 3 Chapters
               </button>
             )}
           </div>
@@ -140,15 +172,15 @@ export default function BrandingSettings({
         <div className="super-admin-branding-modules">
           <div className="module-switch-header">
             <span className="module-label">SUPER ADMIN BRANDING MODULE CONTROLS:</span>
-            <span className="module-desc">Switch between club modules to customize branding and executive signature vaults</span>
+            <span className="module-desc">Switch between club modules to customize branding, emails, and executive signature vaults</span>
           </div>
-          <div className="module-toggle-pills">
+          <div className="module-toggle-pills" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
             <button
               className={`btn-module-pill ${selectedModule === 'AWS_SBG' ? 'active-aws' : ''}`}
               onClick={() => setSelectedModule('AWS_SBG')}
             >
               <span className="pill-icon">☁️</span>
-              <span className="pill-text">AWS Student Builder Group Module</span>
+              <span className="pill-text">AWS Student Builder Group</span>
               <span className="pill-tag">AWS SBG</span>
             </button>
             <button
@@ -156,8 +188,17 @@ export default function BrandingSettings({
               onClick={() => setSelectedModule('TECHNO_LAB')}
             >
               <span className="pill-icon">🔬</span>
-              <span className="pill-text">Techno Lab Module</span>
+              <span className="pill-text">Techno Lab Club</span>
               <span className="pill-tag">Techno Lab</span>
+            </button>
+            <button
+              className={`btn-module-pill ${selectedModule === 'GDGOC' ? 'active-gdgoc' : ''}`}
+              onClick={() => setSelectedModule('GDGOC')}
+              style={{ borderColor: selectedModule === 'GDGOC' ? '#4285F4' : '#1e293b' }}
+            >
+              <span className="pill-icon">🌐</span>
+              <span className="pill-text">GDGoC ITMBU Chapter</span>
+              <span className="pill-tag" style={{ background: '#4285F4', color: '#fff' }}>GDGoC</span>
             </button>
           </div>
         </div>
@@ -222,12 +263,12 @@ export default function BrandingSettings({
         {/* CARD 2: ACTIVE CLUB EMBLEM */}
         <div className="branding-card">
           <div className="branding-card-header">
-            <div className="b-card-icon">{isAWS ? '☁️' : '🔬'}</div>
+            <div className="b-card-icon">{isAWS ? '☁️' : (isTechno ? '🔬' : '🌐')}</div>
             <div>
               <h3>{activeClub.name} Emblem</h3>
               <span>Official Club Brand Logo (Top-Left of Letterhead)</span>
             </div>
-            <span className={`club-tag-pill ${isAWS ? 'chip-aws' : 'chip-techno'}`}>
+            <span className={`club-tag-pill ${getChipClass()}`}>
               {activeClub.shortName}
             </span>
           </div>
@@ -241,11 +282,17 @@ export default function BrandingSettings({
                 <div className="aws-sub">Student Builder Group</div>
                 <div className="aws-campus">ITM (sls) Baroda University</div>
               </div>
-            ) : (
+            ) : isTechno ? (
               <div className="techno-badge-logo preview-inner">
                 <div className="techno-pill">TECHNO LAB</div>
                 <div className="techno-sub">Techno+Techiz Innovation Hub</div>
                 <div className="techno-campus">ITM (sls) Baroda University</div>
+              </div>
+            ) : (
+              <div className="gdgoc-badge-logo preview-inner" style={{ textAlign: 'center', color: '#4285F4' }}>
+                <div style={{ fontSize: '18px', fontWeight: 800, letterSpacing: '0.05em' }}>GDGoC ITMBU</div>
+                <div style={{ fontSize: '11px', color: '#0F9D58', fontWeight: 600 }}>Google Developer Groups on Campus</div>
+                <div style={{ fontSize: '10px', color: '#94a3b8' }}>ITM (sls) Baroda University</div>
               </div>
             )}
           </div>
@@ -278,69 +325,119 @@ export default function BrandingSettings({
       </div>
 
       {/* SECTION 1.5: LETTERHEAD SUBTITLE & CHAPTER AFFILIATION LINE */}
-      <div className="branding-subtitle-card" style={{ background: '#131b2e', border: '1px solid #23314a', borderRadius: '12px', padding: '20px', marginBottom: '25px' }}>
+      <div className="branding-subtitle-card" style={{ background: '#131b2e', border: '1px solid #23314a', borderRadius: '12px', padding: '20px', marginBottom: '25px', boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }}>
         <div className="branding-card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div className="b-card-icon" style={{ fontSize: '24px' }}>🏷️</div>
             <div>
               <h3 style={{ margin: 0, fontSize: '16px', color: '#f8fafc' }}>Letterhead Chapter Subtitle & Department Affiliation Line</h3>
-              <span style={{ fontSize: '12.5px', color: '#94a3b8' }}>The official chapter tagline printed directly below university crest & club logos</span>
+              <span style={{ fontSize: '12.5px', color: '#94a3b8' }}>The official chapter tagline and contact email printed directly on official letterheads</span>
             </div>
           </div>
-          <span className={`club-tag-pill ${isAWS ? 'chip-aws' : 'chip-techno'}`}>
+          <span className={`club-tag-pill ${getChipClass()}`}>
             {activeClub.shortName}
           </span>
         </div>
 
         <div className="branding-subtitle-body">
-          <div className="form-group" style={{ marginBottom: '12px' }}>
-            <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <span style={{ fontWeight: 600, color: '#f8fafc', fontSize: '13.5px' }}>Chapter Affiliation & Department Line *</span>
-              <span className="editable-pill-badge" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 700 }}>✏️ Live Editable</span>
-            </label>
-            <input
-              type="text"
-              className="form-input form-input-live-edit"
-              placeholder={activeClub.subtitle}
-              value={currentConfig?.subtitle !== undefined ? currentConfig.subtitle : activeClub.subtitle}
-              onChange={(e) => {
-                const val = e.target.value;
-                if (isAWS) {
-                  onChangeAwsConfig(prev => ({ ...prev, subtitle: val }));
-                } else {
-                  onChangeTechnoConfig(prev => ({ ...prev, subtitle: val }));
-                }
-              }}
-              style={{ width: '100%', padding: '12px 14px', fontSize: '14px', borderRadius: '8px', background: '#0a0f1d', border: '1px solid #38bdf8', color: '#f8fafc' }}
-            />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '16px' }}>
+            {/* Tagline input */}
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <span style={{ fontWeight: 600, color: '#f8fafc', fontSize: '13.5px' }}>Chapter Affiliation & Department Line *</span>
+                <span className="editable-pill-badge" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 700 }}>✏️ Live Editable</span>
+              </label>
+              <input
+                type="text"
+                className="form-input form-input-live-edit"
+                placeholder={activeClub.subtitle}
+                value={currentConfig?.subtitle !== undefined ? currentConfig.subtitle : activeClub.subtitle}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  updateCurrentConfig(prev => ({ ...prev, subtitle: val }));
+                }}
+                style={{ width: '100%', padding: '12px 14px', fontSize: '14px', borderRadius: '8px', background: '#0a0f1d', border: '1px solid #38bdf8', color: '#f8fafc' }}
+              />
+            </div>
+
+            {/* Official Chapter Email input */}
+            <div className="form-group" style={{ marginBottom: 0 }}>
+              <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <span style={{ fontWeight: 600, color: '#f8fafc', fontSize: '13.5px' }}>Official Chapter Contact Email *</span>
+                <span className="editable-pill-badge" style={{ background: 'rgba(34, 197, 94, 0.15)', color: '#4ade80', padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 700 }}>✉️ Live Editable</span>
+              </label>
+              <input
+                type="email"
+                className="form-input form-input-live-edit"
+                placeholder={activeClub.email}
+                value={currentConfig?.contactEmail !== undefined ? currentConfig.contactEmail : activeClub.email}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  updateCurrentConfig(prev => ({ ...prev, contactEmail: val }));
+                }}
+                style={{ width: '100%', padding: '12px 14px', fontSize: '14px', borderRadius: '8px', background: '#0a0f1d', border: '1px solid #4ade80', color: '#f8fafc' }}
+              />
+            </div>
           </div>
 
           {/* Live Letterhead Header Preview Box */}
           <div className="subtitle-live-preview-box" style={{ background: '#0a0f1d', padding: '14px 18px', borderRadius: '8px', border: '1px solid #1e293b' }}>
-            <span style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '6px' }}>
-              🔍 Live Letterhead Header Preview:
-            </span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+              <span style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                🔍 LIVE LETTERHEAD HEADER PREVIEW:
+              </span>
+              <span style={{ fontSize: '11px', color: '#4ade80', fontWeight: 600 }}>
+                ✉️ {(currentConfig?.contactEmail !== undefined && currentConfig?.contactEmail !== '') ? currentConfig.contactEmail : activeClub.email}
+              </span>
+            </div>
             <div style={{ textAlign: 'center', fontWeight: 600, fontSize: '12px', color: '#38bdf8', letterSpacing: '0.04em', textTransform: 'uppercase', lineHeight: '1.5' }}>
               {(currentConfig?.subtitle !== undefined && currentConfig?.subtitle !== '') ? currentConfig.subtitle : activeClub.subtitle}
             </div>
             <div style={{ height: '2px', background: activeClub.primaryColor || '#00d2ff', marginTop: '8px', opacity: 0.8, borderRadius: '2px' }}></div>
           </div>
 
-          <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-            <button
-              type="button"
-              className="btn-brand-reset"
-              onClick={() => {
-                if (isAWS) {
-                  onChangeAwsConfig(prev => ({ ...prev, subtitle: activeClub.subtitle }));
-                } else {
-                  onChangeTechnoConfig(prev => ({ ...prev, subtitle: activeClub.subtitle }));
-                }
-              }}
-              style={{ padding: '6px 14px', fontSize: '12px', borderRadius: '6px', cursor: 'pointer', background: '#1e293b', color: '#cbd5e1', border: '1px solid #334155' }}
-            >
-              🔄 Reset to Default Club Tagline
-            </button>
+          {/* ACTIONS ROW WITH SAVE BUTTON */}
+          <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              {subtitleSavedToast && (
+                <span style={{ color: '#4ade80', fontWeight: 600, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  ✅ Changes Saved Successfully!
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                className="btn-brand-reset"
+                onClick={() => {
+                  updateCurrentConfig(prev => ({ ...prev, subtitle: activeClub.subtitle, contactEmail: activeClub.email }));
+                }}
+                style={{ padding: '8px 16px', fontSize: '12.5px', borderRadius: '6px', cursor: 'pointer', background: '#1e293b', color: '#cbd5e1', border: '1px solid #334155' }}
+              >
+                🔄 Reset to Default Club Tagline & Email
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveCurrent}
+                disabled={isSavingToDb}
+                style={{
+                  padding: '8px 20px',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  boxShadow: '0 4px 12px rgba(2, 132, 199, 0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                {isSavingToDb ? '⏳ Saving...' : '💾 Save Chapter Subtitle & Email'}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -359,30 +456,30 @@ export default function BrandingSettings({
             onClick={handleSaveCurrent}
             disabled={isSavingToDb}
           >
-            {isSavingToDb ? '⏳ Saving...' : '💾 Save to MongoDB Compass'}
+            {isSavingToDb ? '⏳ Saving...' : `💾 Save Signatures to Database`}
           </button>
         </div>
 
         <div className="vault-grid">
           
-          {/* Signatory 1: Lead Organizer / President */}
+          {/* Signatory 1: Lead / Organizer */}
           <div className="vault-item-card">
             <div className="vault-item-header">
-              <span className="sig-role-badge">SIGNATORY 1</span>
-              <strong>{isAWS ? 'AWS SBG Leader / Organizer' : 'President & Lead Organizer'}</strong>
+              <span className="sig-role-badge lead-badge">SIGNATORY 1</span>
+              <strong>Club Lead / Organizer</strong>
             </div>
 
             <div className="vault-sig-preview">
               {currentOrganizerSig ? (
-                <img src={currentOrganizerSig} alt="Organizer Signature" className="vault-sig-img" />
+                <img src={currentOrganizerSig} alt="Club Lead Signature" className="vault-sig-img" />
               ) : (
-                <div className="sig-stylized">{currentConfig?.organizerName || activeClub.organizer?.name || 'Organizer'}</div>
+                <div className="sig-stylized">{currentConfig?.organizerName || activeClub.organizer?.name || 'Bhavik Patel'}</div>
               )}
             </div>
 
             <div className="vault-sig-meta">
-              <span>{currentConfig?.organizerName || activeClub.organizer?.name}</span>
-              <small>{currentConfig?.organizerTitle || activeClub.organizer?.title}</small>
+              <span>{currentConfig?.organizerName || activeClub.organizer?.name || 'Bhavik Patel'}</span>
+              <small>{currentConfig?.organizerTitle || activeClub.organizer?.title || 'Organizer / Lead'}</small>
             </div>
 
             <div className="vault-actions">
@@ -410,24 +507,24 @@ export default function BrandingSettings({
             </div>
           </div>
 
-          {/* Signatory 2: Advisor Section */}
-          <div className="vault-item-card highlight-advisor-card">
+          {/* Signatory 2: Faculty Advisor */}
+          <div className="vault-item-card">
             <div className="vault-item-header">
               <span className="sig-role-badge advisor-badge">SIGNATORY 2</span>
-              <strong>Advisor Section (Optional)</strong>
+              <strong>Faculty Advisor / Coordinator</strong>
             </div>
 
             <div className="vault-sig-preview">
               {currentAdvisorSig ? (
-                <img src={currentAdvisorSig} alt="Advisor Signature" className="vault-sig-img" />
+                <img src={currentAdvisorSig} alt="Faculty Advisor Signature" className="vault-sig-img" />
               ) : (
-                <div className="sig-stylized adv-sig">{currentConfig?.advisorName || activeClub.advisor?.name || 'Advisor'}</div>
+                <div className="sig-stylized fac-sig">{currentConfig?.advisorName || activeClub.advisor?.name || 'Prof. Bhumika Patel'}</div>
               )}
             </div>
 
             <div className="vault-sig-meta">
-              <span>{currentConfig?.advisorName || activeClub.advisor?.name || 'Advisor (Optional)'}</span>
-              <small>{currentConfig?.advisorTitle || activeClub.advisor?.title || 'Student Advisor'}</small>
+              <span>{currentConfig?.advisorName || activeClub.advisor?.name || 'Prof. Bhumika Patel'}</span>
+              <small>{currentConfig?.advisorTitle || activeClub.advisor?.title || 'Faculty Advisor'}</small>
             </div>
 
             <div className="vault-actions">
@@ -506,14 +603,14 @@ export default function BrandingSettings({
       {/* FOOTER SAVE BAR */}
       <div className="branding-bottom-bar">
         <div className="b-bottom-info">
-          <span>💾 All changes saved here will be stored in your local MongoDB instance (<strong>aws_sbg_itmbu.brandings</strong>) and automatically loaded into all letters.</span>
+          <span>💾 All changes saved here will be stored in your database and automatically loaded into all letters.</span>
         </div>
         <button
           className="btn-save-database-primary btn-large"
           onClick={handleSaveCurrent}
           disabled={isSavingToDb}
         >
-          {isSavingToDb ? '⏳ Saving to MongoDB...' : `💾 Save ${activeClub.shortName} Branding & Signatures to MongoDB Compass`}
+          {isSavingToDb ? '⏳ Saving to Database...' : `💾 Save ${activeClub.shortName} Branding & Signatures`}
         </button>
       </div>
 

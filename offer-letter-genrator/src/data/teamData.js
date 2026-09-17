@@ -82,6 +82,48 @@ export const CLUB_CONFIGS = {
       'Outreach & Event Operations',
       'Advisory & Mentors'
     ]
+  },
+  GDGOC: {
+    id: 'GDGOC',
+    name: 'Google Developer Groups on Campus (GDGoC)',
+    shortName: 'GDGoC ITMBU',
+    fullName: 'Google Developer Groups on Campus • ITM (sls) Baroda University',
+    institution: 'ITM (sls) BARODA UNIVERSITY',
+    location: 'Paldi, Near Jarod, Vadodara, Gujarat 391510',
+    email: 'gdgoc.itmbu@gmail.com',
+    primaryColor: '#4285F4',
+    accentColor: '#0F9D58',
+    badgeText: 'GDGoC',
+    themeGradient: 'linear-gradient(135deg, #4285F4 0%, #0F9D58 45%, #EA4335 100%)',
+    refPrefix: 'GDGOC/ITMBU/2026-27/JL',
+    subtitle: 'Official Google Developer Community Chapter • Department of Computer Science & Engineering',
+    stampText: '★ GDGoC ITMBU ★',
+    organizer: {
+      name: 'Bhavikkumar Patel',
+      title: 'GDGoC Community Lead / Organizer',
+      org: 'ITM (sls) Baroda University'
+    },
+    advisor: {
+      name: 'Vansham Kamboj',
+      title: 'Senior Community Advisor',
+      org: 'GDGoC ITMBU'
+    },
+    mentor: {
+      name: 'Dr. Pradeep Laxkar',
+      title: 'Faculty Advisor & Head CSE',
+      org: 'ITM (sls) Baroda University'
+    },
+    departments: [
+      'All',
+      'Core Leadership',
+      'Web Development Wing',
+      'Android & Flutter Wing',
+      'Cloud & DevOps Wing',
+      'AI & Machine Learning Wing',
+      'UI/UX & Creative Wing',
+      'Outreach & Event Operations',
+      'Faculty Mentors & Advisory'
+    ]
   }
 };
 
@@ -947,6 +989,146 @@ export const INITIAL_TEAM_DATA = [
     letterRefId: "TECHNO-LAB/ITMBU/2026-27/JL-FAC-01",
     responsibilities: [
       "Provide departmental patronage, research laboratory grants, and institutional academic guidance."
+    ]
+  },
+
+  // ==========================================
+  // GDGOC ITMBU (GOOGLE DEVELOPER GROUPS ON CAMPUS) MEMBERS
+  // ==========================================
+  {
+    _id: "gdgoc-lead-01",
+    organization: "GDGOC",
+    name: "Bhavikkumar Patel",
+    email: "bhavik.itmbu@gmail.com",
+    department: "Core Leadership",
+    roleType: "Organizer",
+    designation: "GDGoC Community Lead / Organizer",
+    isCoLead: false,
+    semester: "5",
+    branch: "B.Tech CSE",
+    letterRefId: "GDGOC/ITMBU/2026-27/JL-LEAD-01",
+    responsibilities: [
+      "Lead Google Developer Groups on Campus (GDGoC) chapter execution, developer workshops, and Google Solution Challenge hackathons.",
+      "Liaise with Google Developer Relations team and university leadership.",
+      "Mentor domain directors across Flutter, Cloud, Web, and Machine Learning tracks."
+    ]
+  },
+  {
+    _id: "gdgoc-web-01",
+    organization: "GDGOC",
+    name: "Aryan Patel",
+    email: "aryan.patel@itmbu.ac.in",
+    department: "Web Development Wing",
+    roleType: "Director",
+    designation: "Lead - Web Technologies & Angular/React",
+    isCoLead: false,
+    semester: "5",
+    branch: "B.Tech CSE",
+    letterRefId: "GDGOC/ITMBU/2026-27/JL-WEB-01",
+    responsibilities: [
+      "Conduct hands-on codelabs on modern Progressive Web Apps, Angular, React, and Firebase.",
+      "Maintain GDGoC chapter portal and open-source campus web applications."
+    ]
+  },
+  {
+    _id: "gdgoc-app-01",
+    organization: "GDGOC",
+    name: "Kavya Shah",
+    email: "kavya.shah@itmbu.ac.in",
+    department: "Android & Flutter Wing",
+    roleType: "Director",
+    designation: "Lead - Android & Flutter Development",
+    isCoLead: false,
+    semester: "5",
+    branch: "B.Tech CSE",
+    letterRefId: "GDGOC/ITMBU/2026-27/JL-APP-01",
+    responsibilities: [
+      "Direct Flutter and Kotlin Android application bootcamps and multi-platform app projects.",
+      "Lead participation in Google Developer Student Solution Challenge."
+    ]
+  },
+  {
+    _id: "gdgoc-cloud-01",
+    organization: "GDGOC",
+    name: "Yashvi Joshi",
+    email: "yashvi.joshi@itmbu.ac.in",
+    department: "Cloud & DevOps Wing",
+    roleType: "Director",
+    designation: "Lead - Google Cloud & DevOps",
+    isCoLead: false,
+    semester: "5",
+    branch: "B.Tech CSE",
+    letterRefId: "GDGOC/ITMBU/2026-27/JL-CLOUD-01",
+    responsibilities: [
+      "Organize Google Cloud Study Jams, Kubernetes masterclasses, and GCP certification drives.",
+      "Guide students on Cloud Functions, BigQuery, and Docker deployments."
+    ]
+  },
+  {
+    _id: "gdgoc-ai-01",
+    organization: "GDGOC",
+    name: "Devanshu Rathod",
+    email: "devanshu.r@itmbu.ac.in",
+    department: "AI & Machine Learning Wing",
+    roleType: "Director",
+    designation: "Lead - TensorFlow & Gemini AI",
+    isCoLead: false,
+    semester: "5",
+    branch: "B.Tech CSE (AI/ML)",
+    letterRefId: "GDGOC/ITMBU/2026-27/JL-AI-01",
+    responsibilities: [
+      "Host workshops on Google Gemini API, TensorFlow, Kaggle competitions, and Generative AI.",
+      "Spearhead AI projects tackling real-world sustainability and campus challenges."
+    ]
+  },
+  {
+    _id: "gdgoc-design-01",
+    organization: "GDGOC",
+    name: "Riddhi Parmar",
+    email: "riddhi.p@itmbu.ac.in",
+    department: "UI/UX & Creative Wing",
+    roleType: "Director",
+    designation: "Lead - UI/UX & Brand Creative",
+    isCoLead: false,
+    semester: "3",
+    branch: "B.Tech CSE",
+    letterRefId: "GDGOC/ITMBU/2026-27/JL-DES-01",
+    responsibilities: [
+      "Drive Google Material Design 3 guidelines compliance across all digital assets and badges.",
+      "Design interactive prototypes, Figma community kits, and event visual identities."
+    ]
+  },
+  {
+    _id: "gdgoc-pr-01",
+    organization: "GDGOC",
+    name: "Siddharth Dave",
+    email: "siddharth.d@itmbu.ac.in",
+    department: "Outreach & Event Operations",
+    roleType: "Associate Coordinator",
+    designation: "Associate Coordinator - Community & PR",
+    isCoLead: true,
+    semester: "3",
+    branch: "B.Tech CSE",
+    letterRefId: "GDGOC/ITMBU/2026-27/JL-PR-01",
+    responsibilities: [
+      "Oversee community registrations, social outreach, and cross-chapter collaborative hackathons.",
+      "Coordinate DevFest celebrations and tech talk speaker logistics."
+    ]
+  },
+  {
+    _id: "gdgoc-fac-01",
+    organization: "GDGOC",
+    name: "Dr. Pradeep Laxkar",
+    email: "pradeep.laxkar@itmbu.ac.in",
+    department: "Faculty Mentors & Advisory",
+    roleType: "Faculty Mentor",
+    designation: "Faculty Advisor & Head CSE",
+    isCoLead: false,
+    semester: "Faculty",
+    branch: "Department of CSE",
+    letterRefId: "GDGOC/ITMBU/2026-27/JL-FAC-01",
+    responsibilities: [
+      "Provide institutional faculty mentorship, academic alignment, and official endorsement for GDGoC initiatives."
     ]
   }
 ];

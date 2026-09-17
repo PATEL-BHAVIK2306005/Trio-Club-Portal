@@ -6,6 +6,7 @@ export default function LetterControls({
   config,
   clubConfig = CLUB_CONFIGS.AWS_SBG,
   onChangeConfig,
+  onSaveConfig,
   itmbuLogo,
   onUploadItmbuLogo,
   clubLogo,
@@ -23,7 +24,8 @@ export default function LetterControls({
   const advisorSigInputRef = useRef(null);
   const mentorSigInputRef = useRef(null);
 
-  const [activeTab, setActiveTab] = useState('fields'); // 'fields', 'signatures', 'branding'
+  const [activeTab, setActiveTab] = useState('fields'); // 'fields', 'signatures'
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   const handleFileUpload = (e, callback) => {
     const file = e.target.files[0];
@@ -36,7 +38,23 @@ export default function LetterControls({
     }
   };
 
+  const handleSave = () => {
+    if (onSaveConfig) {
+      onSaveConfig();
+    }
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 3000);
+  };
+
   const isAWS = clubConfig.id === 'AWS_SBG';
+  const isTechno = clubConfig.id === 'TECHNO_LAB';
+  const isGdgoc = clubConfig.id === 'GDGOC';
+
+  const getThemeClass = () => {
+    if (isAWS) return 'btn-aws-primary';
+    if (isTechno) return 'btn-techno-primary';
+    return 'btn-gdgoc-primary';
+  };
 
   return (
     <div className="controls-panel">
@@ -49,14 +67,29 @@ export default function LetterControls({
           </span>
         </div>
 
-        <div className="letter-header-actions">
+        <div className="letter-header-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {saveSuccess && (
+            <span style={{ color: '#4ade80', fontWeight: 600, fontSize: '12px', marginRight: '4px' }}>
+              ✅ Saved!
+            </span>
+          )}
+          <button
+            type="button"
+            className="btn-print-secondary"
+            onClick={handleSave}
+            title="Save letterhead customization to memory & cloud storage"
+            style={{ background: '#1e293b', border: '1px solid #334155', color: '#f8fafc', fontWeight: 600 }}
+          >
+            💾 Save Settings
+          </button>
           <button className="btn-print-secondary" onClick={onPrint} title="Quick print or standard system PDF dialog">
             🖨️ Print
           </button>
           <button 
-            className={`btn-print-primary ${isAWS ? 'btn-aws-primary' : 'btn-techno-primary'}`} 
+            className={`btn-print-primary ${getThemeClass()}`} 
             onClick={onDownloadPdf} 
             title="Download direct high-resolution Full HD PDF document"
+            style={isGdgoc ? { background: 'linear-gradient(135deg, #4285F4 0%, #0F9D58 100%)', color: '#fff' } : {}}
           >
             📥 Download FHD PDF
           </button>
@@ -69,7 +102,7 @@ export default function LetterControls({
           className={`control-tab-btn ${activeTab === 'fields' ? 'active' : ''}`}
           onClick={() => setActiveTab('fields')}
         >
-          📝 Letter Details
+          📝 Letter Details &amp; Contact Info
         </button>
         <button
           className={`control-tab-btn ${activeTab === 'signatures' ? 'active' : ''}`}
@@ -83,10 +116,12 @@ export default function LetterControls({
         
         {/* TAB 1: LETTER FIELDS */}
         {activeTab === 'fields' && (
-          <div className="fields-tab-container">
-            <div className="fields-notice-banner">
-              <span className="notice-icon">ℹ️</span>
-              <span><strong>Note:</strong> Member details (Designation, Wing, Reference Number) are managed in <strong>Team Management</strong>. Only <strong>Issue Date</strong> and <strong>Official Email ID</strong> are modified here for generation.</span>
+          <div className="fields-controls-container">
+            <div className="fields-section-info">
+              <span className="info-icon">ℹ️</span>
+              <p>
+                Edit the live letter attributes below. Fields marked with <strong>Live Editable</strong> will reflect instantly on the joining letter letterhead.
+              </p>
             </div>
 
             <div className="fields-grid">
@@ -113,9 +148,9 @@ export default function LetterControls({
                 </label>
                 <input
                   type="email"
-                  value={config.contactEmail || clubConfig.email}
+                  value={config.contactEmail !== undefined ? config.contactEmail : (clubConfig.email || '')}
                   onChange={(e) => onChangeConfig('contactEmail', e.target.value)}
-                  placeholder={isAWS ? 'aws.itmbu@gmail.com' : 'technolabclub25@gmail.com'}
+                  placeholder={clubConfig.email || 'chapter@itmbu.ac.in'}
                   className="form-input form-input-live-edit"
                 />
               </div>
@@ -138,12 +173,12 @@ export default function LetterControls({
               {/* EDITABLE 3: CHAPTER SUBTITLE / AFFILIATION */}
               <div className="form-group editable-highlight-group full-col">
                 <label className="field-label-editable">
-                  <span>🏷️ Letterhead Chapter Subtitle & Affiliation Line</span>
+                  <span>🏷️ Letterhead Chapter Subtitle &amp; Affiliation Line</span>
                   <span className="editable-pill-badge">✏️ Live Editable</span>
                 </label>
                 <input
                   type="text"
-                  value={config.subtitle !== undefined ? config.subtitle : clubConfig.subtitle}
+                  value={config.subtitle !== undefined ? config.subtitle : (clubConfig.subtitle || '')}
                   onChange={(e) => onChangeConfig('subtitle', e.target.value)}
                   placeholder={clubConfig.subtitle}
                   className="form-input form-input-live-edit"
@@ -194,7 +229,7 @@ export default function LetterControls({
                   readOnly
                   disabled
                   className="form-input form-input-locked"
-                  title="Department is edited in Team Management"
+                  title="Department is managed per team member"
                 />
               </div>
 
@@ -213,6 +248,35 @@ export default function LetterControls({
                   title="Academic tenure for official joining letters"
                 />
               </div>
+            </div>
+
+            {/* QUICK SAVE BAR */}
+            <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end', gap: '10px', alignItems: 'center' }}>
+              {saveSuccess && (
+                <span style={{ color: '#4ade80', fontWeight: 600, fontSize: '13px' }}>
+                  ✅ Letterhead Settings Saved!
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={handleSave}
+                style={{
+                  padding: '8px 18px',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  boxShadow: '0 4px 12px rgba(2, 132, 199, 0.4)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+              >
+                💾 Save Letterhead Configuration
+              </button>
             </div>
           </div>
         )}
@@ -246,7 +310,7 @@ export default function LetterControls({
                   value={config.organizerTitle ?? ''}
                   onChange={(e) => onChangeConfig('organizerTitle', e.target.value)}
                   className="form-input-sm"
-                  placeholder="e.g. AWS SBG Leader / Organizer"
+                  placeholder="e.g. Chapter Leader / Organizer"
                 />
               </div>
 
@@ -274,7 +338,7 @@ export default function LetterControls({
                   className="btn-upload-sm"
                   onClick={() => organizerSigInputRef.current.click()}
                 >
-                  {organizerSignatureImage ? '🔄 Change Signature' : '✍️ Upload Signature PNG'}
+                  {organizerSignatureImage ? '🔄 Change Signature' : '✍️ Upload Organizer Signature'}
                 </button>
                 {organizerSignatureImage && (
                   <button
@@ -288,43 +352,43 @@ export default function LetterControls({
               </div>
             </div>
 
-            {/* 2. ADVISOR SIGNATURE CARD (Advisor Section) */}
-            <div className="sig-control-card highlight-advisor-card">
+            {/* 2. Faculty Advisor Signature Card */}
+            <div className="sig-control-card">
               <div className="sig-card-header">
-                <span className="sig-role-badge advisor-badge">SIGNATORY 2 (ADVISOR)</span>
-                <strong>Advisor Section</strong>
+                <span className="sig-role-badge fac-badge">SIGNATORY 2</span>
+                <strong>Faculty Advisor</strong>
               </div>
 
               <div className="form-group-compact">
-                <label>Advisor Name</label>
+                <label>Faculty Advisor Name</label>
                 <input
                   type="text"
                   value={config.advisorName ?? ''}
                   onChange={(e) => onChangeConfig('advisorName', e.target.value)}
                   className="form-input-sm"
-                  placeholder="e.g. Vansham Kamboj / Mannan Chauhan"
+                  placeholder="e.g. Prof. Bhumika Patel"
                 />
               </div>
 
               <div className="form-group-compact">
-                <label>Advisor Title</label>
+                <label>Designation / Role</label>
                 <input
                   type="text"
                   value={config.advisorTitle ?? ''}
                   onChange={(e) => onChangeConfig('advisorTitle', e.target.value)}
                   className="form-input-sm"
-                  placeholder="e.g. Student Advisor / Mentor"
+                  placeholder="e.g. Faculty Advisor & Assistant Professor"
                 />
               </div>
 
               <div className="form-group-compact">
-                <label>Advisor Organization</label>
+                <label>Faculty Department</label>
                 <input
                   type="text"
                   value={config.advisorOrg ?? ''}
                   onChange={(e) => onChangeConfig('advisorOrg', e.target.value)}
                   className="form-input-sm"
-                  placeholder="e.g. AWS SBG ITMBU"
+                  placeholder="e.g. CSE & IT Department"
                 />
               </div>
 
@@ -358,8 +422,8 @@ export default function LetterControls({
             {/* 3. Faculty Mentor Signature Card */}
             <div className="sig-control-card">
               <div className="sig-card-header">
-                <span className="sig-role-badge mentor-badge">SIGNATORY 3</span>
-                <strong>Faculty Mentor</strong>
+                <span className="sig-role-badge fac-badge">SIGNATORY 3</span>
+                <strong>Faculty Mentor / Head</strong>
               </div>
 
               <div className="form-group-compact">
@@ -374,7 +438,7 @@ export default function LetterControls({
               </div>
 
               <div className="form-group-compact">
-                <label>Faculty Title</label>
+                <label>Designation / Title</label>
                 <input
                   type="text"
                   value={config.mentorTitle ?? ''}

@@ -28,6 +28,14 @@ export const SYSTEM_ROLES = {
     description: 'Full operational administration over Techno Lab roster, robotics/AI wing appointments, and letter issuance.',
     permissions: ['TECHNO_ROSTER_MANAGE', 'TECHNO_LETTER_GENERATE', 'TECHNO_BRANDING_EDIT', 'TECHNO_CSV_EXPORT']
   },
+  GDGOC_LEAD_ADMIN: {
+    id: 'GDGOC_LEAD_ADMIN',
+    title: 'GDGoC ITMBU Lead Organizer',
+    badge: '🌐 GDGoC Lead',
+    color: '#4285F4',
+    description: 'Full operational administration over Google Developer Groups on Campus ITMBU roster, tech wings, and letter issuance.',
+    permissions: ['GDGOC_ROSTER_MANAGE', 'GDGOC_LETTER_GENERATE', 'GDGOC_BRANDING_EDIT', 'GDGOC_CSV_EXPORT']
+  },
   EXECUTIVE_SECRETARY: {
     id: 'EXECUTIVE_SECRETARY',
     title: 'Executive Secretary & Records Keeper',
@@ -156,6 +164,8 @@ export default function SuperAdminConsole({
   currentUser,
   members = [],
   activeOrg = 'AWS_SBG',
+  visibleChapters = { AWS_SBG: true, TECHNO_LAB: true, GDGOC: true },
+  onToggleChapterVisibility,
   onSyncDatabase,
   onResetDatabase,
   onOpenPromoteModal,
@@ -167,8 +177,10 @@ export default function SuperAdminConsole({
   lastSyncTime = null,
   awsLetterConfig,
   technoLetterConfig,
+  gdgocLetterConfig,
   onChangeAwsConfig,
   onChangeTechnoConfig,
+  onChangeGdgocConfig,
   onSaveBranding
 }) {
   // Navigation tabs: 'users' | 'audit' | 'database' | 'governance' | 'security'
@@ -202,6 +214,7 @@ export default function SuperAdminConsole({
   const [govTenure, setGovTenure] = useState(awsLetterConfig?.tenure || 'Academic Year 2026 – 2027');
   const [govAwsPrefix, setGovAwsPrefix] = useState('AWS-SBG/ITMBU/2026-27/JL');
   const [govTechnoPrefix, setGovTechnoPrefix] = useState('TECHNO-LAB/ITMBU/2026-27/JL');
+  const [govGdgocPrefix, setGovGdgocPrefix] = useState('GDGOC/ITMBU/2026-27/JL');
   const [govMaintenanceMode, setGovMaintenanceMode] = useState(false);
   const [sessionTimeout, setSessionTimeout] = useState('30m');
 
@@ -396,10 +409,14 @@ export default function SuperAdminConsole({
     if (onChangeTechnoConfig) {
       onChangeTechnoConfig(prev => ({ ...prev, tenure: govTenure }));
     }
+    if (onChangeGdgocConfig) {
+      onChangeGdgocConfig(prev => ({ ...prev, tenure: govTenure }));
+    }
 
     if (onSaveBranding) {
       onSaveBranding('AWS_SBG');
       onSaveBranding('TECHNO_LAB');
+      onSaveBranding('GDGOC');
     }
 
     // Add to audit logs
@@ -409,7 +426,7 @@ export default function SuperAdminConsole({
         action: 'GOVERNANCE_SYNC',
         category: 'BRANDING',
         user: currentUser?.username || 'superadmin',
-        desc: `Updated global tenure to "${govTenure}" and synced prefixes across both chapters`,
+        desc: `Updated global tenure to "${govTenure}" and synced prefixes across chapters`,
         timestamp: new Date().toLocaleTimeString(),
         ip: '127.0.0.1'
       },
@@ -419,7 +436,7 @@ export default function SuperAdminConsole({
     Swal.fire({
       icon: 'success',
       title: 'Global Governance Synced!',
-      text: `Academic Tenure updated to "${govTenure}" across all dual-club letterheads and templates.`,
+      text: `Academic Tenure updated to "${govTenure}" across all official chapter letterheads and templates.`,
       background: '#101626',
       color: '#f8fafc',
       confirmButtonColor: '#10b981'
@@ -1115,18 +1132,132 @@ export default function SuperAdminConsole({
             )}
 
             {/* ======================================================== */}
-            {/* 4. DUAL-CLUB GLOBAL GOVERNANCE */}
+            {/* 4. TRIO-CLUB GLOBAL GOVERNANCE & VISIBILITY SWITCHES */}
             {/* ======================================================== */}
             {activeTab === 'governance' && (
               <div className="super-tab-view">
                 <div className="tab-view-header">
                   <div>
-                    <h3>🏛️ Dual-Club Global Governance & Tenure Settings</h3>
-                    <p>Configure universal academic tenure years, official letterhead numbering formats, and institutional seals.</p>
+                    <h3>🏛️ Trio-Club Global Governance & Chapter Visibility</h3>
+                    <p>Enable/disable chapter visibility in navbar/login, configure academic tenure, and update reference numbering series.</p>
                   </div>
                   <button className="super-btn-primary" onClick={handleSaveGovernance}>
                     💾 Save Governance Rules
                   </button>
+                </div>
+
+                {/* CHAPTER VISIBILITY SWITCHES MATRIX */}
+                <div style={{ background: '#0a0f1d', border: '1px solid #1e293b', borderRadius: '12px', padding: '20px', marginBottom: '25px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                    <div>
+                      <h4 style={{ margin: 0, color: '#f8fafc', fontSize: '15px' }}>🎛️ Official Chapter Visibility & Display Toggles</h4>
+                      <small style={{ color: '#94a3b8' }}>Turn ON/OFF visibility for portal navbar slider and student login. (Minimum 1 chapter must remain active).</small>
+                    </div>
+                    <span style={{ fontSize: '11px', background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', padding: '4px 10px', borderRadius: '12px', fontWeight: 600 }}>
+                      ⚡ Real-time Dynamic Filter
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px' }}>
+                    {/* CHAPTER 1: AWS SBG */}
+                    <div style={{ background: '#131b2e', border: visibleChapters.AWS_SBG ? '1px solid #ff9900' : '1px solid #23314a', borderRadius: '10px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span style={{ fontSize: '24px' }}>☁️</span>
+                        <div>
+                          <strong style={{ display: 'block', color: '#f8fafc', fontSize: '13.5px' }}>AWS SBG Chapter</strong>
+                          <span style={{ fontSize: '11px', color: visibleChapters.AWS_SBG ? '#ff9900' : '#64748b' }}>
+                            {visibleChapters.AWS_SBG ? '● Visible in Portal' : '○ Hidden'}
+                          </span>
+                        </div>
+                      </div>
+                      <label style={{ position: 'relative', display: 'inline-block', width: '46px', height: '24px', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={visibleChapters.AWS_SBG !== false}
+                          onChange={() => {
+                            if (onToggleChapterVisibility) onToggleChapterVisibility('AWS_SBG');
+                          }}
+                          style={{ opacity: 0, width: 0, height: 0 }}
+                        />
+                        <span style={{
+                          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                          backgroundColor: visibleChapters.AWS_SBG !== false ? '#ff9900' : '#334155',
+                          borderRadius: '24px', transition: '0.3s'
+                        }}>
+                          <span style={{
+                            position: 'absolute', content: '', height: '18px', width: '18px', left: visibleChapters.AWS_SBG !== false ? '24px' : '3px', bottom: '3px',
+                            backgroundColor: 'white', borderRadius: '50%', transition: '0.3s'
+                          }}></span>
+                        </span>
+                      </label>
+                    </div>
+
+                    {/* CHAPTER 2: TECHNO LAB */}
+                    <div style={{ background: '#131b2e', border: visibleChapters.TECHNO_LAB ? '1px solid #00d2ff' : '1px solid #23314a', borderRadius: '10px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span style={{ fontSize: '24px' }}>🔬</span>
+                        <div>
+                          <strong style={{ display: 'block', color: '#f8fafc', fontSize: '13.5px' }}>Techno Lab Club</strong>
+                          <span style={{ fontSize: '11px', color: visibleChapters.TECHNO_LAB ? '#00d2ff' : '#64748b' }}>
+                            {visibleChapters.TECHNO_LAB ? '● Visible in Portal' : '○ Hidden'}
+                          </span>
+                        </div>
+                      </div>
+                      <label style={{ position: 'relative', display: 'inline-block', width: '46px', height: '24px', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={visibleChapters.TECHNO_LAB !== false}
+                          onChange={() => {
+                            if (onToggleChapterVisibility) onToggleChapterVisibility('TECHNO_LAB');
+                          }}
+                          style={{ opacity: 0, width: 0, height: 0 }}
+                        />
+                        <span style={{
+                          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                          backgroundColor: visibleChapters.TECHNO_LAB !== false ? '#00d2ff' : '#334155',
+                          borderRadius: '24px', transition: '0.3s'
+                        }}>
+                          <span style={{
+                            position: 'absolute', content: '', height: '18px', width: '18px', left: visibleChapters.TECHNO_LAB !== false ? '24px' : '3px', bottom: '3px',
+                            backgroundColor: 'white', borderRadius: '50%', transition: '0.3s'
+                          }}></span>
+                        </span>
+                      </label>
+                    </div>
+
+                    {/* CHAPTER 3: GDGOC ITMBU */}
+                    <div style={{ background: '#131b2e', border: visibleChapters.GDGOC ? '1px solid #4285F4' : '1px solid #23314a', borderRadius: '10px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span style={{ fontSize: '24px' }}>🌐</span>
+                        <div>
+                          <strong style={{ display: 'block', color: '#f8fafc', fontSize: '13.5px' }}>GDGoC ITMBU</strong>
+                          <span style={{ fontSize: '11px', color: visibleChapters.GDGOC ? '#4285F4' : '#64748b' }}>
+                            {visibleChapters.GDGOC ? '● Visible in Portal' : '○ Hidden'}
+                          </span>
+                        </div>
+                      </div>
+                      <label style={{ position: 'relative', display: 'inline-block', width: '46px', height: '24px', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={visibleChapters.GDGOC !== false}
+                          onChange={() => {
+                            if (onToggleChapterVisibility) onToggleChapterVisibility('GDGOC');
+                          }}
+                          style={{ opacity: 0, width: 0, height: 0 }}
+                        />
+                        <span style={{
+                          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                          backgroundColor: visibleChapters.GDGOC !== false ? '#4285F4' : '#334155',
+                          borderRadius: '24px', transition: '0.3s'
+                        }}>
+                          <span style={{
+                            position: 'absolute', content: '', height: '18px', width: '18px', left: visibleChapters.GDGOC !== false ? '24px' : '3px', bottom: '3px',
+                            backgroundColor: 'white', borderRadius: '50%', transition: '0.3s'
+                          }}></span>
+                        </span>
+                      </label>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="gov-form-grid">
@@ -1140,7 +1271,7 @@ export default function SuperAdminConsole({
                       onChange={(e) => setGovTenure(e.target.value)}
                       placeholder="e.g. Academic Year 2026 – 2027"
                     />
-                    <small>This tenure string is automatically inserted across all AWS SBG & Techno Lab letters.</small>
+                    <small>This tenure string is automatically inserted across all official letters.</small>
                   </div>
 
                   <div className="gov-field-group">
@@ -1166,6 +1297,17 @@ export default function SuperAdminConsole({
                   </div>
 
                   <div className="gov-field-group">
+                    <label>🌐 GDGoC ITMBU Reference Number Prefix Formula</label>
+                    <input
+                      type="text"
+                      className="super-input"
+                      value={govGdgocPrefix}
+                      onChange={(e) => setGovGdgocPrefix(e.target.value)}
+                    />
+                    <small>Default: <code>GDGOC/ITMBU/2026-27/JL</code></small>
+                  </div>
+
+                  <div className="gov-field-group">
                     <label>🏫 University Institution Name (Header Title)</label>
                     <input
                       type="text"
@@ -1174,7 +1316,7 @@ export default function SuperAdminConsole({
                       readOnly
                       disabled
                     />
-                    <small>Vadodara, Gujarat &bull; CSE & IT Department</small>
+                    <small>Vadodara, Gujarat • CSE & IT Department</small>
                   </div>
 
                 </div>

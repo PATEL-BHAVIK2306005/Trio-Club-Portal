@@ -3,9 +3,13 @@ import { CLUB_CONFIGS } from '../data/teamData';
 import { registerSupabaseUser } from '../services/supabaseService';
 import Swal from 'sweetalert2';
 
-export default function AuthScreen({ onLogin }) {
+export default function AuthScreen({ onLogin, visibleChapters = { AWS_SBG: true, TECHNO_LAB: true, GDGOC: true } }) {
   const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
-  const [selectedSection, setSelectedSection] = useState('AWS_SBG'); // 'AWS_SBG' or 'TECHNO_LAB'
+  
+  // Available chapters based on visibility matrix
+  const availableChapters = Object.keys(CLUB_CONFIGS).filter(key => visibleChapters[key] !== false);
+  const initialChapter = availableChapters[0] || 'AWS_SBG';
+  const [selectedSection, setSelectedSection] = useState(initialChapter);
   
   // Login State
   const [username, setUsername] = useState('');
@@ -21,7 +25,7 @@ export default function AuthScreen({ onLogin }) {
   const [regSemester, setRegSemester] = useState('3');
   const [isRegistering, setIsRegistering] = useState(false);
 
-  const activeClub = CLUB_CONFIGS[selectedSection];
+  const activeClub = CLUB_CONFIGS[selectedSection] || CLUB_CONFIGS.AWS_SBG;
 
   const handleLoginFormSubmit = (e) => {
     e.preventDefault();
@@ -55,7 +59,7 @@ export default function AuthScreen({ onLogin }) {
       username: username.trim(),
       role: effectiveRole,
       organization: selectedSection,
-      allowedOrgs: effectiveRole === 'SUPER_ADMIN' ? ['AWS_SBG', 'TECHNO_LAB'] : [selectedSection],
+      allowedOrgs: effectiveRole === 'SUPER_ADMIN' ? ['AWS_SBG', 'TECHNO_LAB', 'GDGOC'] : [selectedSection],
       displayName: displayName,
       loginTime: new Date().toISOString()
     };
@@ -99,34 +103,38 @@ export default function AuthScreen({ onLogin }) {
           icon: 'success',
           title: 'Registration Successful!',
           html: `
-            <div style="text-align: left; font-size: 14px; line-height: 1.6;">
-              <p>Welcome <b>${regName}</b> to <b>${activeClub.name}</b>!</p>
-              <div style="background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 8px; padding: 10px 14px; margin: 12px 0;">
-                <p style="margin: 0; color: #0284c7; font-weight: 700;">📧 Confirmation Email Dispatched:</p>
-                <p style="margin: 4px 0 0 0; color: #334155;">A verification email has been sent to <b>${regEmail}</b> via Supabase Email Service.</p>
-              </div>
-              <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 10px 14px;">
-                <p style="margin: 0; color: #b45309; font-weight: 700;">👥 Role: General Member</p>
-                <p style="margin: 4px 0 0 0; color: #334155;">Your profile is enrolled as a <b>General Member</b>. Club Organizers & Associate Coordinators will review and promote you to elevated leadership/core roles & generate your official appointment letter.</p>
-              </div>
+            <div style="text-align: left; font-size: 14px; color: #cbd5e1; line-height: 1.6;">
+              <p>Welcome to <strong>${activeClub.name}</strong>, <b>${regName}</b>!</p>
+              <p>Your student profile has been registered in the official ITMBU database. You can now log in using your email.</p>
             </div>
           `,
-          confirmButtonColor: selectedSection === 'AWS_SBG' ? '#ff9900' : '#00d2ff',
-          confirmButtonText: 'Proceed to Sign In'
+          background: '#101626',
+          color: '#f8fafc',
+          confirmButtonColor: '#10b981',
+          confirmButtonText: 'Proceed to Sign In 🔑'
         }).then(() => {
-          setAuthMode('login');
           setUsername(regEmail.trim());
           setRole('MEMBER');
+          setAuthMode('login');
         });
+      } else {
+        setErrorMsg(result.message || 'Registration failed. Please try again.');
       }
     } catch (err) {
       setIsRegistering(false);
-      setErrorMsg(`Registration failed: ${err.message || 'Please try again.'}`);
+      setErrorMsg(err.message || 'An error occurred during registration.');
     }
   };
 
+
+  const getBannerClass = (orgId) => {
+    if (orgId === 'AWS_SBG') return 'banner-aws';
+    if (orgId === 'TECHNO_LAB') return 'banner-techno';
+    return 'banner-gdgoc';
+  };
+
   return (
-    <div className="auth-screen-wrapper">
+    <div className="auth-wrapper">
       {/* Background ambient lighting effects */}
       <div className="auth-bg-glow glow-1"></div>
       <div className="auth-bg-glow glow-2"></div>
@@ -139,49 +147,55 @@ export default function AuthScreen({ onLogin }) {
           <p className="crest-sub">Official Core Team Joining Letter & Administration Portal</p>
         </div>
 
-        {/* SECTION SELECTION SLIDER */}
+        {/* SECTION SELECTION BUTTONS */}
         <div className="section-slider-wrapper">
           <label className="slider-label">SELECT CHAPTER / SECTION TO ACCESS</label>
-          <div className="section-slider-pill">
-            <button
-              type="button"
-              className={`slider-option ${selectedSection === 'AWS_SBG' ? 'active-aws' : ''}`}
-              onClick={() => {
-                setSelectedSection('AWS_SBG');
-                setErrorMsg('');
-              }}
-            >
-              <span className="slider-icon">☁️</span>
-              <span className="slider-text">AWS Student Chapter</span>
-            </button>
-
-            <button
-              type="button"
-              className={`slider-option ${selectedSection === 'TECHNO_LAB' ? 'active-techno' : ''}`}
-              onClick={() => {
-                setSelectedSection('TECHNO_LAB');
-                setErrorMsg('');
-              }}
-            >
-              <span className="slider-icon">🔬</span>
-              <span className="slider-text">Techno Lab Chapter</span>
-            </button>
-
-            {/* Animated Slider Glider */}
-            <div
-              className={`slider-glider ${selectedSection === 'TECHNO_LAB' ? 'glider-right' : 'glider-left'}`}
-            ></div>
+          <div style={{ display: 'grid', gridTemplateColumns: `repeat(${availableChapters.length}, 1fr)`, gap: '8px', background: '#0a0f1d', padding: '6px', borderRadius: '12px', border: '1px solid #1e293b' }}>
+            {availableChapters.map(orgKey => {
+              const club = CLUB_CONFIGS[orgKey];
+              const isSelected = selectedSection === orgKey;
+              return (
+                <button
+                  key={orgKey}
+                  type="button"
+                  onClick={() => {
+                    setSelectedSection(orgKey);
+                    setErrorMsg('');
+                  }}
+                  style={{
+                    padding: '10px 8px',
+                    borderRadius: '8px',
+                    border: isSelected ? `1px solid ${club.primaryColor || '#38bdf8'}` : '1px solid transparent',
+                    background: isSelected ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
+                    color: isSelected ? '#ffffff' : '#94a3b8',
+                    fontWeight: 700,
+                    fontSize: '12.5px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '4px',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <span style={{ fontSize: '18px' }}>
+                    {orgKey === 'AWS_SBG' ? '☁️' : (orgKey === 'TECHNO_LAB' ? '🔬' : '🌐')}
+                  </span>
+                  <span>{club.shortName}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
         {/* Selected Club Badge Banner */}
-        <div className={`active-club-badge-banner ${selectedSection === 'AWS_SBG' ? 'banner-aws' : 'banner-techno'}`}>
-          <div className="banner-logo-tag">
-            {selectedSection === 'AWS_SBG' ? 'AWS' : 'TECHNO'}
+        <div className={`active-club-badge-banner ${getBannerClass(selectedSection)}`} style={{ borderColor: activeClub.primaryColor }}>
+          <div className="banner-logo-tag" style={{ background: activeClub.primaryColor }}>
+            {activeClub.shortName}
           </div>
           <div className="banner-text-details">
             <h4>{activeClub.name}</h4>
-            <span>Official Student Community &bull; {activeClub.email}</span>
+            <span>Official Student Community • {activeClub.email}</span>
           </div>
         </div>
 
@@ -224,34 +238,33 @@ export default function AuthScreen({ onLogin }) {
               transition: 'all 0.2s ease'
             }}
           >
-            📝 Register New Member
+            ✨ Register New Student
           </button>
         </div>
 
-        {/* Error Alert */}
         {errorMsg && (
-          <div className="auth-error-box">
-            <span>⚠️ {errorMsg}</span>
+          <div className="auth-error-banner" style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid #ef4444', color: '#fca5a5', padding: '10px 14px', borderRadius: '8px', marginBottom: '16px', fontSize: '13px' }}>
+            ⚠️ {errorMsg}
           </div>
         )}
 
-        {/* 1. LOGIN FORM */}
-        {authMode === 'login' ? (
-          <form onSubmit={handleLoginFormSubmit} className="auth-login-form">
-            <div className="form-group-auth">
-              <label>Username / Official Email</label>
+        {/* 1. SIGN IN FORM */}
+        {authMode === 'login' && (
+          <form className="auth-form" onSubmit={handleLoginFormSubmit}>
+            <div className="auth-form-group">
+              <label>Username / Registered Email *</label>
               <input
                 type="text"
                 className="auth-input"
-                placeholder={selectedSection === 'AWS_SBG' ? 'e.g. superadmin, bhavik.itmbu@gmail.com, or aws.organizer' : 'e.g. superadmin, bhavik.itmbu@gmail.com, or technolab.lead'}
+                placeholder="e.g. superadmin or bhavik.itmbu@gmail.com"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                autoFocus
+                required
               />
             </div>
 
-            <div className="form-group-auth">
-              <label>Security Password</label>
+            <div className="auth-form-group">
+              <label>Password *</label>
               <input
                 type="password"
                 className="auth-input"
@@ -261,159 +274,144 @@ export default function AuthScreen({ onLogin }) {
               />
             </div>
 
-            <div className="role-selector-row">
-              <span className="role-label">Access Role Authority:</span>
-              <div className="role-options-group" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
-                <label className={`role-pill-label ${role === 'ORGANIZER' ? 'selected' : ''}`}>
-                  <input
-                    type="radio"
-                    name="userRole"
-                    value="ORGANIZER"
-                    checked={role === 'ORGANIZER'}
-                    onChange={() => setRole('ORGANIZER')}
-                  />
-                  <span>🚀 Lead Organizer</span>
-                </label>
-
-                <label className={`role-pill-label ${role === 'CO_LEAD' ? 'selected' : ''}`}>
-                  <input
-                    type="radio"
-                    name="userRole"
-                    value="CO_LEAD"
-                    checked={role === 'CO_LEAD'}
-                    onChange={() => setRole('CO_LEAD')}
-                  />
-                  <span>⭐ Associate Coordinator</span>
-                </label>
-
-                <label className={`role-pill-label ${role === 'ADMIN' ? 'selected' : ''}`}>
-                  <input
-                    type="radio"
-                    name="userRole"
-                    value="ADMIN"
-                    checked={role === 'ADMIN'}
-                    onChange={() => setRole('ADMIN')}
-                  />
-                  <span>🛡️ Section Admin</span>
-                </label>
-
-                <label className={`role-pill-label ${role === 'SUPER_ADMIN' ? 'selected-super' : ''}`}>
-                  <input
-                    type="radio"
-                    name="userRole"
-                    value="SUPER_ADMIN"
-                    checked={role === 'SUPER_ADMIN'}
-                    onChange={() => setRole('SUPER_ADMIN')}
-                  />
-                  <span>👑 Super Admin</span>
-                </label>
-              </div>
+            <div className="auth-form-group">
+              <label>Access Role / Privilege Level</label>
+              <select
+                className="auth-select"
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+              >
+                <option value="SUPER_ADMIN">👑 Super Admin (Universal Master - All Chapters)</option>
+                <option value="ORGANIZER">🎖️ Chapter Lead / Organizer</option>
+                <option value="CO_LEAD">⭐ Associate Coordinator</option>
+                <option value="ADMIN">🛡️ Core Administrative Wing</option>
+                <option value="MEMBER">🎓 Registered Student / General Member</option>
+              </select>
             </div>
 
-            <button
-              type="submit"
-              className={`btn-auth-submit ${selectedSection === 'AWS_SBG' ? 'btn-aws' : 'btn-techno'}`}
-            >
-              🔒 Secure Login to {activeClub.shortName} Portal
+            <button type="submit" className="btn-auth-submit" style={{ background: activeClub.primaryColor || '#0284c7' }}>
+              🚀 Launch {activeClub.shortName} Portal
             </button>
           </form>
-        ) : (
-          /* 2. REGISTRATION FORM FOR NEW USERS */
-          <form onSubmit={handleRegisterSubmit} className="auth-login-form">
-            <div className="form-group-auth">
-              <label>Full Student Name *</label>
+        )}
+
+        {/* 2. REGISTRATION FORM */}
+        {authMode === 'register' && (
+          <form className="auth-form" onSubmit={handleRegisterSubmit}>
+            <div className="auth-form-group">
+              <label>Full Name *</label>
               <input
                 type="text"
                 className="auth-input"
-                placeholder="e.g. Priya Sharma"
+                placeholder="e.g. Bhavikkumar Patel"
                 value={regName}
                 onChange={(e) => setRegName(e.target.value)}
                 required
-                autoFocus
               />
             </div>
 
-            <div className="form-group-auth">
-              <label>Student Email Address *</label>
+            <div className="auth-form-group">
+              <label>Student Email ID (@itmbu.ac.in or personal) *</label>
               <input
                 type="email"
                 className="auth-input"
-                placeholder="e.g. priya.sharma@itmbu.ac.in"
+                placeholder="e.g. bhavik.itmbu@gmail.com"
                 value={regEmail}
                 onChange={(e) => setRegEmail(e.target.value)}
                 required
               />
-              <small style={{ color: '#94a3b8', fontSize: '11px', marginTop: '4px', display: 'block' }}>
-                ✉️ Supabase Email Service will dispatch an account verification message.
-              </small>
             </div>
 
-            <div className="form-group-auth">
-              <label>Create Account Password *</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div className="auth-form-group">
+                <label>Branch / Degree *</label>
+                <select
+                  className="auth-select"
+                  value={regBranch}
+                  onChange={(e) => setRegBranch(e.target.value)}
+                >
+                  <option value="B.Tech CSE">B.Tech CSE</option>
+                  <option value="B.Tech IT">B.Tech IT</option>
+                  <option value="B.Tech AI &amp; DS">B.Tech AI &amp; DS</option>
+                  <option value="B.Tech Cyber Security">B.Tech Cyber Security</option>
+                  <option value="BCA / MCA">BCA / MCA</option>
+                  <option value="Diploma Engineering">Diploma Engineering</option>
+                </select>
+              </div>
+
+              <div className="auth-form-group">
+                <label>Semester *</label>
+                <select
+                  className="auth-select"
+                  value={regSemester}
+                  onChange={(e) => setRegSemester(e.target.value)}
+                >
+                  <option value="1">1st Semester</option>
+                  <option value="2">2nd Semester</option>
+                  <option value="3">3rd Semester</option>
+                  <option value="4">4th Semester</option>
+                  <option value="5">5th Semester</option>
+                  <option value="6">6th Semester</option>
+                  <option value="7">7th Semester</option>
+                  <option value="8">8th Semester</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="auth-form-group">
+              <label>Set Password (Min 6 chars) *</label>
               <input
                 type="password"
                 className="auth-input"
-                placeholder="Minimum 6 characters"
+                placeholder="Create secure password"
                 value={regPassword}
                 onChange={(e) => setRegPassword(e.target.value)}
                 required
               />
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <div className="form-group-auth">
-                <label>Branch / Program</label>
-                <input
-                  type="text"
-                  className="auth-input"
-                  value={regBranch}
-                  onChange={(e) => setRegBranch(e.target.value)}
-                  placeholder="e.g. B.Tech CSE"
-                />
-              </div>
-
-              <div className="form-group-auth">
-                <label>Current Semester</label>
-                <select
-                  className="auth-input"
-                  value={regSemester}
-                  onChange={(e) => setRegSemester(e.target.value)}
-                >
-                  <option value="1">Semester 1</option>
-                  <option value="2">Semester 2</option>
-                  <option value="3">Semester 3</option>
-                  <option value="4">Semester 4</option>
-                  <option value="5">Semester 5</option>
-                  <option value="6">Semester 6</option>
-                  <option value="7">Semester 7</option>
-                  <option value="8">Semester 8</option>
-                </select>
-              </div>
-            </div>
-
-            <div style={{ background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: '8px', padding: '10px 14px', margin: '4px 0 12px 0' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#10b981', fontWeight: 700, fontSize: '12px' }}>
-                <span>ℹ️</span>
-                <span>Automatic Role Assignment: General Member</span>
-              </div>
-              <p style={{ margin: '4px 0 0 0', color: '#94a3b8', fontSize: '11.5px', lineHeight: 1.4 }}>
-                New accounts register as <b>General Member</b> (Pending Promotion). Club Organizers and Associate Coordinators will evaluate contributions and promote you to Core Team Member, Club Head, or Coordinator roles.
-              </p>
-            </div>
-
             <button
               type="submit"
+              className="btn-auth-submit"
               disabled={isRegistering}
-              className={`btn-auth-submit ${selectedSection === 'AWS_SBG' ? 'btn-aws' : 'btn-techno'}`}
+              style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}
             >
-              {isRegistering ? '⏳ Registering & Dispatching Email...' : `🚀 Register for ${activeClub.shortName}`}
+              {isRegistering ? '⏳ Registering in Cloud Database...' : `✨ Complete ${activeClub.shortName} Registration`}
             </button>
           </form>
         )}
 
-        {/* Footer Info */}
-        <div className="auth-footer-note">
-          <span>ITM (sls) Baroda University &bull; Universal Student Portal &bull; {selectedSection === 'AWS_SBG' ? 'aws.itmbu@gmail.com' : 'technolabclub25@gmail.com'}</span>
+        {/* Quick Demo Logins Helper */}
+        <div className="demo-credentials-box">
+          <div className="demo-header">
+            <span>💡 Quick Test Credentials:</span>
+          </div>
+          <div className="demo-chips">
+            <button
+              type="button"
+              className="demo-chip chip-super"
+              onClick={() => {
+                setUsername('superadmin');
+                setPassword('admin123');
+                setRole('SUPER_ADMIN');
+                setAuthMode('login');
+              }}
+            >
+              👑 Super Admin (All Chapters)
+            </button>
+            <button
+              type="button"
+              className="demo-chip chip-lead"
+              onClick={() => {
+                setUsername(selectedSection === 'AWS_SBG' ? 'bhavik.lead' : (selectedSection === 'TECHNO_LAB' ? 'vansham.lead' : 'harshil.lead'));
+                setPassword('lead123');
+                setRole('ORGANIZER');
+                setAuthMode('login');
+              }}
+            >
+              🎖️ {activeClub.shortName} Lead
+            </button>
+          </div>
         </div>
 
       </div>

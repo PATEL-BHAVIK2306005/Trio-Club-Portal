@@ -38,7 +38,13 @@ function App() {
     return saved ? JSON.parse(saved) : null;
   });
 
-  // Active Organization / Section: 'AWS_SBG' or 'TECHNO_LAB'
+  // Chapter Visibility Matrix (Super Admin controlled, synced with localStorage)
+  const [visibleChapters, setVisibleChapters] = useState(() => {
+    const saved = localStorage.getItem('visible_chapters');
+    return saved ? JSON.parse(saved) : { AWS_SBG: true, TECHNO_LAB: true, GDGOC: true };
+  });
+
+  // Active Organization / Section: 'AWS_SBG' | 'TECHNO_LAB' | 'GDGOC'
   const [activeOrg, setActiveOrg] = useState(() => {
     const saved = localStorage.getItem('offer_gen_user');
     if (saved) {
@@ -67,6 +73,12 @@ function App() {
   const [technoOrganizerSig, setTechnoOrganizerSig] = useState(() => localStorage.getItem('techno_organizer_sig') || null);
   const [technoAdvisorSig, setTechnoAdvisorSig] = useState(() => localStorage.getItem('techno_advisor_sig') || null);
   const [technoMentorSig, setTechnoMentorSig] = useState(() => localStorage.getItem('techno_mentor_sig') || null);
+
+  // GDGoC ITMBU Branding & Signatures State
+  const [gdgocClubLogo, setGdgocClubLogo] = useState(() => localStorage.getItem('gdgoc_club_logo') || null);
+  const [gdgocOrganizerSig, setGdgocOrganizerSig] = useState(() => localStorage.getItem('gdgoc_organizer_sig') || null);
+  const [gdgocAdvisorSig, setGdgocAdvisorSig] = useState(() => localStorage.getItem('gdgoc_advisor_sig') || null);
+  const [gdgocMentorSig, setGdgocMentorSig] = useState(() => localStorage.getItem('gdgoc_mentor_sig') || null);
 
   // Letter Config State per Club
   const [awsLetterConfig, setAwsLetterConfig] = useState(() => {
@@ -109,6 +121,26 @@ function App() {
     };
   });
 
+  const [gdgocLetterConfig, setGdgocLetterConfig] = useState(() => {
+    const club = CLUB_CONFIGS.GDGOC || { email: 'gdgoc.itmbu@gmail.com', subtitle: 'Google Developer Groups on Campus • ITM (sls) Baroda University Chapter' };
+    return {
+      issueDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+      tenure: 'Academic Year 2026 – 2027',
+      letterRefId: '',
+      contactEmail: club.email,
+      subtitle: club.subtitle || 'Google Developer Groups on Campus • ITM (sls) Baroda University Chapter',
+      organizerName: club.organizer?.name || 'Harshil Vaghela',
+      organizerTitle: club.organizer?.title || 'GDGoC Campus Lead / Organizer',
+      organizerOrg: club.organizer?.org || 'ITM (sls) Baroda University',
+      advisorName: club.advisor?.name || 'Prof. Bhumika Patel',
+      advisorTitle: club.advisor?.title || 'Faculty Advisor & Mentor',
+      advisorOrg: club.advisor?.org || 'CSE & IT Department',
+      mentorName: club.mentor?.name || 'Dr. Pradeep Laxkar',
+      mentorTitle: club.mentor?.title || 'Faculty Mentor / Head',
+      mentorOrg: club.mentor?.org || 'ITM (sls) Baroda University'
+    };
+  });
+
   // Dynamic Departments State per Club
   const [awsDepartments, setAwsDepartments] = useState(() => {
     const saved = localStorage.getItem('aws_departments');
@@ -118,6 +150,11 @@ function App() {
   const [technoDepartments, setTechnoDepartments] = useState(() => {
     const saved = localStorage.getItem('techno_departments');
     return saved ? JSON.parse(saved) : (CLUB_CONFIGS.TECHNO_LAB.departments || []);
+  });
+
+  const [gdgocDepartments, setGdgocDepartments] = useState(() => {
+    const saved = localStorage.getItem('gdgoc_departments');
+    return saved ? JSON.parse(saved) : (CLUB_CONFIGS.GDGOC?.departments || []);
   });
 
   // Modals & Print State
@@ -137,13 +174,41 @@ function App() {
   // Active Club Configuration & Dynamic Props
   const activeClub = CLUB_CONFIGS[activeOrg] || CLUB_CONFIGS.AWS_SBG;
   const isAWS = activeOrg === 'AWS_SBG';
+  const isTechno = activeOrg === 'TECHNO_LAB';
+  const isGdgoc = activeOrg === 'GDGOC';
 
-  const activeClubLogo = isAWS ? awsClubLogo : technoClubLogo;
-  const activeOrganizerSig = isAWS ? awsOrganizerSig : technoOrganizerSig;
-  const activeAdvisorSig = isAWS ? awsAdvisorSig : technoAdvisorSig;
-  const activeMentorSig = isAWS ? awsMentorSig : technoMentorSig;
-  const activeLetterConfig = isAWS ? awsLetterConfig : technoLetterConfig;
-  const activeDepartments = isAWS ? awsDepartments : technoDepartments;
+  const activeClubLogo = isAWS ? awsClubLogo : (isTechno ? technoClubLogo : gdgocClubLogo);
+  const activeOrganizerSig = isAWS ? awsOrganizerSig : (isTechno ? technoOrganizerSig : gdgocOrganizerSig);
+  const activeAdvisorSig = isAWS ? awsAdvisorSig : (isTechno ? technoAdvisorSig : gdgocAdvisorSig);
+  const activeMentorSig = isAWS ? awsMentorSig : (isTechno ? technoMentorSig : gdgocMentorSig);
+  const activeLetterConfig = isAWS ? awsLetterConfig : (isTechno ? technoLetterConfig : gdgocLetterConfig);
+  const activeDepartments = isAWS ? awsDepartments : (isTechno ? technoDepartments : gdgocDepartments);
+
+  // Toggle Chapter Visibility (Super Admin)
+  const handleToggleChapterVisibility = (orgKey) => {
+    const nextVal = !visibleChapters[orgKey];
+    const newVisible = { ...visibleChapters, [orgKey]: nextVal };
+    const activeCount = Object.values(newVisible).filter(Boolean).length;
+    if (activeCount < 1) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Minimum 1 Chapter Required',
+        text: 'At least 1 official chapter must remain visible in the portal!',
+        background: '#101626',
+        color: '#f8fafc',
+        confirmButtonColor: '#ff9900'
+      });
+      return;
+    }
+    setVisibleChapters(newVisible);
+    localStorage.setItem('visible_chapters', JSON.stringify(newVisible));
+    if (!nextVal && activeOrg === orgKey) {
+      const remainingKey = Object.keys(newVisible).find(k => newVisible[k]);
+      if (remainingKey) {
+        handleSwitchOrg(remainingKey);
+      }
+    }
+  };
 
   // Real-time dynamic active member computed from latest members state
   const currentActiveMember = members.find(m => (
@@ -195,6 +260,22 @@ function App() {
             localStorage.setItem('techno_departments', JSON.stringify(item.config.departments));
           }
         }
+      } else if (item.organization === 'GDGOC') {
+        const cLogo = item.club_logo || item.clubLogo;
+        const orgSig = item.organizer_signature || item.organizerSignatureImage;
+        const advSig = item.advisor_signature || item.advisorSignatureImage;
+        const menSig = item.mentor_signature || item.mentorSignatureImage;
+        if (cLogo) { setGdgocClubLogo(cLogo); localStorage.setItem('gdgoc_club_logo', cLogo); }
+        if (orgSig) { setGdgocOrganizerSig(orgSig); localStorage.setItem('gdgoc_organizer_sig', orgSig); }
+        if (advSig) { setGdgocAdvisorSig(advSig); localStorage.setItem('gdgoc_advisor_sig', advSig); }
+        if (menSig) { setGdgocMentorSig(menSig); localStorage.setItem('gdgoc_mentor_sig', menSig); }
+        if (item.config) {
+          setGdgocLetterConfig(prev => ({ ...prev, ...item.config }));
+          if (item.config.departments && Array.isArray(item.config.departments)) {
+            setGdgocDepartments(item.config.departments);
+            localStorage.setItem('gdgoc_departments', JSON.stringify(item.config.departments));
+          }
+        }
       }
     });
   }, []);
@@ -216,7 +297,7 @@ function App() {
           config: { ...awsLetterConfig, departments: nextDepts }
         });
       } catch (e) {}
-    } else {
+    } else if (orgKey === 'TECHNO_LAB') {
       nextDepts = [...technoDepartments, deptName];
       setTechnoDepartments(nextDepts);
       localStorage.setItem('techno_departments', JSON.stringify(nextDepts));
@@ -228,6 +309,20 @@ function App() {
           advisorSignatureImage: technoAdvisorSig,
           mentorSignatureImage: technoMentorSig,
           config: { ...technoLetterConfig, departments: nextDepts }
+        });
+      } catch (e) {}
+    } else {
+      nextDepts = [...gdgocDepartments, deptName];
+      setGdgocDepartments(nextDepts);
+      localStorage.setItem('gdgoc_departments', JSON.stringify(nextDepts));
+      try {
+        await saveSupabaseBranding('GDGOC', {
+          itmbuLogo,
+          clubLogo: gdgocClubLogo,
+          organizerSignatureImage: gdgocOrganizerSig,
+          advisorSignatureImage: gdgocAdvisorSig,
+          mentorSignatureImage: gdgocMentorSig,
+          config: { ...gdgocLetterConfig, departments: nextDepts }
         });
       } catch (e) {}
     }
@@ -250,7 +345,7 @@ function App() {
           config: { ...awsLetterConfig, departments: nextDepts }
         });
       } catch (e) {}
-    } else {
+    } else if (orgKey === 'TECHNO_LAB') {
       nextDepts = technoDepartments.filter(d => d !== deptName);
       setTechnoDepartments(nextDepts);
       localStorage.setItem('techno_departments', JSON.stringify(nextDepts));
@@ -262,6 +357,20 @@ function App() {
           advisorSignatureImage: technoAdvisorSig,
           mentorSignatureImage: technoMentorSig,
           config: { ...technoLetterConfig, departments: nextDepts }
+        });
+      } catch (e) {}
+    } else {
+      nextDepts = gdgocDepartments.filter(d => d !== deptName);
+      setGdgocDepartments(nextDepts);
+      localStorage.setItem('gdgoc_departments', JSON.stringify(nextDepts));
+      try {
+        await saveSupabaseBranding('GDGOC', {
+          itmbuLogo,
+          clubLogo: gdgocClubLogo,
+          organizerSignatureImage: gdgocOrganizerSig,
+          advisorSignatureImage: gdgocAdvisorSig,
+          mentorSignatureImage: gdgocMentorSig,
+          config: { ...gdgocLetterConfig, departments: nextDepts }
         });
       } catch (e) {}
     }
@@ -293,10 +402,8 @@ function App() {
           setDbProvider('Supabase Cloud');
           setLastSyncTime(new Date());
           loadedFromSupabase = true;
-          console.log(`✓ [Cloud Sync] Loaded ${supaMembers.length} members from Supabase Cloud!`);
         } else {
           // Table exists in Supabase but empty -> Auto-seed default roster
-          console.log('[Cloud Sync] Supabase table empty, auto-seeding dual-club roster...');
           try {
             const seeded = await seedSupabaseMembers(INITIAL_TEAM_DATA);
             if (seeded && seeded.length > 0) {
@@ -306,9 +413,7 @@ function App() {
               setLastSyncTime(new Date());
               loadedFromSupabase = true;
             }
-          } catch (seedErr) {
-            console.warn('[Cloud Sync] Auto-seed notice:', seedErr.message);
-          }
+          } catch (seedErr) {}
         }
 
         const supaBranding = await fetchSupabaseBranding();
@@ -330,9 +435,7 @@ function App() {
             setDbProvider('MongoDB Compass');
             setLastSyncTime(new Date());
           }
-        } catch (mongoErr) {
-          console.log('[Cloud Sync] Working in offline cache mode');
-        }
+        } catch (mongoErr) {}
 
         try {
           const bRes = await fetch(`${API_BASE_URL}/branding`);
@@ -346,9 +449,8 @@ function App() {
 
     initData();
 
-    // 2. Realtime WebSocket Subscription: Instant sync across all PCs/devices!
+    // 2. Realtime WebSocket Subscription
     memberSubChannel = subscribeToSupabaseMembers((change) => {
-      console.log('⚡ [Realtime Sync] Event received:', change.eventType, change);
       setLastSyncTime(new Date());
       setDbConnected(true);
 
@@ -360,19 +462,6 @@ function App() {
             return prev.map(m => ((m._id && m._id === item._id) || (m.id && m.id === item.id) || (m.name === item.name && m.organization === item.organization)) ? item : m);
           }
           return [item, ...prev];
-        });
-
-        // Toast alert notifying user that another client added a member
-        Swal.fire({
-          toast: true,
-          position: 'bottom-end',
-          icon: 'info',
-          title: `✨ Live Sync: "${item.name}" added to roster!`,
-          showConfirmButton: false,
-          timer: 3500,
-          timerProgressBar: true,
-          background: '#101626',
-          color: '#f8fafc'
         });
       } else if (change.eventType === 'UPDATE' && change.newRecord) {
         const item = change.newRecord;
@@ -396,7 +485,7 @@ function App() {
       } catch (e) {}
     });
 
-    // 3. Fallback Auto-Sync Poller (every 15s) for 100% sync guarantee through Cloudflare tunnels
+    // 3. Fallback Auto-Sync Poller (every 15s)
     autoSyncInterval = setInterval(async () => {
       try {
         const fresh = await fetchSupabaseMembers();
@@ -421,30 +510,25 @@ function App() {
     };
   }, [applyBrandingList]);
 
-  // Update selected member only when switching active organization or on first load if no member is selected
+  // Update selected member when switching active chapter
   useEffect(() => {
     const orgMembers = members.filter(m => !m.organization || m.organization === activeOrg);
     if (orgMembers.length > 0) {
       setSelectedMember(prev => {
-        // If user has already selected a member that belongs to activeOrg, KEEP IT!
         if (prev) {
           const stillExists = orgMembers.find(m =>
             (m._id && prev._id && m._id === prev._id) ||
             (m.id && prev.id && m.id === prev.id) ||
             (m.name && prev.name && m.name.trim().toLowerCase() === prev.name.trim().toLowerCase())
           );
-          if (stillExists) {
-            return stillExists;
-          }
+          if (stillExists) return stillExists;
         }
-        // If none selected or switched to a different club, select the first member of that club
         return orgMembers[0];
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeOrg]);
 
-  // Keep selectedMember synchronized with latest data in members array if updated (without switching member!)
+  // Keep selectedMember synchronized with latest data
   useEffect(() => {
     if (selectedMember && members.length > 0) {
       const updated = members.find(m =>
@@ -452,59 +536,59 @@ function App() {
         (m.id && selectedMember.id && m.id === selectedMember.id) ||
         (m.name && selectedMember.name && m.name.trim().toLowerCase() === selectedMember.name.trim().toLowerCase())
       );
-      if (updated && (updated.designation !== selectedMember.designation || updated.department !== selectedMember.department || updated.roleType !== selectedMember.roleType || updated.letterRefId !== selectedMember.letterRefId)) {
+      if (updated && (
+        updated.roleType !== selectedMember.roleType ||
+        updated.designation !== selectedMember.designation ||
+        updated.department !== selectedMember.department ||
+        updated.letterRefId !== selectedMember.letterRefId ||
+        updated.avatar !== selectedMember.avatar
+      )) {
         setSelectedMember(updated);
       }
-    } else if (!selectedMember && members.length > 0) {
-      const orgMembers = members.filter(m => !m.organization || m.organization === activeOrg);
-      if (orgMembers.length > 0) {
-        setSelectedMember(orgMembers[0]);
-      }
     }
-  }, [members, activeOrg, selectedMember]);
+  }, [members, selectedMember]);
 
-  // Login handler
   const handleLogin = (userSession) => {
     setCurrentUser(userSession);
     setActiveOrg(userSession.organization || 'AWS_SBG');
     localStorage.setItem('offer_gen_user', JSON.stringify(userSession));
   };
 
-  // Logout handler
   const handleLogout = () => {
     setCurrentUser(null);
     localStorage.removeItem('offer_gen_user');
   };
 
-  // Section / Organization Switcher Handler
-  const handleSwitchOrg = (orgKey) => {
-    setActiveOrg(orgKey);
-  };
-
-  // Update selected member or active config when modified in controls
-  const handleConfigChange = (key, value) => {
-    if (key === 'memberEmail') {
-      setSelectedMember(prev => ({ ...prev, email: value }));
-      setMembers(prev => prev.map(m => ((m._id && selectedMember._id && m._id === selectedMember._id) || (m.id && selectedMember.id && m.id === selectedMember.id) || (m.name === selectedMember.name)) ? { ...m, email: value } : m));
-    } else if (key === 'customDesignation') {
-      setSelectedMember(prev => ({ ...prev, designation: value }));
-      setMembers(prev => prev.map(m => m._id === selectedMember._id ? { ...m, designation: value } : m));
-    } else if (key === 'customDepartment') {
-      setSelectedMember(prev => ({ ...prev, department: value }));
-      setMembers(prev => prev.map(m => m._id === selectedMember._id ? { ...m, department: value } : m));
-    } else {
-      if (isAWS) {
-        setAwsLetterConfig(prev => ({ ...prev, [key]: value }));
-      } else {
-        setTechnoLetterConfig(prev => ({ ...prev, [key]: value }));
-      }
+  const handleSwitchOrg = (newOrg) => {
+    setActiveOrg(newOrg);
+    if (currentUser) {
+      const updatedUser = { ...currentUser, organization: newOrg };
+      setCurrentUser(updatedUser);
+      localStorage.setItem('offer_gen_user', JSON.stringify(updatedUser));
     }
   };
 
-  // Save Branding & Signatures to Supabase & MongoDB Handler
-  const handleSaveBrandingToDatabase = async (targetOrg = 'AWS_SBG') => {
+  // Save Letterhead Config handler
+  const handleSaveLetterConfig = (orgKey = activeOrg) => {
+    const configToSave = orgKey === 'AWS_SBG' ? awsLetterConfig : (orgKey === 'TECHNO_LAB' ? technoLetterConfig : gdgocLetterConfig);
+    localStorage.setItem(`letter_config_${orgKey.toLowerCase()}`, JSON.stringify(configToSave));
+    handleSaveBrandingToDatabase(orgKey);
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'success',
+      title: `${CLUB_CONFIGS[orgKey]?.shortName || orgKey} Letterhead configuration saved!`,
+      timer: 2500,
+      showConfirmButton: false,
+      background: '#101626',
+      color: '#f8fafc'
+    });
+  };
+
+  // Save Branding Assets and Signatures to Database
+  const handleSaveBrandingToDatabase = async (targetOrg = activeOrg) => {
     setIsSavingToDb(true);
-    setDbSaveStatus('⏳ Syncing branding assets to Supabase Cloud...');
+    setDbSaveStatus('⏳ Syncing to Cloud Database...');
 
     try {
       if (targetOrg === 'AWS_SBG' || targetOrg === 'ALL') {
@@ -518,23 +602,15 @@ function App() {
           config: { ...awsLetterConfig, departments: awsDepartments }
         };
 
-        // 1. Supabase save
-        try {
-          await saveSupabaseBranding('AWS_SBG', awsPayload);
-        } catch (sErr) {
-          console.warn('Supabase branding save notice:', sErr.message);
-        }
-
-        // 2. MongoDB save (fallback)
+        try { await saveSupabaseBranding('AWS_SBG', awsPayload); } catch (e) {}
         try {
           await fetch(`${API_BASE_URL}/branding/AWS_SBG`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(awsPayload)
           });
-        } catch (mErr) {}
+        } catch (e) {}
 
-        // 3. Local storage
         if (itmbuLogo) localStorage.setItem('itmbu_crest_logo', itmbuLogo);
         if (awsClubLogo) localStorage.setItem('aws_sbg_logo', awsClubLogo);
         if (awsOrganizerSig) localStorage.setItem('aws_organizer_sig', awsOrganizerSig);
@@ -553,23 +629,15 @@ function App() {
           config: { ...technoLetterConfig, departments: technoDepartments }
         };
 
-        // 1. Supabase save
-        try {
-          await saveSupabaseBranding('TECHNO_LAB', technoPayload);
-        } catch (sErr) {
-          console.warn('Supabase branding save notice:', sErr.message);
-        }
-
-        // 2. MongoDB save (fallback)
+        try { await saveSupabaseBranding('TECHNO_LAB', technoPayload); } catch (e) {}
         try {
           await fetch(`${API_BASE_URL}/branding/TECHNO_LAB`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(technoPayload)
           });
-        } catch (mErr) {}
+        } catch (e) {}
 
-        // 3. Local storage
         if (itmbuLogo) localStorage.setItem('itmbu_crest_logo', itmbuLogo);
         if (technoClubLogo) localStorage.setItem('techno_lab_logo', technoClubLogo);
         if (technoOrganizerSig) localStorage.setItem('techno_organizer_sig', technoOrganizerSig);
@@ -577,54 +645,59 @@ function App() {
         if (technoMentorSig) localStorage.setItem('techno_mentor_sig', technoMentorSig);
       }
 
+      if (targetOrg === 'GDGOC' || targetOrg === 'ALL') {
+        const gdgocPayload = {
+          organization: 'GDGOC',
+          itmbuLogo,
+          clubLogo: gdgocClubLogo,
+          organizerSignatureImage: gdgocOrganizerSig,
+          advisorSignatureImage: gdgocAdvisorSig,
+          mentorSignatureImage: gdgocMentorSig,
+          config: { ...gdgocLetterConfig, departments: gdgocDepartments }
+        };
+
+        try { await saveSupabaseBranding('GDGOC', gdgocPayload); } catch (e) {}
+        try {
+          await fetch(`${API_BASE_URL}/branding/GDGOC`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(gdgocPayload)
+          });
+        } catch (e) {}
+
+        if (itmbuLogo) localStorage.setItem('itmbu_crest_logo', itmbuLogo);
+        if (gdgocClubLogo) localStorage.setItem('gdgoc_club_logo', gdgocClubLogo);
+        if (gdgocOrganizerSig) localStorage.setItem('gdgoc_organizer_sig', gdgocOrganizerSig);
+        if (gdgocAdvisorSig) localStorage.setItem('gdgoc_advisor_sig', gdgocAdvisorSig);
+        if (gdgocMentorSig) localStorage.setItem('gdgoc_mentor_sig', gdgocMentorSig);
+      }
+
       setDbSaveStatus('✓ Stored successfully in Cloud Database!');
       setLastSyncTime(new Date());
       setTimeout(() => setDbSaveStatus(''), 4000);
 
-      // SweetAlert Success Notification
       Swal.fire({
-        title: 'Saved to Supabase Cloud Database!',
-        html: `
-          <div style="text-align: left; font-size: 13.5px; color: #cbd5e1; line-height: 1.6; margin-top: 10px;">
-            <p>✅ Official university crests, club logos, custom departments, and digital signature vault for <strong>${targetOrg === 'ALL' ? 'AWS SBG & Techno Lab' : (targetOrg === 'AWS_SBG' ? 'AWS Student Builder Group' : 'Techno Lab')}</strong> have been synced across all devices.</p>
-            <div style="background: #162036; border: 1px solid #23314a; border-radius: 8px; padding: 10px; margin-top: 10px;">
-              <span style="color: #38bdf8; font-weight: 700;">Provider:</span> <code style="color: #34d399;">Supabase PostgreSQL (Live Realtime)</code><br/>
-              <span style="color: #10b981; font-weight: 700;">Table:</span> <code>brandings</code>
-            </div>
-          </div>
-        `,
+        title: 'Saved to Cloud Database!',
+        text: `Official crests, logos, and letterhead configurations for ${targetOrg} have been synced.`,
         icon: 'success',
         background: '#101626',
         color: '#f8fafc',
-        confirmButtonColor: '#10b981',
-        confirmButtonText: '✓ Awesome, Continue'
+        confirmButtonColor: '#10b981'
       });
     } catch (err) {
       console.error('Failed to sync branding:', err);
       setDbSaveStatus('✓ Saved locally in browser storage');
       setTimeout(() => setDbSaveStatus(''), 4000);
-
-      Swal.fire({
-        title: 'Saved Locally',
-        text: 'Branding assets and signatures saved to browser storage.',
-        icon: 'info',
-        background: '#101626',
-        color: '#f8fafc',
-        confirmButtonColor: '#3b82f6'
-      });
     } finally {
       setIsSavingToDb(false);
     }
   };
 
-  // 100% Full Sync Handler (Supabase Cloud + MongoDB)
+  // Full Database Sync Handler
   const handleSyncDatabase = async (silent = false) => {
     setIsSavingToDb(true);
     try {
-      let syncedFrom = 'Supabase Cloud';
       let memberCount = members.length;
-
-      // 1. Try Supabase Sync
       try {
         const supaMembers = await fetchSupabaseMembers();
         if (supaMembers && supaMembers.length > 0) {
@@ -633,133 +706,144 @@ function App() {
           setDbProvider('Supabase Cloud');
           setLastSyncTime(new Date());
           memberCount = supaMembers.length;
-        } else {
-          // If empty, seed
-          const seeded = await seedSupabaseMembers(INITIAL_TEAM_DATA);
-          if (seeded && seeded.length > 0) {
-            setMembers(seeded);
-            setDbConnected(true);
-            setDbProvider('Supabase Cloud');
-            setLastSyncTime(new Date());
-            memberCount = seeded.length;
-          }
         }
 
         const supaBranding = await fetchSupabaseBranding();
         if (supaBranding && supaBranding.length > 0) {
           applyBrandingList(supaBranding);
         }
-      } catch (supaErr) {
-        console.warn('Supabase sync notice:', supaErr.message);
-        // Fallback to MongoDB
-        syncedFrom = 'MongoDB Compass';
-        const membersRes = await fetch(`${API_BASE_URL}/members`);
-        const membersData = await membersRes.json();
-        if (membersData.success && membersData.data && membersData.data.length > 0) {
-          setMembers(membersData.data);
-          setDbConnected(true);
-          setDbProvider('MongoDB Compass');
-          setLastSyncTime(new Date());
-          memberCount = membersData.data.length;
-        }
-      }
+      } catch (supaErr) {}
 
       if (!silent) {
         Swal.fire({
-          title: `100% Synced with ${syncedFrom}!`,
-          html: `
-            <div style="text-align: left; font-size: 13.5px; color: #cbd5e1; line-height: 1.6; margin-top: 8px;">
-              <p>✅ All <strong>${memberCount} roster members</strong>, custom designations, wings, and reference IDs are live synchronized.</p>
-              <p>✅ University crests, club logos, and digital signature vaults loaded from Cloud tables.</p>
-              <div style="background: #162036; border: 1px solid #23314a; border-radius: 8px; padding: 10px; margin-top: 10px;">
-                <span style="color: #38bdf8; font-weight: 700;">Database:</span> <code>${syncedFrom}</code><br/>
-                <span style="color: #10b981; font-weight: 700;">Status:</span> <span style="color: #34d399; font-weight: bold;">Multi-Device Realtime Live</span>
-              </div>
-            </div>
-          `,
+          title: '100% Synced with Cloud Database!',
+          text: `All ${memberCount} roster members and letter configurations are up-to-date.`,
           icon: 'success',
           background: '#101626',
           color: '#f8fafc',
-          confirmButtonColor: '#10b981',
-          confirmButtonText: '✓ Awesome'
+          confirmButtonColor: '#10b981'
         });
       }
     } catch (err) {
-      console.warn('Sync notice:', err);
-      if (!silent) {
-        Swal.fire({
-          title: 'Sync Complete (Local Cache)',
-          text: 'Using current local and in-memory roster data.',
-          icon: 'info',
-          background: '#101626',
-          color: '#f8fafc',
-          confirmButtonColor: '#3b82f6'
-        });
-      }
     } finally {
       setIsSavingToDb(false);
     }
   };
 
-  // Add Member Handler (Supabase + MongoDB)
+  // Add Member Handler
   const handleAddMember = async (newMember) => {
-    let savedMember = newMember;
+    const tempId = `temp-${Date.now()}`;
+    const localMember = { ...newMember, _id: tempId, id: tempId };
+    setMembers(prev => [localMember, ...prev]);
+    setSelectedMember(localMember);
 
-    // 1. Supabase insert
     try {
       const supaSaved = await insertSupabaseMember(newMember);
       if (supaSaved) {
-        savedMember = supaSaved;
+        setMembers(prev => prev.map(m => m._id === tempId ? supaSaved : m));
+        setSelectedMember(supaSaved);
       }
-    } catch (supaErr) {
-      console.warn('Supabase add notice:', supaErr.message);
-      // Fallback to MongoDB
-      try {
-        const res = await fetch(`${API_BASE_URL}/members`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newMember)
-        });
-        const data = await res.json();
-        if (data.success && data.data) {
-          savedMember = data.data;
-        }
-      } catch (mongoErr) {
-        console.log('Stored in local state');
-      }
-    }
+    } catch (e) {}
 
-    setMembers(prev => {
-      const exists = prev.some(m => (m._id && m._id === savedMember._id) || (m.id && m.id === savedMember.id) || (m.name === savedMember.name && m.organization === savedMember.organization));
-      if (exists) {
-        return prev.map(m => ((m._id && m._id === savedMember._id) || (m.id && m.id === savedMember.id) || (m.name === savedMember.name && m.organization === savedMember.organization)) ? savedMember : m);
-      }
-      return [savedMember, ...prev];
-    });
-    setSelectedMember(savedMember);
     setLastSyncTime(new Date());
-
     Swal.fire({
       toast: true,
       position: 'top-end',
       icon: 'success',
-      title: `${savedMember.name} added & synchronized across all clients!`,
+      title: `${newMember.name} added to roster!`,
       showConfirmButton: false,
       timer: 2500,
-      timerProgressBar: true,
       background: '#101626',
       color: '#f8fafc'
     });
   };
 
-  // Save / Update Member Handler (Supabase + MongoDB)
+  // Delete Member Handler
+  const handleDeleteMember = async (memberId) => {
+    const memberToDelete = members.find(m => m._id === memberId || m.id === memberId);
+    const memberName = memberToDelete ? memberToDelete.name : 'Team Member';
+
+    const result = await Swal.fire({
+      title: `Remove ${memberName}?`,
+      text: 'Are you sure you want to remove this member from the active roster?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#334155',
+      confirmButtonText: 'Yes, Remove Member',
+      background: '#101626',
+      color: '#f8fafc'
+    });
+
+    if (!result.isConfirmed) return;
+
+    setMembers(prev => prev.filter(m => m._id !== memberId && m.id !== memberId));
+    if (selectedMember && (selectedMember._id === memberId || selectedMember.id === memberId)) {
+      const remaining = members.filter(m => m._id !== memberId && m.id !== memberId && (!m.organization || m.organization === activeOrg));
+      setSelectedMember(remaining.length > 0 ? remaining[0] : null);
+    }
+
+    try {
+      await deleteSupabaseMember(memberId);
+    } catch (e) {}
+
+    setLastSyncTime(new Date());
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'success',
+      title: `${memberName} removed from roster`,
+      showConfirmButton: false,
+      timer: 2500,
+      background: '#101626',
+      color: '#f8fafc'
+    });
+  };
+
+  // Bulk Delete Handler
+  const handleBulkDeleteMembers = async (memberIds) => {
+    if (!memberIds || memberIds.length === 0) return;
+
+    const result = await Swal.fire({
+      title: `Delete ${memberIds.length} Members?`,
+      text: 'This will permanently remove selected members from the cloud roster.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#334155',
+      confirmButtonText: `Yes, Delete (${memberIds.length})`,
+      background: '#101626',
+      color: '#f8fafc'
+    });
+
+    if (!result.isConfirmed) return;
+
+    setMembers(prev => prev.filter(m => !memberIds.includes(m._id) && !memberIds.includes(m.id)));
+
+    try {
+      await bulkDeleteSupabaseMembers(memberIds);
+    } catch (e) {}
+
+    setLastSyncTime(new Date());
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'success',
+      title: `${memberIds.length} members deleted`,
+      showConfirmButton: false,
+      timer: 2500,
+      background: '#101626',
+      color: '#f8fafc'
+    });
+  };
+
+  // Save / Update Member Handler
   const handleSaveMember = async (updatedMember) => {
     setMembers(prev => prev.map(m => (m._id === updatedMember._id || m.id === updatedMember.id || m.name === updatedMember.name) ? updatedMember : m));
     if (selectedMember && (selectedMember._id === updatedMember._id || selectedMember.id === updatedMember.id || selectedMember.name === updatedMember.name)) {
       setSelectedMember(updatedMember);
     }
 
-    // 1. Supabase update
     try {
       const supaUpdated = await updateSupabaseMember(updatedMember._id || updatedMember.id, updatedMember);
       if (supaUpdated) {
@@ -768,29 +852,9 @@ function App() {
           setSelectedMember(supaUpdated);
         }
       }
-    } catch (supaErr) {
-      console.warn('Supabase update notice:', supaErr.message);
-      // Fallback to MongoDB
-      if (updatedMember._id) {
-        try {
-          const res = await fetch(`${API_BASE_URL}/members/${updatedMember._id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(updatedMember)
-          });
-          const data = await res.json();
-          if (data.success && data.data) {
-            setMembers(prev => prev.map(m => m._id === updatedMember._id ? data.data : m));
-            if (selectedMember && selectedMember._id === updatedMember._id) {
-              setSelectedMember(data.data);
-            }
-          }
-        } catch (err) {}
-      }
-    }
+    } catch (e) {}
 
     setLastSyncTime(new Date());
-
     Swal.fire({
       toast: true,
       position: 'top-end',
@@ -798,173 +862,62 @@ function App() {
       title: 'Member profile updated & synced to Cloud!',
       showConfirmButton: false,
       timer: 2500,
-      timerProgressBar: true,
       background: '#101626',
       color: '#f8fafc'
     });
   };
 
-  // Promote Member Handler (Organizers / Co-Leads / Admins)
+  // Promote Member Handler
   const handlePromoteMember = async (updatedMember) => {
-    // 1. Update local state
     setMembers(prev => prev.map(m => (m._id === updatedMember._id || m.id === updatedMember.id || m.name === updatedMember.name) ? updatedMember : m));
     setSelectedMember(updatedMember);
     if (isAWS) {
       setAwsLetterConfig(prev => ({ ...prev, letterRefId: updatedMember.letterRefId || prev.letterRefId }));
-    } else {
+    } else if (isTechno) {
       setTechnoLetterConfig(prev => ({ ...prev, letterRefId: updatedMember.letterRefId || prev.letterRefId }));
+    } else {
+      setGdgocLetterConfig(prev => ({ ...prev, letterRefId: updatedMember.letterRefId || prev.letterRefId }));
     }
 
-    // 2. Persist to Supabase
     try {
       const supaUpdated = await updateSupabaseMember(updatedMember._id || updatedMember.id, updatedMember);
       if (supaUpdated) {
         setMembers(prev => prev.map(m => (m._id === supaUpdated._id || m.id === supaUpdated.id || m.name === supaUpdated.name) ? supaUpdated : m));
         setSelectedMember(supaUpdated);
       }
-    } catch (supaErr) {
-      console.warn('Supabase promotion save note:', supaErr.message);
-    }
+    } catch (e) {}
 
     setLastSyncTime(new Date());
 
-    // 3. Celebrate & navigate to Letter Studio
     Swal.fire({
       icon: 'success',
       title: '🌟 Member Promoted Successfully!',
       html: `
         <div style="text-align: left; font-size: 14px; line-height: 1.6;">
-          <p><b>${updatedMember.name}</b> has been officially elevated to <b>${updatedMember.roleType}</b>.</p>
+          <p><b>${updatedMember.name}</b> has been elevated to <b>${updatedMember.roleType}</b>.</p>
           <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 10px 14px; margin: 10px 0;">
             <p style="margin: 0; color: #059669; font-weight: 700;">📜 Official Letter Generated:</p>
-            <p style="margin: 4px 0 0 0; color: #334155;">Title: <b>${updatedMember.designation}</b> &bull; Ref: <b>${updatedMember.letterRefId || 'Generated'}</b></p>
+            <p style="margin: 4px 0 0 0; color: #334155;">Title: <b>${updatedMember.designation}</b> • Ref: <b>${updatedMember.letterRefId || 'Generated'}</b></p>
           </div>
-          <p style="margin: 0; color: #64748b; font-size: 12px;">Opening Letter Studio for immediate verification & printing.</p>
         </div>
       `,
-      confirmButtonColor: isAWS ? '#ff9900' : '#00d2ff',
+      confirmButtonColor: isAWS ? '#ff9900' : (isTechno ? '#00d2ff' : '#4285F4'),
       confirmButtonText: 'View Official Letter 📄'
     }).then(() => {
       setCurrentView('letter_studio');
     });
   };
 
-  // Delete Member Handler with SweetAlert Confirmation (Supabase + MongoDB)
-  const handleDeleteMember = async (memberId) => {
-    const target = members.find(m => m._id === memberId || m.id === memberId || m.name === memberId);
-    const memberName = target ? target.name : 'this member';
-
-    const result = await Swal.fire({
-      title: 'Remove Team Member?',
-      text: `Are you sure you want to remove "${memberName}" from the roster and sync across all connected clients?`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#ef4444',
-      cancelButtonColor: '#334155',
-      confirmButtonText: 'Yes, Delete & Sync',
-      cancelButtonText: 'Cancel',
-      background: '#101626',
-      color: '#f8fafc'
-    });
-
-    if (!result.isConfirmed) return;
-
-    setMembers(prev => prev.filter(m => m._id !== memberId && m.id !== memberId && m.name !== memberId));
-    if (selectedMember && (selectedMember._id === memberId || selectedMember.id === memberId || selectedMember.name === memberId)) {
-      const remaining = members.filter(m => m._id !== memberId && m.id !== memberId && m.name !== memberId && (!m.organization || m.organization === activeOrg));
-      setSelectedMember(remaining[0] || null);
-    }
-
-    // 1. Supabase delete
-    try {
-      await deleteSupabaseMember(memberId, memberName, activeOrg);
-    } catch (supaErr) {
-      console.warn('Supabase delete notice:', supaErr.message);
-      // Fallback to MongoDB
-      try {
-        await fetch(`${API_BASE_URL}/members/${memberId}`, {
-          method: 'DELETE'
-        });
-      } catch (err) {}
-    }
-
-    setLastSyncTime(new Date());
-
-    Swal.fire({
-      toast: true,
-      position: 'top-end',
-      icon: 'success',
-      title: `${memberName} deleted across all devices.`,
-      showConfirmButton: false,
-      timer: 2500,
-      background: '#101626',
-      color: '#f8fafc'
-    });
-  };
-
-  // Bulk Delete Members Handler (Supabase + MongoDB)
-  const handleBulkDeleteMembers = async (memberIds) => {
-    if (!memberIds || memberIds.length === 0) return;
-
-    const result = await Swal.fire({
-      title: `Delete ${memberIds.length} Members?`,
-      text: `Are you sure you want to remove these ${memberIds.length} selected members from the roster and cloud database?`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#ef4444',
-      cancelButtonColor: '#334155',
-      confirmButtonText: `Yes, Delete (${memberIds.length})`,
-      cancelButtonText: 'Cancel',
-      background: '#101626',
-      color: '#f8fafc'
-    });
-
-    if (!result.isConfirmed) return;
-
-    // 1. Update state
-    setMembers(prev => prev.filter(m => !memberIds.includes(m._id) && !memberIds.includes(m.id) && !memberIds.includes(m.name)));
-    if (selectedMember && (memberIds.includes(selectedMember._id) || memberIds.includes(selectedMember.id) || memberIds.includes(selectedMember.name))) {
-      const remaining = members.filter(m => !memberIds.includes(m._id) && !memberIds.includes(m.id) && !memberIds.includes(m.name) && (!m.organization || m.organization === activeOrg));
-      setSelectedMember(remaining[0] || null);
-    }
-
-    // 2. Supabase delete
-    try {
-      await bulkDeleteSupabaseMembers(memberIds);
-    } catch (supaErr) {
-      console.warn('Supabase bulk delete notice:', supaErr.message);
-    }
-
-    // 3. MongoDB delete (fallback)
-    try {
-      await Promise.all(memberIds.map(id => fetch(`${API_BASE_URL}/members/${id}`, { method: 'DELETE' })));
-    } catch (mErr) {}
-
-    setLastSyncTime(new Date());
-
-    Swal.fire({
-      toast: true,
-      position: 'top-end',
-      icon: 'success',
-      title: `${memberIds.length} members removed successfully.`,
-      showConfirmButton: false,
-      timer: 3000,
-      background: '#101626',
-      color: '#f8fafc'
-    });
-  };
-
-  // Reset / Reseed Database Handler (Supabase + MongoDB)
+  // Reseed Database Handler
   const handleResetDatabase = async () => {
     const result = await Swal.fire({
       title: 'Reseed Database?',
-      text: 'This will reset all roster members to the default official dual-club rosters (AWS SBG + Techno Lab).',
+      text: 'This will reset all roster members to the default official trio-club rosters (AWS SBG + Techno Lab + GDGoC).',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#f59e0b',
       cancelButtonColor: '#334155',
       confirmButtonText: 'Yes, Reseed Now',
-      cancelButtonText: 'Cancel',
       background: '#101626',
       color: '#f8fafc'
     });
@@ -972,8 +925,6 @@ function App() {
     if (!result.isConfirmed) return;
 
     let reseededCount = INITIAL_TEAM_DATA.length;
-
-    // 1. Supabase reseed
     try {
       const supaSeeded = await seedSupabaseMembers(INITIAL_TEAM_DATA);
       if (supaSeeded && supaSeeded.length > 0) {
@@ -982,25 +933,11 @@ function App() {
       } else {
         setMembers(INITIAL_TEAM_DATA);
       }
-    } catch (supaErr) {
-      console.warn('Supabase reseed notice:', supaErr.message);
-      // Fallback to MongoDB
-      try {
-        const res = await fetch(`${API_BASE_URL}/seed`, { method: 'POST' });
-        const data = await res.json();
-        if (data.success && data.data) {
-          setMembers(data.data);
-          reseededCount = data.data.length;
-        } else {
-          setMembers(INITIAL_TEAM_DATA);
-        }
-      } catch (err) {
-        setMembers(INITIAL_TEAM_DATA);
-      }
+    } catch (e) {
+      setMembers(INITIAL_TEAM_DATA);
     }
 
     setLastSyncTime(new Date());
-
     Swal.fire({
       title: 'Database Reseeded!',
       text: `Successfully reloaded ${reseededCount} official members into Cloud Database.`,
@@ -1015,15 +952,11 @@ function App() {
   const handleSelectMemberForLetter = (member) => {
     setSelectedMember(member);
     if (isAWS) {
-      setAwsLetterConfig(prev => ({
-        ...prev,
-        letterRefId: member.letterRefId || ''
-      }));
+      setAwsLetterConfig(prev => ({ ...prev, letterRefId: member.letterRefId || '' }));
+    } else if (isTechno) {
+      setTechnoLetterConfig(prev => ({ ...prev, letterRefId: member.letterRefId || '' }));
     } else {
-      setTechnoLetterConfig(prev => ({
-        ...prev,
-        letterRefId: member.letterRefId || ''
-      }));
+      setGdgocLetterConfig(prev => ({ ...prev, letterRefId: member.letterRefId || '' }));
     }
     setCurrentView('letter_studio');
   };
@@ -1050,7 +983,7 @@ function App() {
       filename: filename,
       image: { type: 'jpeg', quality: 0.99 },
       html2canvas: {
-        scale: 3, // 3x scale for Full HD clarity
+        scale: 3,
         useCORS: true,
         letterRendering: true,
         logging: false
@@ -1098,35 +1031,40 @@ function App() {
     setTimeout(() => {
       window.print();
       setBatchPrintList(null);
-    }, 300);
+    }, 250);
   };
 
-  // If user is not logged in, show AuthScreen
+  // If user is not authenticated, show AuthScreen
   if (!currentUser) {
-    return <AuthScreen onLogin={handleLogin} />;
+    return <AuthScreen onLogin={handleLogin} visibleChapters={visibleChapters} />;
   }
 
-  const isSuperAdmin = currentUser.role === 'SUPER_ADMIN';
+  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
+  const availableChaptersList = Object.keys(CLUB_CONFIGS).filter(key => visibleChapters[key] !== false);
 
   return (
-    <div className="app-container">
+    <div className={`app-root theme-${activeOrg.toLowerCase().replace('_', '-')}`}>
       
-      {/* Top Navigation Bar with Organization Slider, Module Switcher & User Badge */}
-      <header className={`app-navbar no-print ${isAWS ? 'navbar-aws' : 'navbar-techno'}`}>
+      {/* Universal Top Header */}
+      <header className="app-header no-print">
         
-        {/* Left: Brand section */}
-        <div className="nav-brand-section">
-          <div className={`nav-logo-badge ${isAWS ? 'badge-aws-brand' : 'badge-techno-brand'}`}>
-            {activeClub.badgeText}
+        {/* Left: Brand Identity */}
+        <div className="header-brand-group">
+          <div className={`club-logo-circle ${isAWS ? 'logo-aws' : (isTechno ? 'logo-techno' : 'logo-gdgoc')}`}>
+            {isAWS ? '☁️' : (isTechno ? '🔬' : '🌐')}
           </div>
-          <div className="nav-titles">
-            <h1 className="nav-main-title">{activeClub.name}</h1>
-            <span className="nav-sub-title">ITM (sls) BARODA UNIVERSITY &bull; OFFICIAL APPOINTMENT PORTAL</span>
+          <div className="brand-text-col">
+            <h1 className="brand-title">
+              {activeClub.name}
+            </h1>
+            <span className="brand-subtitle">
+              ITM (sls) BARODA UNIVERSITY &bull; Joining Letter Studio
+            </span>
           </div>
         </div>
 
-        {/* Center: Module View Switcher (Letter Studio vs Team Management vs Branding) */}
-        <div className="nav-view-switcher">
+        {/* Center: Main View Navigation */}
+        <div className="header-nav-tabs">
           <button
             className={`btn-view-tab ${currentView === 'letter_studio' ? 'active' : ''}`}
             onClick={() => setCurrentView('letter_studio')}
@@ -1134,7 +1072,7 @@ function App() {
             <span className="tab-icon">📄</span>
             <span className="tab-text">Letter Studio</span>
           </button>
-          
+
           <button
             className={`btn-view-tab ${currentView === 'team_management' ? 'active' : ''}`}
             onClick={() => setCurrentView('team_management')}
@@ -1148,33 +1086,43 @@ function App() {
             onClick={() => setCurrentView('branding')}
           >
             <span className="tab-icon">🎨</span>
-            <span className="tab-text">Logos & University Branding</span>
+            <span className="tab-text">Logos &amp; University Branding</span>
           </button>
         </div>
 
-        {/* Right: Cross-Section Org Switcher + User Chip + Logout */}
+        {/* Right: Chapter Switcher + User Chip + Logout */}
         <div className="nav-right-controls">
           
-          {/* Dual Club Switcher for Super Admin */}
+          {/* Trio Club Switcher for Super Admin */}
           {isSuperAdmin ? (
-            <div className="top-org-slider-pill">
-              <button
-                className={`top-slider-btn ${activeOrg === 'AWS_SBG' ? 'active-aws' : ''}`}
-                onClick={() => handleSwitchOrg('AWS_SBG')}
-                title="Switch to AWS Student Builder Group"
-              >
-                ☁️ AWS SBG
-              </button>
-              <button
-                className={`top-slider-btn ${activeOrg === 'TECHNO_LAB' ? 'active-techno' : ''}`}
-                onClick={() => handleSwitchOrg('TECHNO_LAB')}
-                title="Switch to Techno Lab"
-              >
-                🔬 Techno Lab
-              </button>
+            <div className="top-org-slider-pill" style={{ display: 'flex', gap: '4px', background: '#0a0f1d', padding: '4px', borderRadius: '12px', border: '1px solid #1e293b' }}>
+              {availableChaptersList.map(orgKey => {
+                const club = CLUB_CONFIGS[orgKey];
+                const isActive = activeOrg === orgKey;
+                return (
+                  <button
+                    key={orgKey}
+                    className={`top-slider-btn ${isActive ? 'active-' + orgKey.toLowerCase().replace('_', '-') : ''}`}
+                    onClick={() => handleSwitchOrg(orgKey)}
+                    title={`Switch to ${club.name}`}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      border: isActive ? `1px solid ${club.primaryColor}` : '1px solid transparent',
+                      background: isActive ? 'rgba(255,255,255,0.1)' : 'transparent',
+                      color: isActive ? '#ffffff' : '#94a3b8'
+                    }}
+                  >
+                    {orgKey === 'AWS_SBG' ? '☁️ AWS SBG' : (orgKey === 'TECHNO_LAB' ? '🔬 Techno Lab' : '🌐 GDGoC')}
+                  </button>
+                );
+              })}
             </div>
           ) : (
-            <div className={`admin-org-indicator ${isAWS ? 'chip-aws' : 'chip-techno'}`}>
+            <div className={`admin-org-indicator ${isAWS ? 'chip-aws' : (isTechno ? 'chip-techno' : 'chip-gdgoc')}`}>
               {activeClub.shortName} Portal
             </div>
           )}
@@ -1197,7 +1145,7 @@ function App() {
             className={`user-badge-chip ${isSuperAdmin ? 'chip-super' : 'chip-admin'}`}
             onClick={() => isSuperAdmin && setIsSuperAdminConsoleOpen(true)}
             style={{ cursor: isSuperAdmin ? 'pointer' : 'default' }}
-            title={isSuperAdmin ? 'Click to open Super Administrator Universal Control Center (5 Navigation Modules)' : 'Current User Profile'}
+            title={isSuperAdmin ? 'Click to open Super Administrator Universal Control Center' : 'Current User Profile'}
           >
             <span className="chip-avatar">{isSuperAdmin ? '👑' : '🛡️'}</span>
             <span className="chip-name">{currentUser.displayName || currentUser.username}</span>
@@ -1226,15 +1174,11 @@ function App() {
               onSelectMember={(member) => {
                 setSelectedMember(member);
                 if (isAWS) {
-                  setAwsLetterConfig(prev => ({
-                    ...prev,
-                    letterRefId: member.letterRefId || ''
-                  }));
+                  setAwsLetterConfig(prev => ({ ...prev, letterRefId: member.letterRefId || '' }));
+                } else if (isTechno) {
+                  setTechnoLetterConfig(prev => ({ ...prev, letterRefId: member.letterRefId || '' }));
                 } else {
-                  setTechnoLetterConfig(prev => ({
-                    ...prev,
-                    letterRefId: member.letterRefId || ''
-                  }));
+                  setGdgocLetterConfig(prev => ({ ...prev, letterRefId: member.letterRefId || '' }));
                 }
               }}
               onOpenAddMemberModal={() => setIsAddModalOpen(true)}
@@ -1251,47 +1195,53 @@ function App() {
             />
           </aside>
 
-          {/* Right Column: Dynamic Form Controls & Real-Time Letter Preview */}
-          <section className="preview-column">
+          {/* Center Column: Official Document Canvas & Letter Controls */}
+          <section className="document-column">
             <LetterControls
               member={currentActiveMember}
               config={activeLetterConfig}
               clubConfig={activeClub}
-              onChangeConfig={handleConfigChange}
+              onChangeConfig={(key, value) => {
+                if (isAWS) {
+                  setAwsLetterConfig(prev => ({ ...prev, [key]: value }));
+                } else if (isTechno) {
+                  setTechnoLetterConfig(prev => ({ ...prev, [key]: value }));
+                } else {
+                  setGdgocLetterConfig(prev => ({ ...prev, [key]: value }));
+                }
+              }}
+              onSaveConfig={() => handleSaveLetterConfig(activeOrg)}
               itmbuLogo={itmbuLogo}
               onUploadItmbuLogo={setItmbuLogo}
               clubLogo={activeClubLogo}
-              onUploadClubLogo={isAWS ? setAwsClubLogo : setTechnoClubLogo}
+              onUploadClubLogo={(val) => {
+                if (isAWS) setAwsClubLogo(val);
+                else if (isTechno) setTechnoClubLogo(val);
+                else setGdgocClubLogo(val);
+              }}
               organizerSignatureImage={activeOrganizerSig}
-              onUploadOrganizerSignature={isAWS ? setAwsOrganizerSig : setTechnoOrganizerSig}
+              onUploadOrganizerSignature={(val) => {
+                if (isAWS) setAwsOrganizerSig(val);
+                else if (isTechno) setTechnoOrganizerSig(val);
+                else setGdgocOrganizerSig(val);
+              }}
               advisorSignatureImage={activeAdvisorSig}
-              onUploadAdvisorSignature={isAWS ? setAwsAdvisorSig : setTechnoAdvisorSig}
+              onUploadAdvisorSignature={(val) => {
+                if (isAWS) setAwsAdvisorSig(val);
+                else if (isTechno) setTechnoAdvisorSig(val);
+                else setGdgocAdvisorSig(val);
+              }}
               mentorSignatureImage={activeMentorSig}
-              onUploadMentorSignature={isAWS ? setAwsMentorSig : setTechnoMentorSig}
+              onUploadMentorSignature={(val) => {
+                if (isAWS) setAwsMentorSig(val);
+                else if (isTechno) setTechnoMentorSig(val);
+                else setGdgocMentorSig(val);
+              }}
               onPrint={handlePrint}
               onDownloadPdf={() => handleDownloadFhdPdf(currentActiveMember?.name)}
             />
 
-            <div className="live-preview-container">
-              <div className="preview-label-bar">
-                <div className="preview-indicator-badge">
-                  <span className="pulse-dot"></span>
-                  <span>Live Document Preview &bull; {activeClub.shortName} Official Letterhead</span>
-                </div>
-                <div className="preview-action-buttons">
-                  <button className="btn-quick-print btn-print-subtle" onClick={handlePrint} title="Quick print or open print dialog">
-                    🖨️ Print
-                  </button>
-                  <button 
-                    className={`btn-quick-print btn-fhd-download ${isAWS ? 'btn-fhd-aws' : 'btn-fhd-techno'}`} 
-                    onClick={() => handleDownloadFhdPdf(currentActiveMember?.name)}
-                    title="Download crystal-clear Full HD PDF"
-                  >
-                    📥 Download FHD PDF
-                  </button>
-                </div>
-              </div>
-              
+            <div className="letter-preview-viewport">
               <OfficialJoiningLetter
                 member={currentActiveMember}
                 config={activeLetterConfig}
@@ -1371,8 +1321,19 @@ function App() {
             onUploadTechnoMentorSig={setTechnoMentorSig}
             technoConfig={technoLetterConfig}
             onChangeTechnoConfig={setTechnoLetterConfig}
+            // GDGoC props
+            gdgocClubLogo={gdgocClubLogo}
+            onUploadGdgocClubLogo={setGdgocClubLogo}
+            gdgocOrganizerSig={gdgocOrganizerSig}
+            onUploadGdgocOrganizerSig={setGdgocOrganizerSig}
+            gdgocAdvisorSig={gdgocAdvisorSig}
+            onUploadGdgocAdvisorSig={setGdgocAdvisorSig}
+            gdgocMentorSig={gdgocMentorSig}
+            onUploadGdgocMentorSig={setGdgocMentorSig}
+            gdgocConfig={gdgocLetterConfig}
+            onChangeGdgocConfig={setGdgocLetterConfig}
             // DB Save handler
-            onSaveToDb={handleSaveBrandingToDatabase}
+            onSaveToDatabase={handleSaveBrandingToDatabase}
             isSavingToDb={isSavingToDb}
             dbSaveStatus={dbSaveStatus}
           />
@@ -1414,13 +1375,15 @@ function App() {
         onBatchPrint={handleBatchPrint}
       />
 
-      {/* SUPER ADMINISTRATOR UNIVERSAL CONTROL CENTER (5 NAVIGATIONS) */}
+      {/* SUPER ADMINISTRATOR UNIVERSAL CONTROL CENTER */}
       <SuperAdminConsole
         isOpen={isSuperAdminConsoleOpen}
         onClose={() => setIsSuperAdminConsoleOpen(false)}
         currentUser={currentUser}
         members={members}
         activeOrg={activeOrg}
+        visibleChapters={visibleChapters}
+        onToggleChapterVisibility={handleToggleChapterVisibility}
         onSyncDatabase={handleSyncDatabase}
         onResetDatabase={handleResetDatabase}
         onOpenPromoteModal={(member) => {
@@ -1438,8 +1401,10 @@ function App() {
         lastSyncTime={lastSyncTime}
         awsLetterConfig={awsLetterConfig}
         technoLetterConfig={technoLetterConfig}
+        gdgocLetterConfig={gdgocLetterConfig}
         onChangeAwsConfig={setAwsLetterConfig}
         onChangeTechnoConfig={setTechnoLetterConfig}
+        onChangeGdgocConfig={setGdgocLetterConfig}
         onSaveBranding={handleSaveBrandingToDatabase}
       />
 

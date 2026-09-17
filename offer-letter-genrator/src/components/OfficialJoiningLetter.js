@@ -47,10 +47,10 @@ export default function OfficialJoiningLetter({
       <div className="letter-paper" id="printable-letter">
         
         {/* Top Header Banner Accent Border */}
-        <div className={`letter-top-accent ${isAWS ? 'accent-aws' : 'accent-techno'}`}></div>
+        <div className={`letter-top-accent ${isAWS ? 'accent-aws' : (activeClub.id === 'TECHNO_LAB' ? 'accent-techno' : 'accent-gdgoc')}`} style={{ background: activeClub.primaryColor }}></div>
 
         {/* Colorful Background Club Watermark */}
-        <div className={`letter-watermark-overlay ${isAWS ? 'watermark-theme-aws' : 'watermark-theme-techno'}`} aria-hidden="true">
+        <div className={`letter-watermark-overlay ${isAWS ? 'watermark-theme-aws' : (activeClub.id === 'TECHNO_LAB' ? 'watermark-theme-techno' : 'watermark-theme-gdgoc')}`} aria-hidden="true">
           {clubLogo ? (
             <div className="watermark-image-box">
               <img src={clubLogo} alt="" className="watermark-logo-img colorful-logo" />
@@ -64,10 +64,10 @@ export default function OfficialJoiningLetter({
                 <div className="watermark-title-aws">STUDENT BUILDER GROUP</div>
                 <div className="watermark-divider-gold"></div>
                 <div className="watermark-sub-aws">ITM (SLS) BARODA UNIVERSITY</div>
-                <div className="watermark-year">EST. 2026 &bull; OFFICIAL CHAPTER</div>
+                <div className="watermark-year">EST. 2026 • OFFICIAL CHAPTER</div>
               </div>
             </div>
-          ) : (
+          ) : activeClub.id === 'TECHNO_LAB' ? (
             <div className="watermark-vector techno-watermark-colorful">
               <div className="watermark-emblem-ring">
                 <div className="watermark-glow-bg"></div>
@@ -76,7 +76,19 @@ export default function OfficialJoiningLetter({
                 <div className="watermark-title-techno">INNOVATION &amp; ROBOTICS HUB</div>
                 <div className="watermark-divider-blue"></div>
                 <div className="watermark-sub-techno">ITM (SLS) BARODA UNIVERSITY</div>
-                <div className="watermark-year">EST. 2026 &bull; OFFICIAL CHAPTER</div>
+                <div className="watermark-year">EST. 2026 • OFFICIAL CHAPTER</div>
+              </div>
+            </div>
+          ) : (
+            <div className="watermark-vector gdgoc-watermark-colorful">
+              <div className="watermark-emblem-ring">
+                <div className="watermark-glow-bg" style={{ borderColor: '#4285F4' }}></div>
+                <div className="watermark-cloud-icon">🌐</div>
+                <div className="watermark-badge-techno" style={{ color: '#4285F4' }}>GDGoC</div>
+                <div className="watermark-title-techno" style={{ color: '#0F9D58' }}>GOOGLE DEVELOPER GROUPS ON CAMPUS</div>
+                <div className="watermark-divider-blue" style={{ background: '#4285F4' }}></div>
+                <div className="watermark-sub-techno">ITM (SLS) BARODA UNIVERSITY</div>
+                <div className="watermark-year">EST. 2026 • OFFICIAL CHAPTER</div>
               </div>
             </div>
           )}
