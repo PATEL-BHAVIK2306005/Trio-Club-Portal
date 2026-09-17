@@ -1,0 +1,20 @@
+{
+  "name": "offer-letter-db",
+  "version": "1.0.0",
+  "description": "Mongoose and Express backend for AWS SBG ITMBU Offer Letter Generator (MongoDB Compass Compatible)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "seed": "node seed.js",
+    "dev": "node server.js"
+  },
+  "keywords": ["aws", "sbg", "itmbu", "offer-letter", "mongoose", "mongodb"],
+  "author": "Bhavikkumar Patel",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mongoose": "^8.5.1"
+  }
+}
