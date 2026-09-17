@@ -474,6 +474,10 @@ body {
   border-bottom-color: rgba(0, 210, 255, 0.4);
 }
 
+.navbar-gdgoc {
+  border-bottom-color: rgba(66, 133, 244, 0.4);
+}
+
 .nav-brand-section {
   display: flex;
   align-items: center;
@@ -483,7 +487,7 @@ body {
 .nav-logo-badge {
   color: #111827;
   font-weight: 900;
-  font-size: 18px;
+  font-size: 16px;
   padding: 6px 14px;
   border-radius: 8px;
   letter-spacing: 1px;
@@ -497,6 +501,12 @@ body {
 .badge-techno-brand {
   background: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%);
   box-shadow: 0 0 15px rgba(0, 210, 255, 0.4);
+}
+
+.badge-gdgoc-brand {
+  background: linear-gradient(135deg, #4285F4 0%, #0F9D58 100%);
+  color: #ffffff;
+  box-shadow: 0 0 15px rgba(66, 133, 244, 0.4);
 }
 
 .nav-main-title {
@@ -580,15 +590,24 @@ body {
   color: #ffffff;
 }
 
-.top-slider-btn.active-aws {
+.top-slider-btn.active-aws,
+.top-slider-btn.active-aws-sbg {
   background: #ff9900;
   color: #111827;
   font-weight: 900;
 }
 
-.top-slider-btn.active-techno {
+.top-slider-btn.active-techno,
+.top-slider-btn.active-techno-lab {
   background: #00d2ff;
   color: #111827;
+  font-weight: 900;
+}
+
+.top-slider-btn.active-gdgoc,
+.top-slider-btn.active-gdgoc-itmbu {
+  background: #4285F4;
+  color: #ffffff;
   font-weight: 900;
 }
 
@@ -597,6 +616,12 @@ body {
   font-weight: 800;
   padding: 5px 10px;
   border-radius: 6px;
+}
+
+.chip-gdgoc {
+  background: rgba(66, 133, 244, 0.15);
+  border: 1px solid rgba(66, 133, 244, 0.4);
+  color: #93c5fd;
 }
 
 .user-badge-chip {

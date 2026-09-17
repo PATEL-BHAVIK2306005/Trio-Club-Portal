@@ -1159,25 +1159,25 @@ function App() {
     <div className={`app-root theme-${activeOrg.toLowerCase().replace('_', '-')}`}>
       
       {/* Universal Top Header */}
-      <header className="app-header no-print">
+      <header className={`app-navbar ${isAWS ? 'navbar-aws' : (isTechno ? 'navbar-techno' : 'navbar-gdgoc')} no-print`}>
         
         {/* Left: Brand Identity */}
-        <div className="header-brand-group">
-          <div className={`club-logo-circle ${isAWS ? 'logo-aws' : (isTechno ? 'logo-techno' : 'logo-gdgoc')}`}>
-            {isAWS ? '☁️' : (isTechno ? '🔬' : '🌐')}
+        <div className="nav-brand-section">
+          <div className={`nav-logo-badge ${isAWS ? 'badge-aws-brand' : (isTechno ? 'badge-techno-brand' : 'badge-gdgoc-brand')}`}>
+            {activeClub.shortName || (isAWS ? 'AWS SBG' : (isTechno ? 'Techno Lab' : 'GDGoC'))}
           </div>
           <div className="brand-text-col">
-            <h1 className="brand-title">
+            <h1 className="nav-main-title">
               {activeClub.name}
             </h1>
-            <span className="brand-subtitle">
+            <span className="nav-sub-title">
               ITM (sls) BARODA UNIVERSITY &bull; Joining Letter Studio
             </span>
           </div>
         </div>
 
         {/* Center: Main View Navigation */}
-        <div className="header-nav-tabs">
+        <div className="nav-view-switcher">
           <button
             className={`btn-view-tab ${currentView === 'letter_studio' ? 'active' : ''}`}
             onClick={() => setCurrentView('letter_studio')}
