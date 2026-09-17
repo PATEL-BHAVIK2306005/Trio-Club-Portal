@@ -30,10 +30,14 @@ export default function AddMemberModal({
   const activeClub = CLUB_CONFIGS[activeOrg] || CLUB_CONFIGS.AWS_SBG;
   const isAWS = activeOrg === 'AWS_SBG';
 
+  const defaultDept = (departments && departments.length > 0 && departments[0] !== 'All') 
+    ? departments.find(d => d !== 'All') 
+    : ((activeClub.departments || []).find(d => d !== 'All') || 'Technical Team');
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    department: isAWS ? 'Technical Team' : 'Robotics & IoT Wing',
+    department: defaultDept,
     roleType: 'Core Team Member',
     designation: '',
     isCoLead: false,

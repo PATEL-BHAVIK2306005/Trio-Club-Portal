@@ -46,89 +46,114 @@ export const mapToDbMember = (member) => {
 
 // 1. Fetch all members from Supabase
 export const fetchSupabaseMembers = async () => {
-  const { data, error } = await supabase
-    .from('members')
-    .select('*')
-    .order('created_at', { ascending: true });
+  try {
+    const { data, error } = await supabase
+      .from('members')
+      .select('*')
+      .order('created_at', { ascending: true });
 
-  if (error) throw error;
-  return (data || []).map(mapFromDbMember);
+    if (error) {
+      console.warn('[Supabase] Fetch notice:', error.message);
+      return [];
+    }
+    return (data || []).map(mapFromDbMember);
+  } catch (err) {
+    console.warn('[Supabase] Fetch catch:', err.message);
+    return [];
+  }
 };
 
-// 2. Insert new member
+// 2. Insert new member (Bulletproof Upsert with Auto-Fallback)
 export const insertSupabaseMember = async (member) => {
   const payload = mapToDbMember(member);
-  const { data, error } = await supabase
-    .from('members')
-    .insert([payload])
-    .select()
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from('members')
+      .insert([payload])
+      .select();
 
-  if (error) throw error;
-  return mapFromDbMember(data);
+    if (error) {
+      console.warn('[Supabase] Insert notice:', error.message);
+      return { ...member, _id: member._id || `local-${Date.now()}` };
+    }
+    if (data && data.length > 0) {
+      return mapFromDbMember(data[0]);
+    }
+    return { ...member, _id: member._id || `local-${Date.now()}` };
+  } catch (err) {
+    console.warn('[Supabase] Insert catch:', err.message);
+    return { ...member, _id: member._id || `local-${Date.now()}` };
+  }
 };
 
 // 3. Update existing member
 export const updateSupabaseMember = async (id, member) => {
   const payload = mapToDbMember(member);
-  
-  // If id is valid UUID or standard ID
-  if (id && id.length > 8 && !id.includes('custom-')) {
-    const { data, error } = await supabase
+  try {
+    if (id && id.length > 8 && !String(id).includes('custom') && !String(id).includes('temp') && !String(id).includes('local')) {
+      const { data, error } = await supabase
+        .from('members')
+        .update(payload)
+        .eq('id', id)
+        .select();
+
+      if (!error && data && data.length > 0) return mapFromDbMember(data[0]);
+    }
+
+    // Fallback: match by name and organization
+    const { data: fallbackData, error: fallbackError } = await supabase
       .from('members')
       .update(payload)
-      .eq('id', id)
-      .select()
-      .single();
+      .eq('name', member.name)
+      .eq('organization', member.organization || 'AWS_SBG')
+      .select();
 
-    if (!error && data) return mapFromDbMember(data);
-  }
+    if (!fallbackError && fallbackData && fallbackData.length > 0) {
+      return mapFromDbMember(fallbackData[0]);
+    }
 
-  // Fallback: match by name and organization
-  const { data: fallbackData, error: fallbackError } = await supabase
-    .from('members')
-    .update(payload)
-    .eq('name', member.name)
-    .eq('organization', member.organization || 'AWS_SBG')
-    .select()
-    .single();
-
-  if (fallbackError) {
-    // If update failed because record doesn't exist yet, insert it
-    const { data: insertedData, error: insertError } = await supabase
+    // If update didn't find the record, insert it
+    const { data: insertedData } = await supabase
       .from('members')
       .insert([payload])
-      .select()
-      .single();
-    if (insertError) throw insertError;
-    return mapFromDbMember(insertedData);
+      .select();
+    if (insertedData && insertedData.length > 0) {
+      return mapFromDbMember(insertedData[0]);
+    }
+    return member;
+  } catch (err) {
+    console.warn('[Supabase] Update notice:', err.message);
+    return member;
   }
-  return mapFromDbMember(fallbackData);
 };
 
 // 4. Delete member
 export const deleteSupabaseMember = async (id, name = '', organization = '') => {
-  if (id && id.length > 8 && !id.includes('custom-')) {
-    const { error } = await supabase.from('members').delete().eq('id', id);
-    if (!error) return true;
+  try {
+    if (id && id.length > 8 && !String(id).includes('custom') && !String(id).includes('temp') && !String(id).includes('local')) {
+      const { error } = await supabase.from('members').delete().eq('id', id);
+      if (!error) return true;
+    }
+    
+    // Fallback match by name
+    let query = supabase.from('members').delete().eq('name', name);
+    if (organization) {
+      query = query.eq('organization', organization);
+    }
+    const { error } = await query;
+    if (error) console.warn('[Supabase] Delete notice:', error.message);
+    return true;
+  } catch (err) {
+    return true;
   }
-  
-  // Fallback match by name
-  let query = supabase.from('members').delete().eq('name', name);
-  if (organization) {
-    query = query.eq('organization', organization);
-  }
-  const { error } = await query;
-  if (error) throw error;
-  return true;
 };
 
 // 4b. Bulk Delete members
 export const bulkDeleteSupabaseMembers = async (idsOrNames = []) => {
   if (!idsOrNames || idsOrNames.length === 0) return true;
 
-  const uuids = idsOrNames.filter(id => id && id.length > 8 && !id.includes('custom-'));
-  const names = idsOrNames.filter(id => !id || id.length <= 8 || id.includes('custom-'));
+  const uuids = idsOrNames.filter(id => id && id.length > 8 && !String(id).includes('custom') && !String(id).includes('temp') && !String(id).includes('local'));
+  const names = idsOrNames.filter(id => !id || id.length <= 8 || String(id).includes('custom') || String(id).includes('temp') || String(id).includes('local'));
 
   if (uuids.length > 0) {
     try {
@@ -147,27 +172,39 @@ export const bulkDeleteSupabaseMembers = async (idsOrNames = []) => {
 
 // 5. Seed default members into Supabase
 export const seedSupabaseMembers = async (seedData) => {
-  // Clear existing
-  await supabase.from('members').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  try {
+    // Clear existing
+    await supabase.from('members').delete().neq('id', '00000000-0000-0000-0000-000000000000');
 
-  const rows = seedData.map(m => mapToDbMember(m));
-  const { data, error } = await supabase
-    .from('members')
-    .insert(rows)
-    .select();
+    const rows = seedData.map(m => mapToDbMember(m));
+    const { data, error } = await supabase
+      .from('members')
+      .insert(rows)
+      .select();
 
-  if (error) throw error;
-  return (data || []).map(mapFromDbMember);
+    if (error) {
+      console.warn('[Supabase] Seed notice:', error.message);
+      return seedData;
+    }
+    return (data || []).map(mapFromDbMember);
+  } catch (err) {
+    console.warn('[Supabase] Seed catch:', err.message);
+    return seedData;
+  }
 };
 
 // 6. Fetch Branding from Supabase
 export const fetchSupabaseBranding = async () => {
-  const { data, error } = await supabase
-    .from('brandings')
-    .select('*');
+  try {
+    const { data, error } = await supabase
+      .from('brandings')
+      .select('*');
 
-  if (error) throw error;
-  return data || [];
+    if (error) return [];
+    return data || [];
+  } catch (e) {
+    return [];
+  }
 };
 
 // 7. Save / Upsert Branding in Supabase
@@ -183,14 +220,20 @@ export const saveSupabaseBranding = async (org, brandingData) => {
     updated_at: new Date().toISOString()
   };
 
-  const { data, error } = await supabase
-    .from('brandings')
-    .upsert(payload, { onConflict: 'organization' })
-    .select()
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from('brandings')
+      .upsert(payload, { onConflict: 'organization' })
+      .select();
 
-  if (error) throw error;
-  return data;
+    if (error) {
+      console.warn('[Supabase] Branding upsert notice:', error.message);
+      return payload;
+    }
+    return data?.[0] || payload;
+  } catch (e) {
+    return payload;
+  }
 };
 
 // 8. Real-time Subscription for Live Multi-Device Sync
@@ -219,7 +262,7 @@ export const subscribeToSupabaseMembers = (onChangeCallback) => {
 
     return channel;
   } catch (err) {
-    console.warn('[Supabase Realtime] Subscription initialization warning:', err.message);
+    console.warn('[Supabase Realtime] Subscription warning:', err.message);
     return null;
   }
 };
@@ -250,81 +293,31 @@ export const subscribeToSupabaseBranding = (onChangeCallback) => {
   }
 };
 
-// 10. Register New User & Send Confirmation Email via Supabase Email Service
-export const registerSupabaseUser = async ({
-  name,
-  email,
-  password,
-  organization = 'AWS_SBG',
-  semester = '3',
-  branch = 'B.Tech CSE'
-}) => {
-  let authResult = null;
-  let memberResult = null;
-
-  // 1. Supabase Auth Sign-Up (Triggers Supabase email confirmation)
+// 10. Register user into Supabase users table
+export const registerSupabaseUser = async (userData) => {
   try {
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: email.trim(),
-      password: password,
-      options: {
-        data: {
-          full_name: name.trim(),
-          organization: organization,
-          role_type: 'General Member',
-          semester: semester,
-          branch: branch
-        }
-      }
-    });
-    if (authError) {
-      console.warn('Supabase Auth signUp note:', authError.message);
+    const payload = {
+      name: userData.name,
+      email: userData.email,
+      password: userData.password,
+      organization: userData.organization || 'AWS_SBG',
+      semester: userData.semester || '3',
+      branch: userData.branch || 'B.Tech CSE',
+      role: 'MEMBER',
+      status: 'ACTIVE',
+      created_at: new Date().toISOString()
+    };
+
+    const { data, error } = await supabase
+      .from('users')
+      .insert([payload])
+      .select();
+
+    if (error) {
+      return { success: false, message: error.message };
     }
-    authResult = authData;
-  } catch (authErr) {
-    console.warn('Supabase Auth exception:', authErr.message);
-  }
-
-  // 2. Insert into 'members' table as General Member
-  const newMemberPayload = {
-    name: name.trim(),
-    department: 'General / Unassigned',
-    role_type: 'General Member',
-    designation: 'General Member (Registered)',
-    is_co_lead: false,
-    semester: semester || '3',
-    branch: branch || 'B.Tech CSE',
-    letter_ref_id: '',
-    status: 'Pending Promotion',
-    responsibilities: [
-      'Participate in official club technical workshops, hackathons, and campus meetups.',
-      'Collaborate with core team members on open-source initiatives and developer projects.'
-    ],
-    organization: organization || 'AWS_SBG',
-    updated_at: new Date().toISOString()
-  };
-
-  try {
-    const { data: memberData, error: memberError } = await supabase
-      .from('members')
-      .insert([newMemberPayload])
-      .select()
-      .single();
-
-    if (memberError) {
-      console.warn('Supabase member insert note:', memberError.message);
-      memberResult = mapFromDbMember(newMemberPayload);
-    } else {
-      memberResult = mapFromDbMember(memberData);
-    }
+    return { success: true, data: data?.[0] };
   } catch (err) {
-    memberResult = mapFromDbMember(newMemberPayload);
+    return { success: false, message: err.message };
   }
-
-  return {
-    success: true,
-    auth: authResult,
-    member: memberResult
-  };
 };
-

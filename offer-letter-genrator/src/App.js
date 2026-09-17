@@ -54,8 +54,18 @@ function App() {
     return 'AWS_SBG';
   });
 
-  // Data & Member State
-  const [members, setMembers] = useState(INITIAL_TEAM_DATA);
+  // Data & Member State (Loaded instantly from localStorage with 0ms lag)
+  const [members, setMembers] = useState(() => {
+    const saved = localStorage.getItem('offer_gen_members');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {}
+    }
+    return INITIAL_TEAM_DATA;
+  });
+
   const [selectedMember, setSelectedMember] = useState(null);
   const [editingMember, setEditingMember] = useState(null);
 
@@ -175,7 +185,6 @@ function App() {
   const activeClub = CLUB_CONFIGS[activeOrg] || CLUB_CONFIGS.AWS_SBG;
   const isAWS = activeOrg === 'AWS_SBG';
   const isTechno = activeOrg === 'TECHNO_LAB';
-  const isGdgoc = activeOrg === 'GDGOC';
 
   const activeClubLogo = isAWS ? awsClubLogo : (isTechno ? technoClubLogo : gdgocClubLogo);
   const activeOrganizerSig = isAWS ? awsOrganizerSig : (isTechno ? technoOrganizerSig : gdgocOrganizerSig);
@@ -209,6 +218,29 @@ function App() {
       }
     }
   };
+
+  // Smart Merge Helper: Preserves local additions and merges with cloud data
+  const mergeMembers = useCallback((cloudMembers, currentMembers) => {
+    if (!Array.isArray(cloudMembers) || cloudMembers.length === 0) return currentMembers || INITIAL_TEAM_DATA;
+    
+    const merged = [...cloudMembers];
+    (currentMembers || []).forEach(localM => {
+      const localKey = String(localM._id || localM.id || '');
+      const isLocalOrTemp = localKey.includes('custom') || localKey.includes('temp') || localKey.includes('local');
+      const alreadyInCloud = cloudMembers.some(cm => cm.name?.toLowerCase().trim() === localM.name?.toLowerCase().trim() && cm.organization === localM.organization);
+      if (isLocalOrTemp && !alreadyInCloud) {
+        merged.unshift(localM);
+      }
+    });
+    return merged;
+  }, []);
+
+  // Sync members to localStorage on any state change
+  useEffect(() => {
+    if (members && members.length > 0) {
+      localStorage.setItem('offer_gen_members', JSON.stringify(members));
+    }
+  }, [members]);
 
   // Real-time dynamic active member computed from latest members state
   const currentActiveMember = members.find(m => (
@@ -376,12 +408,16 @@ function App() {
     }
 
     // Reassign affected members in local state
-    setMembers(prev => prev.map(m => {
-      if ((!m.organization || m.organization === orgKey) && m.department === deptName) {
-        return { ...m, department: 'General / Unassigned' };
-      }
-      return m;
-    }));
+    setMembers(prev => {
+      const updated = prev.map(m => {
+        if ((!m.organization || m.organization === orgKey) && m.department === deptName) {
+          return { ...m, department: 'General / Unassigned' };
+        }
+        return m;
+      });
+      localStorage.setItem('offer_gen_members', JSON.stringify(updated));
+      return updated;
+    });
   };
 
   // 1. Initialize data & Multi-Device Realtime Subscriptions on mount
@@ -397,7 +433,11 @@ function App() {
       try {
         const supaMembers = await fetchSupabaseMembers();
         if (supaMembers && supaMembers.length > 0) {
-          setMembers(supaMembers);
+          setMembers(prev => {
+            const merged = mergeMembers(supaMembers, prev);
+            localStorage.setItem('offer_gen_members', JSON.stringify(merged));
+            return merged;
+          });
           setDbConnected(true);
           setDbProvider('Supabase Cloud');
           setLastSyncTime(new Date());
@@ -407,7 +447,11 @@ function App() {
           try {
             const seeded = await seedSupabaseMembers(INITIAL_TEAM_DATA);
             if (seeded && seeded.length > 0) {
-              setMembers(seeded);
+              setMembers(prev => {
+                const merged = mergeMembers(seeded, prev);
+                localStorage.setItem('offer_gen_members', JSON.stringify(merged));
+                return merged;
+              });
               setDbConnected(true);
               setDbProvider('Supabase Cloud');
               setLastSyncTime(new Date());
@@ -430,7 +474,11 @@ function App() {
           const res = await fetch(`${API_BASE_URL}/members`);
           const data = await res.json();
           if (data.success && data.data && data.data.length > 0) {
-            setMembers(data.data);
+            setMembers(prev => {
+              const merged = mergeMembers(data.data, prev);
+              localStorage.setItem('offer_gen_members', JSON.stringify(merged));
+              return merged;
+            });
             setDbConnected(true);
             setDbProvider('MongoDB Compass');
             setLastSyncTime(new Date());
@@ -458,19 +506,31 @@ function App() {
         const item = change.newRecord;
         setMembers(prev => {
           const exists = prev.some(m => (m._id && m._id === item._id) || (m.id && m.id === item.id) || (m.name === item.name && m.organization === item.organization));
+          let nextList;
           if (exists) {
-            return prev.map(m => ((m._id && m._id === item._id) || (m.id && m.id === item.id) || (m.name === item.name && m.organization === item.organization)) ? item : m);
+            nextList = prev.map(m => ((m._id && m._id === item._id) || (m.id && m.id === item.id) || (m.name === item.name && m.organization === item.organization)) ? item : m);
+          } else {
+            nextList = [item, ...prev];
           }
-          return [item, ...prev];
+          localStorage.setItem('offer_gen_members', JSON.stringify(nextList));
+          return nextList;
         });
       } else if (change.eventType === 'UPDATE' && change.newRecord) {
         const item = change.newRecord;
-        setMembers(prev => prev.map(m => ((m._id && m._id === item._id) || (m.id && m.id === item.id) || (m.name === item.name && m.organization === item.organization)) ? item : m));
+        setMembers(prev => {
+          const nextList = prev.map(m => ((m._id && m._id === item._id) || (m.id && m.id === item.id) || (m.name === item.name && m.organization === item.organization)) ? item : m);
+          localStorage.setItem('offer_gen_members', JSON.stringify(nextList));
+          return nextList;
+        });
         setSelectedMember(prev => (prev && ((prev._id && prev._id === item._id) || (prev.id && prev.id === item.id) || prev.name === item.name)) ? item : prev);
       } else if (change.eventType === 'DELETE') {
         const oldId = change.raw?.old?.id?.toString();
         if (oldId) {
-          setMembers(prev => prev.filter(m => m._id !== oldId && m.id !== oldId));
+          setMembers(prev => {
+            const nextList = prev.filter(m => m._id !== oldId && m.id !== oldId);
+            localStorage.setItem('offer_gen_members', JSON.stringify(nextList));
+            return nextList;
+          });
         }
       }
     });
@@ -485,12 +545,16 @@ function App() {
       } catch (e) {}
     });
 
-    // 3. Fallback Auto-Sync Poller (every 15s)
+    // 3. Fallback Auto-Sync Poller (every 15s) with Smart Merge
     autoSyncInterval = setInterval(async () => {
       try {
         const fresh = await fetchSupabaseMembers();
         if (fresh && fresh.length > 0) {
-          setMembers(fresh);
+          setMembers(prev => {
+            const merged = mergeMembers(fresh, prev);
+            localStorage.setItem('offer_gen_members', JSON.stringify(merged));
+            return merged;
+          });
           setDbConnected(true);
           setLastSyncTime(new Date());
         }
@@ -508,7 +572,7 @@ function App() {
         clearInterval(autoSyncInterval);
       }
     };
-  }, [applyBrandingList]);
+  }, [applyBrandingList, mergeMembers]);
 
   // Update selected member when switching active chapter
   useEffect(() => {
@@ -526,7 +590,7 @@ function App() {
         return orgMembers[0];
       });
     }
-  }, [activeOrg]);
+  }, [activeOrg, members]);
 
   // Keep selectedMember synchronized with latest data
   useEffect(() => {
@@ -701,7 +765,11 @@ function App() {
       try {
         const supaMembers = await fetchSupabaseMembers();
         if (supaMembers && supaMembers.length > 0) {
-          setMembers(supaMembers);
+          setMembers(prev => {
+            const merged = mergeMembers(supaMembers, prev);
+            localStorage.setItem('offer_gen_members', JSON.stringify(merged));
+            return merged;
+          });
           setDbConnected(true);
           setDbProvider('Supabase Cloud');
           setLastSyncTime(new Date());
@@ -730,27 +798,45 @@ function App() {
     }
   };
 
-  // Add Member Handler
+  // Add Member Handler (Instant 0ms update + Background Cloud Sync)
   const handleAddMember = async (newMember) => {
-    const tempId = `temp-${Date.now()}`;
-    const localMember = { ...newMember, _id: tempId, id: tempId };
-    setMembers(prev => [localMember, ...prev]);
+    const memberWithOrg = {
+      ...newMember,
+      organization: newMember.organization || activeOrg,
+      department: newMember.department || (activeClub.departments?.[0] || 'Technical Team')
+    };
+    const tempId = `custom-${Date.now()}`;
+    const localMember = { ...memberWithOrg, _id: memberWithOrg._id || tempId, id: memberWithOrg.id || tempId };
+    
+    // 1. Instant local persistence & UI update (0ms delay)
+    setMembers(prev => {
+      const updated = [localMember, ...prev];
+      localStorage.setItem('offer_gen_members', JSON.stringify(updated));
+      return updated;
+    });
     setSelectedMember(localMember);
 
+    // 2. Persist to Supabase in background
     try {
-      const supaSaved = await insertSupabaseMember(newMember);
-      if (supaSaved) {
-        setMembers(prev => prev.map(m => m._id === tempId ? supaSaved : m));
+      const supaSaved = await insertSupabaseMember(memberWithOrg);
+      if (supaSaved && supaSaved._id) {
+        setMembers(prev => {
+          const updated = prev.map(m => (m._id === localMember._id || m.id === localMember.id) ? supaSaved : m);
+          localStorage.setItem('offer_gen_members', JSON.stringify(updated));
+          return updated;
+        });
         setSelectedMember(supaSaved);
       }
-    } catch (e) {}
+    } catch (e) {
+      console.warn('Supabase sync note:', e.message);
+    }
 
     setLastSyncTime(new Date());
     Swal.fire({
       toast: true,
       position: 'top-end',
       icon: 'success',
-      title: `${newMember.name} added to roster!`,
+      title: `✨ ${newMember.name} added to ${activeClub.shortName} roster!`,
       showConfirmButton: false,
       timer: 2500,
       background: '#101626',
@@ -777,14 +863,18 @@ function App() {
 
     if (!result.isConfirmed) return;
 
-    setMembers(prev => prev.filter(m => m._id !== memberId && m.id !== memberId));
+    setMembers(prev => {
+      const updated = prev.filter(m => m._id !== memberId && m.id !== memberId);
+      localStorage.setItem('offer_gen_members', JSON.stringify(updated));
+      return updated;
+    });
     if (selectedMember && (selectedMember._id === memberId || selectedMember.id === memberId)) {
       const remaining = members.filter(m => m._id !== memberId && m.id !== memberId && (!m.organization || m.organization === activeOrg));
       setSelectedMember(remaining.length > 0 ? remaining[0] : null);
     }
 
     try {
-      await deleteSupabaseMember(memberId);
+      await deleteSupabaseMember(memberId, memberToDelete?.name, memberToDelete?.organization);
     } catch (e) {}
 
     setLastSyncTime(new Date());
@@ -818,7 +908,11 @@ function App() {
 
     if (!result.isConfirmed) return;
 
-    setMembers(prev => prev.filter(m => !memberIds.includes(m._id) && !memberIds.includes(m.id)));
+    setMembers(prev => {
+      const updated = prev.filter(m => !memberIds.includes(m._id) && !memberIds.includes(m.id));
+      localStorage.setItem('offer_gen_members', JSON.stringify(updated));
+      return updated;
+    });
 
     try {
       await bulkDeleteSupabaseMembers(memberIds);
@@ -839,7 +933,11 @@ function App() {
 
   // Save / Update Member Handler
   const handleSaveMember = async (updatedMember) => {
-    setMembers(prev => prev.map(m => (m._id === updatedMember._id || m.id === updatedMember.id || m.name === updatedMember.name) ? updatedMember : m));
+    setMembers(prev => {
+      const updated = prev.map(m => (m._id === updatedMember._id || m.id === updatedMember.id || m.name === updatedMember.name) ? updatedMember : m);
+      localStorage.setItem('offer_gen_members', JSON.stringify(updated));
+      return updated;
+    });
     if (selectedMember && (selectedMember._id === updatedMember._id || selectedMember.id === updatedMember.id || selectedMember.name === updatedMember.name)) {
       setSelectedMember(updatedMember);
     }
@@ -847,7 +945,11 @@ function App() {
     try {
       const supaUpdated = await updateSupabaseMember(updatedMember._id || updatedMember.id, updatedMember);
       if (supaUpdated) {
-        setMembers(prev => prev.map(m => (m._id === supaUpdated._id || m.id === supaUpdated.id || m.name === supaUpdated.name) ? supaUpdated : m));
+        setMembers(prev => {
+          const updated = prev.map(m => (m._id === supaUpdated._id || m.id === supaUpdated.id || m.name === supaUpdated.name) ? supaUpdated : m);
+          localStorage.setItem('offer_gen_members', JSON.stringify(updated));
+          return updated;
+        });
         if (selectedMember && (selectedMember._id === supaUpdated._id || selectedMember.id === supaUpdated.id || selectedMember.name === supaUpdated.name)) {
           setSelectedMember(supaUpdated);
         }
@@ -869,7 +971,11 @@ function App() {
 
   // Promote Member Handler
   const handlePromoteMember = async (updatedMember) => {
-    setMembers(prev => prev.map(m => (m._id === updatedMember._id || m.id === updatedMember.id || m.name === updatedMember.name) ? updatedMember : m));
+    setMembers(prev => {
+      const updated = prev.map(m => (m._id === updatedMember._id || m.id === updatedMember.id || m.name === updatedMember.name) ? updatedMember : m);
+      localStorage.setItem('offer_gen_members', JSON.stringify(updated));
+      return updated;
+    });
     setSelectedMember(updatedMember);
     if (isAWS) {
       setAwsLetterConfig(prev => ({ ...prev, letterRefId: updatedMember.letterRefId || prev.letterRefId }));
@@ -882,7 +988,11 @@ function App() {
     try {
       const supaUpdated = await updateSupabaseMember(updatedMember._id || updatedMember.id, updatedMember);
       if (supaUpdated) {
-        setMembers(prev => prev.map(m => (m._id === supaUpdated._id || m.id === supaUpdated.id || m.name === supaUpdated.name) ? supaUpdated : m));
+        setMembers(prev => {
+          const updated = prev.map(m => (m._id === supaUpdated._id || m.id === supaUpdated.id || m.name === supaUpdated.name) ? supaUpdated : m);
+          localStorage.setItem('offer_gen_members', JSON.stringify(updated));
+          return updated;
+        });
         setSelectedMember(supaUpdated);
       }
     } catch (e) {}
@@ -929,12 +1039,15 @@ function App() {
       const supaSeeded = await seedSupabaseMembers(INITIAL_TEAM_DATA);
       if (supaSeeded && supaSeeded.length > 0) {
         setMembers(supaSeeded);
+        localStorage.setItem('offer_gen_members', JSON.stringify(supaSeeded));
         reseededCount = supaSeeded.length;
       } else {
         setMembers(INITIAL_TEAM_DATA);
+        localStorage.setItem('offer_gen_members', JSON.stringify(INITIAL_TEAM_DATA));
       }
     } catch (e) {
       setMembers(INITIAL_TEAM_DATA);
+      localStorage.setItem('offer_gen_members', JSON.stringify(INITIAL_TEAM_DATA));
     }
 
     setLastSyncTime(new Date());
