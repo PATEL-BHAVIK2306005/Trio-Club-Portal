@@ -44,7 +44,11 @@ function App() {
       const saved = localStorage.getItem('visible_chapters');
       if (saved) {
         const parsed = JSON.parse(saved);
-        return { AWS_SBG: true, TECHNO_LAB: true, GDGOC: true, ...parsed, GDGOC: parsed.GDGOC !== undefined ? parsed.GDGOC : true };
+        const merged = { AWS_SBG: true, TECHNO_LAB: true, ...parsed };
+        if (merged.GDGOC === undefined) {
+          merged.GDGOC = true;
+        }
+        return merged;
       }
     } catch (e) {}
     return { AWS_SBG: true, TECHNO_LAB: true, GDGOC: true };
