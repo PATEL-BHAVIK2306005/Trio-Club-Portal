@@ -40,8 +40,14 @@ function App() {
 
   // Chapter Visibility Matrix (Super Admin controlled, synced with localStorage)
   const [visibleChapters, setVisibleChapters] = useState(() => {
-    const saved = localStorage.getItem('visible_chapters');
-    return saved ? JSON.parse(saved) : { AWS_SBG: true, TECHNO_LAB: true, GDGOC: true };
+    try {
+      const saved = localStorage.getItem('visible_chapters');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return { AWS_SBG: true, TECHNO_LAB: true, GDGOC: true, ...parsed, GDGOC: parsed.GDGOC !== undefined ? parsed.GDGOC : true };
+      }
+    } catch (e) {}
+    return { AWS_SBG: true, TECHNO_LAB: true, GDGOC: true };
   });
 
   // Active Organization / Section: 'AWS_SBG' | 'TECHNO_LAB' | 'GDGOC'
