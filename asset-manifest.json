@@ -1,17 +1,17 @@
 {
   "files": {
-    "main.css": "/Trio-Club-Portal/static/css/main.653583b5.css",
-    "main.js": "/Trio-Club-Portal/static/js/main.8228f6a3.js",
-    "static/js/74.ee475cf1.chunk.js": "/Trio-Club-Portal/static/js/74.ee475cf1.chunk.js",
-    "static/js/453.3d79570d.chunk.js": "/Trio-Club-Portal/static/js/453.3d79570d.chunk.js",
-    "index.html": "/Trio-Club-Portal/index.html",
-    "main.653583b5.css.map": "/Trio-Club-Portal/static/css/main.653583b5.css.map",
-    "main.8228f6a3.js.map": "/Trio-Club-Portal/static/js/main.8228f6a3.js.map",
-    "74.ee475cf1.chunk.js.map": "/Trio-Club-Portal/static/js/74.ee475cf1.chunk.js.map",
-    "453.3d79570d.chunk.js.map": "/Trio-Club-Portal/static/js/453.3d79570d.chunk.js.map"
+    "main.css": "./static/css/main.653583b5.css",
+    "main.js": "./static/js/main.f9f83214.js",
+    "static/js/74.ee475cf1.chunk.js": "./static/js/74.ee475cf1.chunk.js",
+    "static/js/453.3d79570d.chunk.js": "./static/js/453.3d79570d.chunk.js",
+    "index.html": "./index.html",
+    "main.653583b5.css.map": "./static/css/main.653583b5.css.map",
+    "main.f9f83214.js.map": "./static/js/main.f9f83214.js.map",
+    "74.ee475cf1.chunk.js.map": "./static/js/74.ee475cf1.chunk.js.map",
+    "453.3d79570d.chunk.js.map": "./static/js/453.3d79570d.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.653583b5.css",
-    "static/js/main.8228f6a3.js"
+    "static/js/main.f9f83214.js"
   ]
 }
