@@ -89,15 +89,16 @@ export async function sendDirectReactEmail({
 
     if (backendRes.ok) {
       const json = await backendRes.json();
+      responseData = json;
       if (json.success && json.dispatched) {
         deliveryMethod = 'Vercel Serverless Nodemailer';
         isDelivered = true;
-        responseData = json;
       } else if (json.error || json.message) {
         lastError = json.error || json.message;
       }
     } else {
       const errJson = await backendRes.json().catch(() => ({}));
+      responseData = errJson;
       lastError = errJson.error || `Server returned HTTP ${backendRes.status}`;
     }
   } catch (backendErr) {

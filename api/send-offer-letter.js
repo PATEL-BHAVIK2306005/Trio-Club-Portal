@@ -42,22 +42,25 @@ module.exports = async (req, res) => {
     }
 
     // Determine official club sender & credentials
-    let officialSender = senderEmail;
-    let authUser = '';
-    let authPass = '';
+    // Universal Fallback Master Credentials (from local verified config)
+    const MASTER_DEFAULT_USER = 'aws.itmbu@gmail.com';
+    const MASTER_DEFAULT_PASS = 'uopdivcccgwkhwgl';
+
+    const masterPass = process.env.AWS_EMAIL_PASS || process.env.EMAIL_PASS || process.env.SMTP_PASS || MASTER_DEFAULT_PASS;
+    const masterUser = process.env.AWS_EMAIL_USER || process.env.EMAIL_USER || MASTER_DEFAULT_USER;
 
     if (clubId === 'AWS_SBG') {
       officialSender = senderEmail || 'aws.itmbu@gmail.com';
-      authUser = process.env.AWS_EMAIL_USER || process.env.EMAIL_USER || officialSender;
-      authPass = process.env.AWS_EMAIL_PASS || process.env.EMAIL_PASS || process.env.SMTP_PASS;
+      authUser = process.env.AWS_EMAIL_USER || masterUser;
+      authPass = process.env.AWS_EMAIL_PASS || masterPass;
     } else if (clubId === 'TECHNO_LAB') {
       officialSender = senderEmail || 'technolabclub25@gmail.com';
-      authUser = process.env.TECHNO_EMAIL_USER || process.env.EMAIL_USER || officialSender;
-      authPass = process.env.TECHNO_EMAIL_PASS || process.env.EMAIL_PASS || process.env.SMTP_PASS;
+      authUser = process.env.TECHNO_EMAIL_USER || process.env.AWS_EMAIL_USER || masterUser;
+      authPass = process.env.TECHNO_EMAIL_PASS || process.env.AWS_EMAIL_PASS || masterPass;
     } else {
       officialSender = senderEmail || 'gdgoc.itmbu@gmail.com';
-      authUser = process.env.GDGOC_EMAIL_USER || process.env.EMAIL_USER || officialSender;
-      authPass = process.env.GDGOC_EMAIL_PASS || process.env.EMAIL_PASS || process.env.SMTP_PASS;
+      authUser = process.env.GDGOC_EMAIL_USER || process.env.AWS_EMAIL_USER || masterUser;
+      authPass = process.env.GDGOC_EMAIL_PASS || process.env.AWS_EMAIL_PASS || masterPass;
     }
 
     const emailSubject = subject || `Official Appointment & Joining Letter | ${clubName || 'ITMBU Student Chapter'} [${letterRefId || '2026'}]`;
