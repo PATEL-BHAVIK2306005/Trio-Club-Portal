@@ -285,13 +285,21 @@ export default function BrandingSettings({
             ) : isTechno ? (
               <div className="techno-badge-logo preview-inner">
                 <div className="techno-pill">TECHNO LAB</div>
-                <div className="techno-sub">Techno+Techiz Innovation Hub</div>
+                <div className="techno-sub">Techno+Techies Community</div>
                 <div className="techno-campus">ITM (sls) Baroda University</div>
               </div>
             ) : (
-              <div className="gdgoc-badge-logo preview-inner" style={{ textAlign: 'center', color: '#4285F4' }}>
-                <div style={{ fontSize: '18px', fontWeight: 800, letterSpacing: '0.05em' }}>GDGoC ITMBU</div>
-                <div style={{ fontSize: '11px', color: '#0F9D58', fontWeight: 600 }}>Google Developer Groups on Campus</div>
+              <div className="gdgoc-badge-logo preview-inner" style={{ textAlign: 'center' }}>
+                <div className="gdgoc-pill-white" style={{ display: 'inline-flex', alignItems: 'center', background: '#ffffff', color: '#3c4043', padding: '4px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                  <svg width="22" height="14" viewBox="0 0 120 76" fill="none" style={{ verticalAlign: 'middle', marginRight: '6px' }}>
+                    <line x1="42" y1="12" x2="16" y2="38" stroke="#EA4335" strokeWidth="14" strokeLinecap="round"/>
+                    <line x1="16" y1="38" x2="42" y2="64" stroke="#4285F4" strokeWidth="14" strokeLinecap="round"/>
+                    <line x1="78" y1="12" x2="104" y2="38" stroke="#0F9D58" strokeWidth="14" strokeLinecap="round"/>
+                    <line x1="104" y1="38" x2="78" y2="64" stroke="#FBBC04" strokeWidth="14" strokeLinecap="round"/>
+                  </svg>
+                  <span style={{ fontWeight: 800, fontSize: '14px', color: '#3c4043' }}>GDG</span>
+                </div>
+                <div style={{ fontSize: '11px', color: '#4285F4', fontWeight: 700, marginTop: '4px' }}>Google Developer Groups on Campus</div>
                 <div style={{ fontSize: '10px', color: '#94a3b8' }}>ITM (sls) Baroda University</div>
               </div>
             )}

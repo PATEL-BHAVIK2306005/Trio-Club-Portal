@@ -1,16 +1,19 @@
-# AWS SBG & Techno Lab ITMBU - Official Appointment & Offer Letter Generator
+# Trio Club Portal • ITM (sls) Baroda University
+### Official Appointment & Joining Letter Studio • Multi-Chapter Management Suite
 
-An enterprise-grade, dual-organization official appointment letter generator and team roster management portal designed for **AWS Student Builder Group (AWS SBG)** and **Techno Lab** at **ITM (sls) Baroda University**.
+An enterprise-grade, multi-organization official joining letter generator and team management portal designed for **AWS Student Builder Group (AWS SBG)**, **Techno Lab (Techno+Techies Community)**, and **Google Developer Groups on Campus (GDGoC)** at **ITM (sls) Baroda University**.
 
 ---
 
-## ⚡ Multi-Device Real-Time Cloud Synchronization
+## ⚡ Key Highlights & Capabilities
 
-This application features **multi-client live real-time synchronization**:
-- When any client or team leader adds, edits, or deletes a team member on **PC A** (e.g., via a Cloudflare domain, tunnel, or local network), the changes are **instantly synchronized via Supabase PostgreSQL Realtime WebSockets** to **PC B** in real time without needing a manual page refresh.
-- **Continuous Background Auto-Sync (15s fallback)** ensures that even across strict proxies, firewalls, or Cloudflare tunnels where WebSocket connections might drop, all connected devices remain 100% in sync.
-- **Cloud Departments & Branding Sync**: Custom departments, university logos, and signature vaults are persisted and synchronized across all devices globally.
-- **Live Sync Status Badge**: The top navbar shows `⚡ Supabase Cloud (Live)` with pulse feedback and one-click manual refresh.
+- ☁️ **AWS Student Builder Group**: Cloud & DevOps chapter roster & official letters.
+- 🔬 **Techno Lab (Techno+Techies Community)**: Robotics, IoT & AI innovation chapter administration.
+- 🌐 **GDGoC ITMBU**: Google Developer Groups on Campus chapter with authentic Google design language.
+- 👑 **Universal Master Command Console**: Centralized institutional oversight & cross-chapter governance.
+- 🔐 **Zero-Trust Security & RBAC**: Strict role-based access control, cryptographic verification, and dynamic canvas CAPTCHA anti-bot protection.
+- 📄 **Print-Perfect Joining Letters**: Formatted to institutional standards for standard US Letter & A4 with digital signatures and QR verification.
+- ⚡ **Multi-Device Real-Time Cloud Synchronization**: Supabase PostgreSQL WebSocket realtime updates with background auto-sync across all clients.
 
 ---
 
@@ -40,12 +43,12 @@ The backend API server will run on `http://localhost:5000`.
 
 ## 🔐 Environment Variables (.env)
 
-Default public cloud credentials are built-in as fallbacks, but you can configure your own via `.env`:
+Configure your environment variables via `.env` in the frontend directory:
 
 ### Frontend (`offer-letter-genrator/.env`)
 ```env
-REACT_APP_SUPABASE_URL=https://hbuhkenlctqefgpqxiah.supabase.co
-REACT_APP_SUPABASE_ANON_KEY=sb_publishable_8ng1nrZRN0sP_Kohwj1jjg_mD0ZHsSc
+REACT_APP_SUPABASE_URL=https://your-project-id.supabase.co
+REACT_APP_SUPABASE_ANON_KEY=your-supabase-anon-publishable-key
 REACT_APP_API_URL=http://localhost:5000/api
 ```
 
@@ -57,45 +60,27 @@ MONGODB_URI=mongodb://127.0.0.1:27017/aws_sbg_itmbu
 
 ---
 
-## 📦 How to Upload to GitHub Safely
+## 🛡️ Security Architecture
 
-When pushing this project to GitHub:
-
-### Step 1: Verify `.gitignore`
-Make sure `.env` files and `node_modules` are ignored (pre-configured in this repository):
-```bash
-git status
-```
-Ensure `node_modules/` or sensitive `.env` files do NOT appear in the untracked files list.
-
-### Step 2: Initialize and Push to GitHub
-```bash
-# In the workspace root directory:
-git init
-git add .
-git commit -m "feat: Dual-club offer letter generator with multi-device realtime cloud sync"
-git branch -M main
-git remote add origin https://github.com/<YOUR_USERNAME>/<YOUR_REPOSITORY_NAME>.git
-git push -u origin main
-```
+1. **Anti-Bot Security CAPTCHA**: Dynamic client-rendered canvas with noise injection, skew angles, audio accessibility, and case-insensitive comparison.
+2. **Strict RBAC Enforcement**: Role separation across Super Admin, Chapter Leads, Associate Co-Leads, Faculty Mentors, and Student Members.
+3. **Secret Isolation**: All credentials, tokens, and database keys are securely managed via environment variables and `.gitignore`.
+4. **Zero-Scroll Cinematic Glassmorphic Interface**: Fully responsive viewport fitting `100vh` on all modern displays.
 
 ---
 
-## 🌐 Deploying with Cloudflare / Vercel / Netlify
+## 🌐 Deployment (Vercel / Cloudflare Pages)
 
-### Cloudflare Pages / Vercel:
-1. **Framework Preset**: Create React App
+1. **Framework Preset**: Create React App / Other
 2. **Root Directory**: `offer-letter-genrator`
 3. **Build Command**: `npm run build`
 4. **Output Directory**: `build`
-5. **Environment Variables**: Add `REACT_APP_SUPABASE_URL` and `REACT_APP_SUPABASE_ANON_KEY`.
+5. **Environment Variables**: Set `REACT_APP_SUPABASE_URL` and `REACT_APP_SUPABASE_ANON_KEY`.
 
 ---
 
-## 🏛️ Features & Capabilities
-- ☁️ **AWS Student Builder Group** & 🔬 **Techno Lab** full dual-roster support
-- 📄 **100% Print-Perfect Official Appointment Letters** formatted for standard US Letter & A4
-- 👥 **Team Management Suite** with department filtering, role badges, duplicate detection, and CSV export
-- 🖨️ **Batch Multi-Letter Generation** for entire departments or custom selected members
-- 🎨 **Logos & Digital Signature Vault** for verified official credentials
-- ⚡ **Multi-Device Real-Time Sync** powered by Supabase Cloud
+## 🏛️ Institution & Department
+
+**Department of Computer Science & Engineering**  
+ITM (sls) Baroda University, Vadodara, Gujarat, India  
+*"Think Big... Think Beyond"*

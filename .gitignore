@@ -26,5 +26,10 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Temporary scratch & debug scripts
+scratch_*.js
+probe_*.js
+*.log
+
 # Large test binaries / pdf samples (optional)
-# brand-asset-*.pdf
+brand-asset-*.pdf

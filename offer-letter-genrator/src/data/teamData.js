@@ -43,9 +43,9 @@ export const CLUB_CONFIGS = {
   },
   TECHNO_LAB: {
     id: 'TECHNO_LAB',
-    name: 'Techno Lab (Techno+Techiz)',
+    name: 'Techno Lab (Techno+Techies Community)',
     shortName: 'Techno Lab',
-    fullName: 'Techno Lab • ITM (sls) Baroda University',
+    fullName: 'Techno Lab (Techno+Techies Community) • ITM (sls) Baroda University',
     institution: 'ITM (sls) BARODA UNIVERSITY',
     location: 'Paldi, Near Jarod, Vadodara, Gujarat 391510',
     email: 'technolabclub25@gmail.com',

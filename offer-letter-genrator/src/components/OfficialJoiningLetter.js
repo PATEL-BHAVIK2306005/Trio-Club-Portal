@@ -97,7 +97,7 @@ export default function OfficialJoiningLetter({
         {/* Official Header */}
         <div className="letter-header">
           {/* Club Brand Logo */}
-          <div className={`brand-box ${isAWS ? 'aws-brand' : 'techno-brand'}`}>
+          <div className={`brand-box ${isAWS ? 'aws-brand' : (activeClub.id === 'TECHNO_LAB' ? 'techno-brand' : 'gdgoc-brand')}`}>
             {clubLogo ? (
               <img src={clubLogo} alt={`${activeClub.name} Logo`} className="brand-logo" />
             ) : isAWS ? (
@@ -106,11 +106,25 @@ export default function OfficialJoiningLetter({
                 <div className="aws-sub">Student Builder Group</div>
                 <div className="aws-campus">ITM (sls) Baroda University</div>
               </div>
-            ) : (
+            ) : activeClub.id === 'TECHNO_LAB' ? (
               <div className="techno-badge-logo">
                 <div className="techno-pill">TECHNO LAB</div>
-                <div className="techno-sub">Techno+Techiz Innovation Hub</div>
+                <div className="techno-sub">Techno+Techies Community</div>
                 <div className="techno-campus">ITM (sls) Baroda University</div>
+              </div>
+            ) : (
+              <div className="gdgoc-badge-logo">
+                <div className="gdgoc-pill-white">
+                  <svg width="22" height="14" viewBox="0 0 120 76" fill="none" style={{ verticalAlign: 'middle', marginRight: '4px' }}>
+                    <line x1="42" y1="12" x2="16" y2="38" stroke="#EA4335" strokeWidth="14" strokeLinecap="round"/>
+                    <line x1="16" y1="38" x2="42" y2="64" stroke="#4285F4" strokeWidth="14" strokeLinecap="round"/>
+                    <line x1="78" y1="12" x2="104" y2="38" stroke="#0F9D58" strokeWidth="14" strokeLinecap="round"/>
+                    <line x1="104" y1="38" x2="78" y2="64" stroke="#FBBC04" strokeWidth="14" strokeLinecap="round"/>
+                  </svg>
+                  <span className="gdg-text-bold">GDG</span>
+                </div>
+                <div className="gdgoc-sub">Google Developer Groups on Campus</div>
+                <div className="gdgoc-campus">ITM (sls) Baroda University</div>
               </div>
             )}
           </div>
