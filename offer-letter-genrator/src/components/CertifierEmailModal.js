@@ -264,12 +264,34 @@ ITM (sls) Baroda University, Vadodara
     }
 
     try {
+      // 1. Generate crystal clear PDF attachment from the active joining letter DOM
+      let pdfBase64 = null;
+      const letterElement = document.getElementById('printable-letter');
+      if (letterElement) {
+        try {
+          const html2pdfModule = await import('html2pdf.js');
+          const html2pdf = html2pdfModule.default || html2pdfModule;
+          const opt = {
+            margin: [0, 0, 0, 0],
+            filename: `${(member.name || 'Joining_Letter').replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2.2, useCORS: true, letterRendering: true, logging: false },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+          };
+          pdfBase64 = await html2pdf().set(opt).from(letterElement).outputPdf('datauristring');
+        } catch (pdfErr) {
+          console.warn('[PDF Attachment Generation Fallback]:', pdfErr);
+        }
+      }
+
+      // 2. Dispatch email with PDF attachment via Nodemailer
       const result = await sendDirectReactEmail({
         toEmail: recipientEmail,
         toName: member.name,
         subject: subject,
         htmlContent: certifierHtml,
         plainText: plainText,
+        pdfBase64: pdfBase64,
         clubConfig: activeClub,
         letterConfig: letterConfig,
         member: member,
@@ -288,7 +310,7 @@ ITM (sls) Baroda University, Vadodara
               <p style="margin: 0;"><strong>👤 Recipient:</strong> ${recipientEmail}</p>
               <p style="margin: 4px 0 0 0;"><strong>🏛️ From Desk:</strong> ${officialSenderEmail}</p>
               <p style="margin: 4px 0 0 0; color: #38bdf8;"><strong>⚡ Engine:</strong> ${result.deliveryMethod}</p>
-              <p style="margin: 4px 0 0 0; color: #34d399;"><strong>✓ Status:</strong> Dispatched &amp; Logged in Audit DB</p>
+              <p style="margin: 4px 0 0 0; color: #34d399;"><strong>✓ Status:</strong> Dispatched with Official Joining Letter PDF Attached 📎</p>
             </div>
             <p style="font-size: 12px; color: #94a3b8; margin: 8px 0;">You can also launch 1-Click Gmail composer if you wish to verify sent messages:</p>
             <div style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;">

@@ -235,6 +235,23 @@ app.post('/api/send-offer-letter', async (req, res) => {
 
     const emailSubject = subject || `Official Appointment & Joining Letter | ${clubName || 'ITMBU Student Chapter'} [${letterRefId || '2026'}]`;
 
+    // Prepare PDF attachment if base64 provided
+    const attachments = [];
+    if (req.body.pdfBase64) {
+      try {
+        const cleanBase64 = req.body.pdfBase64.replace(/^data:application\/pdf;.*?base64,/, '').replace(/^data:.*?;base64,/, '');
+        const pdfBuffer = Buffer.from(cleanBase64, 'base64');
+        const safeName = (recipientName || 'Candidate').replace(/[^a-zA-Z0-9_-]/g, '_');
+        attachments.push({
+          filename: `Official_Joining_Letter_${safeName}_${letterRefId || '2026'}.pdf`,
+          content: pdfBuffer,
+          contentType: 'application/pdf'
+        });
+      } catch (pdfErr) {
+        console.warn('[PDF Attachment Buffer Warning]:', pdfErr.message);
+      }
+    }
+
     // Dispatch via Nodemailer if password available
     let smtpDispatched = false;
     let smtpMessageId = null;
@@ -254,12 +271,15 @@ app.post('/api/send-offer-letter', async (req, res) => {
           }
         });
 
-        const info = await transporter.sendMail({
+        const mailOptions = {
           from: `"${clubName || 'ITMBU Student Chapter'}" <${authUser}>`,
           to: recipientEmail,
           subject: emailSubject,
-          html: htmlBody
-        });
+          html: htmlBody,
+          attachments: attachments
+        };
+
+        const info = await transporter.sendMail(mailOptions);
 
         smtpDispatched = true;
         smtpMessageId = info.messageId;

@@ -34,6 +34,7 @@ export async function sendDirectReactEmail({
   subject,
   htmlContent,
   plainText,
+  pdfBase64 = null,
   clubConfig,
   letterConfig = {},
   member,
@@ -52,7 +53,7 @@ export async function sendDirectReactEmail({
   let isDelivered = false;
   let responseData = null;
 
-  // 1. Try Backend Nodemailer SMTP Server if running
+  // 1. Try Backend Nodemailer SMTP Server with PDF Attachment
   try {
     const backendRes = await fetch('http://localhost:5000/api/send-offer-letter', {
       method: 'POST',
@@ -71,6 +72,7 @@ export async function sendDirectReactEmail({
         subject: subject,
         htmlBody: htmlContent,
         plainText: plainText,
+        pdfBase64: pdfBase64,
         customNote: customNote
       })
     });
