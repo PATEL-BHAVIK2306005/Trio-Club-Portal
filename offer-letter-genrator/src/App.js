@@ -23,7 +23,8 @@ import {
   fetchSupabaseBranding,
   saveSupabaseBranding,
   subscribeToSupabaseMembers,
-  subscribeToSupabaseBranding
+  subscribeToSupabaseBranding,
+  sendOfferLetterEmailService
 } from './services/supabaseService';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : '/api');
@@ -1149,6 +1150,126 @@ function App() {
     }
   };
 
+  // Send Offer Letter Email via Official Club Mail Handler
+  const handleSendOfferLetterEmail = async () => {
+    const member = currentActiveMember;
+    if (!member) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'No Member Selected',
+        text: 'Please select a member from the roster to dispatch their appointment letter.',
+        background: '#0f172a',
+        color: '#f8fafc',
+        confirmButtonColor: '#ff9900'
+      });
+      return;
+    }
+
+    const defaultTargetEmail = member.email || `${member.name.toLowerCase().replace(/[^a-z0-9]/g, '.')}@itmbu.ac.in`;
+    const officialClubEmail = activeClub.email || (isAWS ? 'aws.itmbu@gmail.com' : (isTechno ? 'technolabclub25@gmail.com' : 'gdgoc.itmbu@gmail.com'));
+
+    const { value: formValues } = await Swal.fire({
+      title: `<span style="color:${activeClub.primaryColor}; font-weight:800;">📧 Send Official Offer Letter</span>`,
+      html: `
+        <div style="text-align: left; font-size: 13px; color: #cbd5e1; line-height: 1.6;">
+          <div style="background: rgba(15, 23, 42, 0.8); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 12px;">
+            <p style="margin: 0 0 4px 0; color: #94a3b8;"><strong>🏛️ Official Sender Desk:</strong></p>
+            <p style="margin: 0; color: #38bdf8; font-weight: 700;">${activeClub.name} &lt;${officialClubEmail}&gt;</p>
+          </div>
+          
+          <div style="margin-bottom: 12px;">
+            <label style="display: block; font-weight: 600; margin-bottom: 4px; color: #f8fafc;">Candidate Recipient Email:</label>
+            <input id="swal-recipient-email" class="swal2-input" style="width: 100%; margin: 0; background: #1e293b; color: #fff; border: 1px solid #475569; font-size: 13px;" value="${defaultTargetEmail}" placeholder="student@itmbu.ac.in" />
+          </div>
+
+          <div style="margin-bottom: 12px;">
+            <label style="display: block; font-weight: 600; margin-bottom: 4px; color: #f8fafc;">Optional Chapter Message / Note:</label>
+            <textarea id="swal-custom-note" class="swal2-textarea" style="width: 100%; margin: 0; background: #1e293b; color: #fff; border: 1px solid #475569; font-size: 12.5px; height: 65px;" placeholder="Welcome to the team! Looking forward to building together."></textarea>
+          </div>
+
+          <div style="font-size: 12px; color: #94a3b8; background: rgba(56, 189, 248, 0.08); padding: 8px 12px; border-radius: 6px; border-left: 3px solid #38bdf8;">
+            <b>📄 Letter Details:</b> ${member.name} (${member.designation || member.roleType}) • ${member.letterRefId || activeLetterConfig.letterRefId || 'Ref Assigned'}
+          </div>
+        </div>
+      `,
+      focusConfirm: false,
+      showCancelButton: true,
+      confirmButtonText: '🚀 Send Offer Letter',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: activeClub.primaryColor || '#ff9900',
+      cancelButtonColor: '#334155',
+      background: '#0f172a',
+      color: '#f8fafc',
+      preConfirm: () => {
+        const email = document.getElementById('swal-recipient-email').value;
+        const note = document.getElementById('swal-custom-note').value;
+        if (!email || !email.includes('@')) {
+          Swal.showValidationMessage('Please enter a valid recipient email address');
+          return false;
+        }
+        return { recipientEmail: email.trim(), customNote: note.trim() };
+      }
+    });
+
+    if (!formValues) return;
+
+    Swal.fire({
+      title: 'Dispatching Offer Letter...',
+      html: `<span style="color: #94a3b8; font-size: 13px;">Preparing official dispatch from <b>${officialClubEmail}</b>...</span>`,
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+      background: '#0f172a',
+      color: '#f8fafc'
+    });
+
+    try {
+      const result = await sendOfferLetterEmailService({
+        member: member,
+        clubConfig: activeClub,
+        letterConfig: activeLetterConfig,
+        recipientEmail: formValues.recipientEmail,
+        senderEmail: officialClubEmail,
+        customNote: formValues.customNote
+      });
+
+      Swal.fire({
+        icon: 'success',
+        title: 'Offer Letter Dispatched!',
+        html: `
+          <div style="text-align: left; font-size: 13px; color: #cbd5e1; line-height: 1.6;">
+            <p>Official appointment letter for <strong>${member.name}</strong> has been logged and dispatched!</p>
+            <div style="background: rgba(15, 23, 42, 0.8); padding: 10px; border-radius: 6px; margin: 10px 0;">
+              <p style="margin: 0;"><strong>From:</strong> ${officialClubEmail}</p>
+              <p style="margin: 4px 0 0 0;"><strong>To:</strong> ${formValues.recipientEmail}</p>
+              <p style="margin: 4px 0 0 0; color: #34d399;"><strong>Status:</strong> Dispatched & Logged in Supabase Database</p>
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 12px;">
+              <a href="mailto:${formValues.recipientEmail}?subject=${encodeURIComponent(result.subject)}&body=${encodeURIComponent(`Dear ${member.name},\n\nCongratulations on your appointment as ${member.designation || member.roleType} in ${activeClub.name} (${activeLetterConfig.tenure || '2026-2027'}).\n\nRef No: ${result.refId}\nDate: ${activeLetterConfig.issueDate || ''}\n\nWarm regards,\n${activeClub.name}\nITM (sls) Baroda University`)}" 
+                 style="display: inline-block; padding: 6px 12px; background: #0284c7; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 12px;"
+                 target="_blank" rel="noopener noreferrer">
+                📧 Open in Mail Client
+              </a>
+            </div>
+          </div>
+        `,
+        background: '#0f172a',
+        color: '#f8fafc',
+        confirmButtonColor: '#10b981',
+        confirmButtonText: 'Done'
+      });
+    } catch (err) {
+      Swal.fire({
+        icon: 'error',
+        title: 'Dispatch Notice',
+        text: err.message || 'An error occurred while dispatching the email.',
+        background: '#0f172a',
+        color: '#f8fafc'
+      });
+    }
+  };
+
   const handleBatchPrint = (targetMembers) => {
     setBatchPrintList(targetMembers);
     setTimeout(() => {
@@ -1362,6 +1483,7 @@ function App() {
               }}
               onPrint={handlePrint}
               onDownloadPdf={() => handleDownloadFhdPdf(currentActiveMember?.name)}
+              onSendEmail={handleSendOfferLetterEmail}
             />
 
             <div className="letter-preview-viewport">

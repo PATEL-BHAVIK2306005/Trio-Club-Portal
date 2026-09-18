@@ -192,6 +192,84 @@ app.post('/api/branding/:organization', async (req, res) => {
   }
 });
 
+// 9. Send Offer Letter via Email Endpoint (Official Club Sender)
+app.post('/api/send-offer-letter', async (req, res) => {
+  try {
+    const {
+      recipientEmail,
+      recipientName,
+      clubId,
+      clubName,
+      senderEmail,
+      letterRefId,
+      roleType,
+      designation,
+      department,
+      tenure,
+      subject,
+      htmlBody
+    } = req.body;
+
+    if (!recipientEmail) {
+      return res.status(400).json({ success: false, error: 'Recipient email is required' });
+    }
+
+    const officialSender = senderEmail || (
+      clubId === 'AWS_SBG' ? 'aws.itmbu@gmail.com' :
+      clubId === 'TECHNO_LAB' ? 'technolabclub25@gmail.com' :
+      'gdgoc.itmbu@gmail.com'
+    );
+
+    const emailSubject = subject || `Official Appointment & Joining Letter | ${clubName || 'ITMBU Student Club'} [${letterRefId || '2026'}]`;
+
+    // Attempt SMTP dispatch if configured
+    let smtpDispatched = false;
+    let smtpMessageId = null;
+
+    if (process.env.SMTP_HOST || process.env.SMTP_USER) {
+      try {
+        const nodemailer = require('nodemailer');
+        const transporter = nodemailer.createTransport({
+          host: process.env.SMTP_HOST || 'smtp.gmail.com',
+          port: parseInt(process.env.SMTP_PORT || '587', 10),
+          secure: process.env.SMTP_SECURE === 'true',
+          auth: {
+            user: process.env.SMTP_USER || officialSender,
+            pass: process.env.SMTP_PASS || process.env.EMAIL_PASSWORD
+          }
+        });
+
+        const info = await transporter.sendMail({
+          from: `"${clubName || 'ITMBU Student Chapter'}" <${officialSender}>`,
+          to: recipientEmail,
+          subject: emailSubject,
+          html: htmlBody
+        });
+
+        smtpDispatched = true;
+        smtpMessageId = info.messageId;
+      } catch (smtpErr) {
+        console.warn('[SMTP Dispatch Warning]:', smtpErr.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      message: smtpDispatched 
+        ? `Offer Letter email successfully dispatched to ${recipientEmail} from ${officialSender}`
+        : `Offer Letter prepared and logged for ${recipientEmail} (from ${officialSender})`,
+      dispatched: smtpDispatched,
+      messageId: smtpMessageId,
+      sender: officialSender,
+      recipient: recipientEmail,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    console.error('Email dispatch error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // Global Error Handler Middleware
 app.use((err, req, res, next) => {
   if (err.type === 'entity.too.large') {

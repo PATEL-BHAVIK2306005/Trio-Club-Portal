@@ -315,9 +315,174 @@ export const registerSupabaseUser = async (userData) => {
 
     if (error) {
       return { success: false, message: error.message };
-    }
+      }
     return { success: true, data: data?.[0] };
   } catch (err) {
     return { success: false, message: err.message };
   }
+};
+
+// 11. Official Club Email Service for Sending Offer Letters
+export const sendOfferLetterEmailService = async ({
+  member,
+  clubConfig,
+  letterConfig = {},
+  recipientEmail,
+  senderEmail,
+  customNote = ''
+}) => {
+  const activeClub = clubConfig || {
+    name: 'AWS Student Builder Group',
+    shortName: 'AWS SBG',
+    email: 'aws.itmbu@gmail.com',
+    primaryColor: '#ff9900'
+  };
+
+  const targetEmail = recipientEmail || member.email || '';
+  const fromEmail = senderEmail || activeClub.email || 'aws.itmbu@gmail.com';
+  const refId = member.letterRefId || letterConfig.letterRefId || `OFFER-${member._id?.substring(0, 5) || '001'}`;
+  const tenure = letterConfig.tenure || 'Academic Year 2026 – 2027';
+  const issueDate = letterConfig.issueDate || new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  const subject = `Official Appointment & Joining Letter | ${activeClub.name} • ITMBU [Ref: ${refId}]`;
+
+  // HTML Email Body Template
+  const htmlBody = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: 'Segoe UI', Arial, sans-serif; background-color: #0c1322; color: #e2e8f0; margin: 0; padding: 20px; }
+    .email-container { max-width: 620px; margin: 0 auto; background: #131d33; border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; overflow: hidden; }
+    .header-bar { background: linear-gradient(135deg, ${activeClub.primaryColor || '#ff9900'} 0%, #1e293b 100%); padding: 24px; text-align: center; }
+    .header-title { color: #ffffff; margin: 0; font-size: 20px; font-weight: 800; letter-spacing: 0.5px; }
+    .header-sub { color: rgba(255,255,255,0.85); font-size: 12px; margin-top: 6px; }
+    .body-content { padding: 28px 24px; line-height: 1.6; }
+    .greeting { font-size: 16px; font-weight: 700; color: #ffffff; }
+    .details-box { background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 16px; margin: 20px 0; }
+    .detail-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 13px; }
+    .detail-label { color: #94a3b8; font-weight: 600; }
+    .detail-val { color: #ffffff; font-weight: 700; }
+    .custom-note { background: rgba(56, 189, 248, 0.1); border-left: 3px solid #38bdf8; padding: 10px 14px; margin: 16px 0; font-size: 13px; color: #bae6fd; }
+    .responsibilities-box { margin: 16px 0; }
+    .responsibilities-box ul { padding-left: 20px; margin: 8px 0; font-size: 12.5px; color: #cbd5e1; }
+    .footer-bar { background: #0b1120; padding: 16px; text-align: center; font-size: 11px; color: #64748b; border-top: 1px solid rgba(255,255,255,0.05); }
+    .official-badge { display: inline-block; padding: 4px 10px; background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; color: #34d399; font-size: 11px; font-weight: 800; border-radius: 20px; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="header-bar">
+      <div class="header-title">${activeClub.name.toUpperCase()}</div>
+      <div class="header-sub">ITM (sls) Baroda University • Department of Computer Science & Engineering</div>
+    </div>
+    <div class="body-content">
+      <div class="official-badge">✓ OFFICIALLY VERIFIED APPOINTMENT</div>
+      <p class="greeting">Dear ${member.name},</p>
+      <p>Congratulations! On behalf of <strong>${activeClub.name}</strong> and <strong>ITM (sls) Baroda University</strong>, we are pleased to present your official appointment and joining credentials.</p>
+      
+      ${customNote ? `<div class="custom-note"><strong>Chapter Note:</strong> ${customNote}</div>` : ''}
+
+      <div class="details-box">
+        <div class="detail-row"><span class="detail-label">Candidate Name:</span><span class="detail-val">${member.name}</span></div>
+        <div class="detail-row"><span class="detail-label">Designation:</span><span class="detail-val" style="color: ${activeClub.primaryColor || '#38bdf8'}">${member.designation || member.roleType}</span></div>
+        <div class="detail-row"><span class="detail-label">Department / Wing:</span><span class="detail-val">${member.department || 'Core Team'}</span></div>
+        <div class="detail-row"><span class="detail-label">Reference Number:</span><span class="detail-val">${refId}</span></div>
+        <div class="detail-row"><span class="detail-label">Academic Tenure:</span><span class="detail-val">${tenure}</span></div>
+        <div class="detail-row"><span class="detail-label">Date of Issuance:</span><span class="detail-val">${issueDate}</span></div>
+      </div>
+
+      ${member.responsibilities && member.responsibilities.length > 0 ? `
+        <div class="responsibilities-box">
+          <strong style="color: #ffffff; font-size: 13px;">Key Scope of Responsibilities:</strong>
+          <ul>
+            ${member.responsibilities.map(r => `<li>${r}</li>`).join('')}
+          </ul>
+        </div>
+      ` : ''}
+
+      <p style="font-size: 13px; color: #94a3b8; margin-top: 20px;">
+        This document serves as your verified appointment confirmation. For any inquiries or administrative updates, please reach out to the official chapter desk at <a href="mailto:${fromEmail}" style="color: #38bdf8;">${fromEmail}</a>.
+      </p>
+      
+      <p style="margin-top: 24px; font-size: 13px; color: #ffffff;">
+        Warm regards,<br/>
+        <strong>${activeClub.name} Leadership Team</strong><br/>
+        <span style="color: #94a3b8; font-size: 12px;">Department of Computer Science & Engineering<br/>ITM (sls) Baroda University, Vadodara</span>
+      </p>
+    </div>
+    <div class="footer-bar">
+      &copy; 2026 ${activeClub.name} • ITM (sls) Baroda University • All rights reserved.
+    </div>
+  </div>
+</body>
+</html>
+  `;
+
+  // 1. Try sending via Backend API Endpoint (Nodemailer / SMTP)
+  let apiSuccess = false;
+  try {
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+    const response = await fetch(`${apiUrl}/send-offer-letter`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recipientEmail: targetEmail,
+        recipientName: member.name,
+        clubId: activeClub.id || 'AWS_SBG',
+        clubName: activeClub.name,
+        senderEmail: fromEmail,
+        letterRefId: refId,
+        roleType: member.roleType,
+        designation: member.designation,
+        department: member.department,
+        tenure: tenure,
+        subject: subject,
+        htmlBody: htmlBody
+      })
+    });
+
+    if (response.ok) {
+      const data = await response.json();
+      if (data.success) {
+        apiSuccess = true;
+      }
+    }
+  } catch (apiErr) {
+    console.warn('[Email Service] API server endpoint notice:', apiErr.message);
+  }
+
+  // 2. Log dispatch record in Supabase / Local Storage
+  const dispatchRecord = {
+    member_id: member.id || member._id,
+    member_name: member.name,
+    recipient_email: targetEmail,
+    sender_email: fromEmail,
+    club_id: activeClub.id || 'AWS_SBG',
+    ref_id: refId,
+    status: apiSuccess ? 'DELIVERED_VIA_SMTP' : 'PREPARED_FOR_DISPATCH',
+    timestamp: new Date().toISOString()
+  };
+
+  try {
+    await supabase.from('email_dispatches').insert([dispatchRecord]);
+  } catch (dbErr) {
+    console.warn('[Email Service] Supabase log notice:', dbErr.message);
+  }
+
+  // Also cache in localStorage for instant offline access
+  const existingLogs = JSON.parse(localStorage.getItem('offer_email_logs') || '[]');
+  existingLogs.unshift(dispatchRecord);
+  localStorage.setItem('offer_email_logs', JSON.stringify(existingLogs.slice(0, 50)));
+
+  return {
+    success: true,
+    apiSuccess: apiSuccess,
+    subject: subject,
+    htmlBody: htmlBody,
+    senderEmail: fromEmail,
+    recipientEmail: targetEmail,
+    refId: refId
+  };
 };

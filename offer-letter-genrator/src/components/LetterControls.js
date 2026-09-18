@@ -18,7 +18,8 @@ export default function LetterControls({
   mentorSignatureImage,
   onUploadMentorSignature,
   onPrint,
-  onDownloadPdf
+  onDownloadPdf,
+  onSendEmail
 }) {
   const organizerSigInputRef = useRef(null);
   const advisorSigInputRef = useRef(null);
@@ -67,7 +68,7 @@ export default function LetterControls({
           </span>
         </div>
 
-        <div className="letter-header-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+        <div className="letter-header-actions" style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
           {saveSuccess && (
             <span style={{ color: '#4ade80', fontWeight: 600, fontSize: '12px', marginRight: '4px' }}>
               ✅ Saved!
@@ -81,6 +82,15 @@ export default function LetterControls({
             style={{ background: '#1e293b', border: '1px solid #334155', color: '#f8fafc', fontWeight: 600 }}
           >
             💾 Save Settings
+          </button>
+          <button 
+            type="button"
+            className="btn-print-secondary" 
+            onClick={onSendEmail} 
+            title={`Send official appointment letter to ${member ? member.name : 'member'} from official club email (${clubConfig.email})`}
+            style={{ background: 'rgba(2, 132, 199, 0.25)', border: '1px solid #38bdf8', color: '#38bdf8', fontWeight: 700 }}
+          >
+            📧 Send via Mail
           </button>
           <button className="btn-print-secondary" onClick={onPrint} title="Quick print or standard system PDF dialog">
             🖨️ Print
