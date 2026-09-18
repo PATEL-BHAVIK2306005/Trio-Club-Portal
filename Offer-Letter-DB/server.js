@@ -192,7 +192,7 @@ app.post('/api/branding/:organization', async (req, res) => {
   }
 });
 
-// 9. Send Offer Letter via Email Endpoint (Official Club Sender)
+// 9. Send Offer Letter via Multi-Tenant Nodemailer Engine
 app.post('/api/send-offer-letter', async (req, res) => {
   try {
     const {
@@ -214,33 +214,48 @@ app.post('/api/send-offer-letter', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Recipient email is required' });
     }
 
-    const officialSender = senderEmail || (
-      clubId === 'AWS_SBG' ? 'aws.itmbu@gmail.com' :
-      clubId === 'TECHNO_LAB' ? 'technolabclub25@gmail.com' :
-      'gdgoc.itmbu@gmail.com'
-    );
+    // Determine official club sender & credentials
+    let officialSender = senderEmail;
+    let authUser = '';
+    let authPass = '';
 
-    const emailSubject = subject || `Official Appointment & Joining Letter | ${clubName || 'ITMBU Student Club'} [${letterRefId || '2026'}]`;
+    if (clubId === 'AWS_SBG') {
+      officialSender = senderEmail || 'aws.itmbu@gmail.com';
+      authUser = process.env.AWS_EMAIL_USER || process.env.EMAIL_USER || officialSender;
+      authPass = process.env.AWS_EMAIL_PASS || process.env.EMAIL_PASS || process.env.SMTP_PASS;
+    } else if (clubId === 'TECHNO_LAB') {
+      officialSender = senderEmail || 'technolabclub25@gmail.com';
+      authUser = process.env.TECHNO_EMAIL_USER || process.env.EMAIL_USER || officialSender;
+      authPass = process.env.TECHNO_EMAIL_PASS || process.env.EMAIL_PASS || process.env.SMTP_PASS;
+    } else {
+      officialSender = senderEmail || 'gdgoc.itmbu@gmail.com';
+      authUser = process.env.GDGOC_EMAIL_USER || process.env.EMAIL_USER || officialSender;
+      authPass = process.env.GDGOC_EMAIL_PASS || process.env.EMAIL_PASS || process.env.SMTP_PASS;
+    }
 
-    // Attempt SMTP dispatch if configured
+    const emailSubject = subject || `Official Appointment & Joining Letter | ${clubName || 'ITMBU Student Chapter'} [${letterRefId || '2026'}]`;
+
+    // Dispatch via Nodemailer if password available
     let smtpDispatched = false;
     let smtpMessageId = null;
+    let smtpError = null;
 
-    if (process.env.SMTP_HOST || process.env.SMTP_USER) {
+    if (authPass) {
       try {
         const nodemailer = require('nodemailer');
         const transporter = nodemailer.createTransport({
-          host: process.env.SMTP_HOST || 'smtp.gmail.com',
-          port: parseInt(process.env.SMTP_PORT || '587', 10),
-          secure: process.env.SMTP_SECURE === 'true',
+          service: 'gmail',
+          host: 'smtp.gmail.com',
+          port: 465,
+          secure: true,
           auth: {
-            user: process.env.SMTP_USER || officialSender,
-            pass: process.env.SMTP_PASS || process.env.EMAIL_PASSWORD
+            user: authUser,
+            pass: authPass.replace(/\s+/g, '') // sanitize 16-char app passwords
           }
         });
 
         const info = await transporter.sendMail({
-          from: `"${clubName || 'ITMBU Student Chapter'}" <${officialSender}>`,
+          from: `"${clubName || 'ITMBU Student Chapter'}" <${authUser}>`,
           to: recipientEmail,
           subject: emailSubject,
           html: htmlBody
@@ -248,20 +263,24 @@ app.post('/api/send-offer-letter', async (req, res) => {
 
         smtpDispatched = true;
         smtpMessageId = info.messageId;
-      } catch (smtpErr) {
-        console.warn('[SMTP Dispatch Warning]:', smtpErr.message);
+      } catch (err) {
+        smtpError = err.message;
+        console.warn(`[Nodemailer Dispatch Warning for ${officialSender}]:`, err.message);
       }
     }
 
     res.json({
       success: true,
       message: smtpDispatched 
-        ? `Offer Letter email successfully dispatched to ${recipientEmail} from ${officialSender}`
-        : `Offer Letter prepared and logged for ${recipientEmail} (from ${officialSender})`,
+        ? `Offer Letter email successfully delivered to ${recipientEmail} from ${authUser}`
+        : (authPass 
+            ? `SMTP Error: ${smtpError || 'Failed to authenticate'}`
+            : `Offer letter logged and prepared for ${recipientEmail}. Add Gmail App Password to .env for direct automated dispatch.`),
       dispatched: smtpDispatched,
       messageId: smtpMessageId,
-      sender: officialSender,
+      sender: authUser || officialSender,
       recipient: recipientEmail,
+      error: smtpError,
       timestamp: new Date().toISOString()
     });
   } catch (err) {
