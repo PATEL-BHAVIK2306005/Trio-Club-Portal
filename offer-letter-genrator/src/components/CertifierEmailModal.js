@@ -33,15 +33,17 @@ export default function CertifierEmailModal({
   const [emailConfig, setEmailConfigState] = useState(() => getEmailConfig());
   const [recentLogs, setRecentLogs] = useState([]);
 
+  const memberKey = member ? (member._id || member.id || member.name) : null;
+
   useEffect(() => {
-    if (member) {
-      setRecipientEmail(member.email || `${member.name.toLowerCase().replace(/[^a-z0-9]/g, '.')}@gmail.com`);
+    if (isOpen && member) {
+      setRecipientEmail(member.email || (member.name ? `${member.name.toLowerCase().replace(/[^a-z0-9]/g, '.')}@gmail.com` : ''));
     }
     try {
       const logs = JSON.parse(localStorage.getItem('offer_gen_email_logs') || '[]');
       setRecentLogs(logs.slice(0, 10));
     } catch (e) {}
-  }, [member]);
+  }, [memberKey, isOpen]);
 
   if (!isOpen || !member) return null;
 
@@ -424,7 +426,11 @@ ITM (sls) Baroda University, Vadodara
                 <input
                   type="email"
                   value={recipientEmail}
-                  onChange={(e) => setRecipientEmail(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setRecipientEmail(val);
+                    if (onUpdateMemberEmail) onUpdateMemberEmail(val);
+                  }}
                   placeholder="e.g. candidate@gmail.com"
                   style={{ width: '100%', boxSizing: 'border-box', background: '#1e293b', border: '1px solid #475569', borderRadius: '8px', padding: '10px 12px', color: '#ffffff', fontSize: '13.5px', outline: 'none' }}
                 />
