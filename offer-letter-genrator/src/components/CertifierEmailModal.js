@@ -319,6 +319,10 @@ ITM (sls) Baroda University, Vadodara
                    style="display: inline-flex; align-items: center; gap: 4px; padding: 8px 14px; background: #ea4335; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 700; font-size: 12.5px;">
                   ✉️ Open Sent in Gmail
                 </a>
+                <a href="${mailtoUrl}" 
+                   style="display: inline-flex; align-items: center; gap: 4px; padding: 8px 14px; background: #0284c7; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 700; font-size: 12.5px;">
+                  📧 Default Mail App
+                </a>
               </div>
             </div>
           `,

@@ -173,6 +173,7 @@ export async function sendDirectReactEmail({
     senderEmail: senderEmail,
     refId: refId,
     timestamp: logEntry.timestamp,
+    error: lastError,
     data: responseData
   };
 }
