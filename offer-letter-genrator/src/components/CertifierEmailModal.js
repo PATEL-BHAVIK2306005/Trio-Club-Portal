@@ -43,6 +43,7 @@ export default function CertifierEmailModal({
       const logs = JSON.parse(localStorage.getItem('offer_gen_email_logs') || '[]');
       setRecentLogs(logs.slice(0, 10));
     } catch (e) {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [memberKey, isOpen]);
 
   if (!isOpen || !member) return null;
