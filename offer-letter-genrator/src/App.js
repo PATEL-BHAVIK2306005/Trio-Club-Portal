@@ -1075,12 +1075,13 @@ function App() {
   // Select Member & Switch View directly to Letter Studio
   const handleSelectMemberForLetter = (member) => {
     setSelectedMember(member);
+    const memberEmail = member.email || '';
     if (isAWS) {
-      setAwsLetterConfig(prev => ({ ...prev, letterRefId: member.letterRefId || '' }));
+      setAwsLetterConfig(prev => ({ ...prev, letterRefId: member.letterRefId || '', memberEmail }));
     } else if (isTechno) {
-      setTechnoLetterConfig(prev => ({ ...prev, letterRefId: member.letterRefId || '' }));
+      setTechnoLetterConfig(prev => ({ ...prev, letterRefId: member.letterRefId || '', memberEmail }));
     } else {
-      setGdgocLetterConfig(prev => ({ ...prev, letterRefId: member.letterRefId || '' }));
+      setGdgocLetterConfig(prev => ({ ...prev, letterRefId: member.letterRefId || '', memberEmail }));
     }
     setCurrentView('letter_studio');
   };
@@ -1165,21 +1166,24 @@ function App() {
       return;
     }
 
-    const defaultTargetEmail = member.email || `${member.name.toLowerCase().replace(/[^a-z0-9]/g, '.')}@itmbu.ac.in`;
+    const defaultTargetEmail = activeLetterConfig.memberEmail || member.email || `${member.name.toLowerCase().replace(/[^a-z0-9]/g, '.')}@gmail.com`;
     const officialClubEmail = activeClub.email || (isAWS ? 'aws.itmbu@gmail.com' : (isTechno ? 'technolabclub25@gmail.com' : 'gdgoc.itmbu@gmail.com'));
+    const refId = member.letterRefId || activeLetterConfig.letterRefId || `${activeClub.refPrefix}-${member._id?.substring(0, 5) || '001'}`;
+    const tenure = activeLetterConfig.tenure || 'Academic Year 2026 – 2027';
+    const issueDate = activeLetterConfig.issueDate || new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
     const { value: formValues } = await Swal.fire({
       title: `<span style="color:${activeClub.primaryColor}; font-weight:800;">📧 Send Official Offer Letter</span>`,
       html: `
         <div style="text-align: left; font-size: 13px; color: #cbd5e1; line-height: 1.6;">
-          <div style="background: rgba(15, 23, 42, 0.8); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 12px;">
+          <div style="background: rgba(15, 23, 42, 0.85); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 12px;">
             <p style="margin: 0 0 4px 0; color: #94a3b8;"><strong>🏛️ Official Sender Desk:</strong></p>
             <p style="margin: 0; color: #38bdf8; font-weight: 700;">${activeClub.name} &lt;${officialClubEmail}&gt;</p>
           </div>
           
           <div style="margin-bottom: 12px;">
-            <label style="display: block; font-weight: 600; margin-bottom: 4px; color: #f8fafc;">Candidate Recipient Email:</label>
-            <input id="swal-recipient-email" class="swal2-input" style="width: 100%; margin: 0; background: #1e293b; color: #fff; border: 1px solid #475569; font-size: 13px;" value="${defaultTargetEmail}" placeholder="student@itmbu.ac.in" />
+            <label style="display: block; font-weight: 600; margin-bottom: 4px; color: #f8fafc;">Candidate Recipient Email (Gmail / Personal / Institutional):</label>
+            <input id="swal-recipient-email" class="swal2-input" style="width: 100%; margin: 0; background: #1e293b; color: #fff; border: 1px solid #475569; font-size: 13px;" value="${defaultTargetEmail}" placeholder="e.g. name@gmail.com" />
           </div>
 
           <div style="margin-bottom: 12px;">
@@ -1188,13 +1192,13 @@ function App() {
           </div>
 
           <div style="font-size: 12px; color: #94a3b8; background: rgba(56, 189, 248, 0.08); padding: 8px 12px; border-radius: 6px; border-left: 3px solid #38bdf8;">
-            <b>📄 Letter Details:</b> ${member.name} (${member.designation || member.roleType}) • ${member.letterRefId || activeLetterConfig.letterRefId || 'Ref Assigned'}
+            <b>📄 Letter Details:</b> ${member.name} (${member.designation || member.roleType}) • ${refId}
           </div>
         </div>
       `,
       focusConfirm: false,
       showCancelButton: true,
-      confirmButtonText: '🚀 Send Offer Letter',
+      confirmButtonText: '🚀 Send via Official Gmail',
       cancelButtonText: 'Cancel',
       confirmButtonColor: activeClub.primaryColor || '#ff9900',
       cancelButtonColor: '#334155',
@@ -1213,9 +1217,22 @@ function App() {
 
     if (!formValues) return;
 
+    // Update member's email in local state and config immediately
+    const memberId = member._id || member.id;
+    const updatedMember = { ...member, email: formValues.recipientEmail };
+    setSelectedMember(updatedMember);
+    setMembers(prev => {
+      const next = prev.map(m => ((m._id && m._id === memberId) || (m.id && m.id === memberId) || (m.name === member.name && m.organization === activeOrg)) ? updatedMember : m);
+      localStorage.setItem('offer_gen_members', JSON.stringify(next));
+      return next;
+    });
+    if (isAWS) setAwsLetterConfig(prev => ({ ...prev, memberEmail: formValues.recipientEmail }));
+    else if (isTechno) setTechnoLetterConfig(prev => ({ ...prev, memberEmail: formValues.recipientEmail }));
+    else setGdgocLetterConfig(prev => ({ ...prev, memberEmail: formValues.recipientEmail }));
+
     Swal.fire({
       title: 'Dispatching Offer Letter...',
-      html: `<span style="color: #94a3b8; font-size: 13px;">Preparing official dispatch from <b>${officialClubEmail}</b>...</span>`,
+      html: `<span style="color: #94a3b8; font-size: 13px;">Preparing official dispatch from <b>${officialClubEmail}</b> to <b>${formValues.recipientEmail}</b>...</span>`,
       allowOutsideClick: false,
       didOpen: () => {
         Swal.showLoading();
@@ -1224,9 +1241,36 @@ function App() {
       color: '#f8fafc'
     });
 
+    const plainTextBody = `Dear ${member.name},
+
+Congratulations! On behalf of ${activeClub.name} and ITM (sls) Baroda University, Department of Computer Science & Engineering, we are pleased to present your Official Appointment & Joining Letter.
+
+==================================================
+OFFICIAL APPOINTMENT CREDENTIALS
+==================================================
+• Candidate Name: ${member.name}
+• Designation / Role: ${member.designation || member.roleType}
+• Department / Wing: ${member.department || 'General'}
+• Reference Number: ${refId}
+• Academic Tenure: ${tenure}
+• Date of Issuance: ${issueDate}
+• Institution: ITM (sls) Baroda University, Vadodara, Gujarat
+
+${formValues.customNote ? `Note from Leadership:\n${formValues.customNote}\n\n` : ''}${member.responsibilities && member.responsibilities.length > 0 ? `Key Scope of Responsibilities:\n${member.responsibilities.map(r => `• ${r}`).join('\n')}\n\n` : ''}This document serves as your official verified appointment confirmation. For any administrative inquiries, contact the official chapter desk at ${officialClubEmail}.
+
+Warm regards,
+${activeClub.name} Leadership Team
+Department of Computer Science & Engineering
+ITM (sls) Baroda University, Vadodara, Gujarat
+"Think Big... Think Beyond"`;
+
+    const subject = `Official Appointment & Joining Letter | ${activeClub.name} • ITMBU [Ref: ${refId}]`;
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(formValues.recipientEmail)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(plainTextBody)}`;
+    const mailtoUrl = `mailto:${formValues.recipientEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(plainTextBody)}`;
+
     try {
-      const result = await sendOfferLetterEmailService({
-        member: member,
+      await sendOfferLetterEmailService({
+        member: updatedMember,
         clubConfig: activeClub,
         letterConfig: activeLetterConfig,
         recipientEmail: formValues.recipientEmail,
@@ -1234,30 +1278,51 @@ function App() {
         customNote: formValues.customNote
       });
 
+      // Automatically launch Gmail web composer in new tab
+      window.open(gmailUrl, '_blank');
+
       Swal.fire({
         icon: 'success',
-        title: 'Offer Letter Dispatched!',
+        title: 'Offer Letter Ready & Dispatched!',
         html: `
           <div style="text-align: left; font-size: 13px; color: #cbd5e1; line-height: 1.6;">
-            <p>Official appointment letter for <strong>${member.name}</strong> has been logged and dispatched!</p>
-            <div style="background: rgba(15, 23, 42, 0.8); padding: 10px; border-radius: 6px; margin: 10px 0;">
-              <p style="margin: 0;"><strong>From:</strong> ${officialClubEmail}</p>
-              <p style="margin: 4px 0 0 0;"><strong>To:</strong> ${formValues.recipientEmail}</p>
-              <p style="margin: 4px 0 0 0; color: #34d399;"><strong>Status:</strong> Dispatched & Logged in Supabase Database</p>
+            <p>Official appointment letter for <strong>${member.name}</strong> is generated and logged in database!</p>
+            <div style="background: rgba(15, 23, 42, 0.8); padding: 10px; border-radius: 6px; margin: 10px 0; border: 1px solid rgba(255,255,255,0.08);">
+              <p style="margin: 0;"><strong>🏛️ From:</strong> ${officialClubEmail}</p>
+              <p style="margin: 4px 0 0 0;"><strong>👤 To:</strong> ${formValues.recipientEmail}</p>
+              <p style="margin: 4px 0 0 0; color: #34d399;"><strong>⚡ Status:</strong> Logged &amp; Prepared for Dispatch</p>
             </div>
-            <div style="display: flex; gap: 8px; margin-top: 12px;">
-              <a href="mailto:${formValues.recipientEmail}?subject=${encodeURIComponent(result.subject)}&body=${encodeURIComponent(`Dear ${member.name},\n\nCongratulations on your appointment as ${member.designation || member.roleType} in ${activeClub.name} (${activeLetterConfig.tenure || '2026-2027'}).\n\nRef No: ${result.refId}\nDate: ${activeLetterConfig.issueDate || ''}\n\nWarm regards,\n${activeClub.name}\nITM (sls) Baroda University`)}" 
-                 style="display: inline-block; padding: 6px 12px; background: #0284c7; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 600; font-size: 12px;"
-                 target="_blank" rel="noopener noreferrer">
-                📧 Open in Mail Client
+            <p style="font-size: 12px; color: #94a3b8; margin: 8px 0;">Gmail composer has been opened. If popups were blocked, click the button below:</p>
+            <div style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
+              <a href="${gmailUrl}" target="_blank" rel="noopener noreferrer" 
+                 style="display: inline-flex; align-items: center; gap: 4px; padding: 8px 14px; background: #ea4335; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 700; font-size: 12.5px;">
+                ✉️ Open in Gmail Web
               </a>
+              <a href="${mailtoUrl}" 
+                 style="display: inline-flex; align-items: center; gap: 4px; padding: 8px 14px; background: #0284c7; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 700; font-size: 12.5px;">
+                📧 Default Mail App
+              </a>
+              <button type="button" id="btn-copy-letter-text"
+                 style="padding: 8px 12px; background: #334155; color: #fff; border: none; border-radius: 6px; font-weight: 600; font-size: 12px; cursor: pointer;">
+                📋 Copy Text
+              </button>
             </div>
           </div>
         `,
         background: '#0f172a',
         color: '#f8fafc',
         confirmButtonColor: '#10b981',
-        confirmButtonText: 'Done'
+        confirmButtonText: 'Done',
+        didOpen: () => {
+          const copyBtn = document.getElementById('btn-copy-letter-text');
+          if (copyBtn) {
+            copyBtn.addEventListener('click', () => {
+              navigator.clipboard.writeText(plainTextBody);
+              copyBtn.innerText = '✅ Copied!';
+              setTimeout(() => { copyBtn.innerText = '📋 Copy Text'; }, 2000);
+            });
+          }
+        }
       });
     } catch (err) {
       Swal.fire({
@@ -1446,6 +1511,16 @@ function App() {
               config={activeLetterConfig}
               clubConfig={activeClub}
               onChangeConfig={(key, value) => {
+                if (key === 'memberEmail' && currentActiveMember) {
+                  const memberId = currentActiveMember._id || currentActiveMember.id;
+                  const updatedMember = { ...currentActiveMember, email: value };
+                  setSelectedMember(updatedMember);
+                  setMembers(prev => {
+                    const next = prev.map(m => ((m._id && m._id === memberId) || (m.id && m.id === memberId) || (m.name === currentActiveMember.name && m.organization === activeOrg)) ? updatedMember : m);
+                    localStorage.setItem('offer_gen_members', JSON.stringify(next));
+                    return next;
+                  });
+                }
                 if (isAWS) {
                   setAwsLetterConfig(prev => ({ ...prev, [key]: value }));
                 } else if (isTechno) {

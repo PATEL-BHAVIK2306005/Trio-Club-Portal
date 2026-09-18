@@ -173,9 +173,9 @@ export default function LetterControls({
                 </label>
                 <input
                   type="email"
-                  value={member?.email || (member?.name ? `${member.name.toLowerCase().replace(/[^a-z0-9]/g, '.')}@itmbu.ac.in` : '')}
+                  value={config.memberEmail !== undefined ? config.memberEmail : (member?.email || '')}
                   onChange={(e) => onChangeConfig('memberEmail', e.target.value)}
-                  placeholder="e.g. student@itmbu.ac.in"
+                  placeholder="e.g. name@gmail.com or student@itmbu.ac.in"
                   className="form-input form-input-live-edit"
                 />
               </div>
