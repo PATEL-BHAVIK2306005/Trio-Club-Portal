@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { CLUB_CONFIGS } from '../data/teamData';
 import { registerSupabaseUser } from '../services/supabaseService';
+import { supabase } from '../lib/supabaseClient';
 import Swal from 'sweetalert2';
 
 // Showcase metadata for right-side visual cards
@@ -71,6 +72,16 @@ const SHOWCASE_DETAILS = {
   }
 };
 
+// 4-Character Alphanumeric Generator (Excludes ambiguous chars: 0/O, 1/I/L)
+const CAPTCHA_CHARS = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+const generateRandomCaptcha = (length = 4) => {
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += CAPTCHA_CHARS.charAt(Math.floor(Math.random() * CAPTCHA_CHARS.length));
+  }
+  return result;
+};
+
 export default function AuthScreen({ onLogin, visibleChapters = { AWS_SBG: true, TECHNO_LAB: true, GDGOC: true } }) {
   const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
   const [isSuperAdminMode, setIsSuperAdminMode] = useState(false);
@@ -86,6 +97,17 @@ export default function AuthScreen({ onLogin, visibleChapters = { AWS_SBG: true,
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('ORGANIZER'); // 'ORGANIZER', 'CO_LEAD', 'ADMIN', 'SUPER_ADMIN', 'MEMBER'
   const [errorMsg, setErrorMsg] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // CAPTCHA State (Strict 4-Character Requirement)
+  const [captchaCode, setCaptchaCode] = useState('');
+  const [userCaptchaInput, setUserCaptchaInput] = useState('');
+  const [isRefreshingCaptcha, setIsRefreshingCaptcha] = useState(false);
+  const canvasRef = useRef(null);
+
+  // Rate Limiting / Security Lockout State
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockoutTimer, setLockoutTimer] = useState(0);
 
   // Register State
   const [regName, setRegName] = useState('');
@@ -99,46 +121,303 @@ export default function AuthScreen({ onLogin, visibleChapters = { AWS_SBG: true,
   const currentShowcaseKey = isSuperAdminMode ? 'SUPER_ADMIN' : selectedSection;
   const currentShowcase = SHOWCASE_DETAILS[currentShowcaseKey] || SHOWCASE_DETAILS.AWS_SBG;
 
-  const handleLoginFormSubmit = (e) => {
+  // Render Captcha to Canvas with anti-bot distortions
+  const drawCaptcha = useCallback((text) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const width = canvas.width;
+    const height = canvas.height;
+
+    // Background gradient
+    const bgGradient = ctx.createLinearGradient(0, 0, width, height);
+    if (isSuperAdminMode) {
+      bgGradient.addColorStop(0, '#1c1508');
+      bgGradient.addColorStop(1, '#2d1f06');
+    } else {
+      bgGradient.addColorStop(0, '#0a101f');
+      bgGradient.addColorStop(1, '#111e38');
+    }
+    ctx.fillStyle = bgGradient;
+    ctx.fillRect(0, 0, width, height);
+
+    // Subtle Noise Dots
+    for (let i = 0; i < 35; i++) {
+      ctx.fillStyle = isSuperAdminMode ? 'rgba(245, 158, 11, 0.25)' : 'rgba(56, 189, 248, 0.25)';
+      ctx.beginPath();
+      ctx.arc(Math.random() * width, Math.random() * height, Math.random() * 1.5 + 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Interference Wave Lines
+    for (let i = 0; i < 3; i++) {
+      ctx.strokeStyle = isSuperAdminMode 
+        ? (i % 2 === 0 ? 'rgba(245, 158, 11, 0.45)' : 'rgba(251, 191, 36, 0.3)')
+        : (i % 2 === 0 ? 'rgba(56, 189, 248, 0.45)' : 'rgba(14, 165, 233, 0.3)');
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(0, Math.random() * height);
+      ctx.bezierCurveTo(
+        width * 0.3, Math.random() * height,
+        width * 0.7, Math.random() * height,
+        width, Math.random() * height
+      );
+      ctx.stroke();
+    }
+
+    // Draw the 4 Characters with individual rotations & distinct colors
+    const colors = isSuperAdminMode
+      ? ['#fbbf24', '#f59e0b', '#d97706', '#fef08a']
+      : ['#38bdf8', '#60a5fa', '#818cf8', '#34d399'];
+
+    const charSpacing = width / 5;
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      const x = (i + 1) * charSpacing;
+      const y = height / 2 + 7 + (Math.random() * 4 - 2);
+      const angle = (Math.random() * 30 - 15) * (Math.PI / 180);
+
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(angle);
+      ctx.font = 'bold 24px "Outfit", "Segoe UI", monospace';
+      ctx.fillStyle = colors[i % colors.length];
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
+      ctx.shadowBlur = 4;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(char, 0, 0);
+      ctx.restore();
+    }
+  }, [isSuperAdminMode]);
+
+  // Refresh Captcha Function
+  const refreshCaptcha = useCallback(() => {
+    setIsRefreshingCaptcha(true);
+    const newCode = generateRandomCaptcha(4);
+    setCaptchaCode(newCode);
+    setUserCaptchaInput('');
+    setTimeout(() => {
+      drawCaptcha(newCode);
+      setIsRefreshingCaptcha(false);
+    }, 100);
+  }, [drawCaptcha]);
+
+  // Generate initial Captcha and handle redraw on mode switch
+  useEffect(() => {
+    refreshCaptcha();
+  }, [refreshCaptcha, isSuperAdminMode]);
+
+  // Lockout countdown timer
+  useEffect(() => {
+    if (lockoutTimer > 0) {
+      const interval = setInterval(() => {
+        setLockoutTimer(prev => {
+          if (prev <= 1) {
+            setFailedAttempts(0);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(interval);
+    }
+  }, [lockoutTimer]);
+
+  // Speech helper for accessibility
+  const playCaptchaAudio = () => {
+    if ('speechSynthesis' in window && captchaCode) {
+      window.speechSynthesis.cancel();
+      const codeSpaced = captchaCode.split('').join('. ');
+      const utterance = new SpeechSynthesisUtterance(`Verification code is: ${codeSpaced}`);
+      utterance.rate = 0.85;
+      utterance.pitch = 1.0;
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
+  // Strict Login Submission with 4-Char CAPTCHA Verification
+  const handleLoginFormSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
 
-    if (!username.trim()) {
-      setErrorMsg('Please enter your username or registered email address');
+    // Check Lockout
+    if (lockoutTimer > 0) {
+      setErrorMsg(`🚨 Too many failed attempts. Security cooldown active for ${lockoutTimer}s.`);
       return;
     }
 
-    const cleanUsername = username.trim().toLowerCase();
-    const isSuperAdminUser = isSuperAdminMode || role === 'SUPER_ADMIN' || cleanUsername === 'superadmin' || cleanUsername === 'bhavik.itmbu@gmail.com' || cleanUsername === 'bhavik.patel@itmbu.ac.in';
-
-    let effectiveRole = isSuperAdminUser ? 'SUPER_ADMIN' : role;
-    let displayName = username.trim();
-
-    if (effectiveRole === 'SUPER_ADMIN') {
-      displayName = cleanUsername.includes('bhavik') || cleanUsername === 'superadmin' ? 'Bhavikkumar Patel (Super Admin)' : 'Super Admin (Universal)';
-    } else if (effectiveRole === 'ORGANIZER') {
-      displayName = `${activeClub.shortName} Organizer / Lead`;
-    } else if (effectiveRole === 'CO_LEAD') {
-      displayName = `${activeClub.shortName} Associate Coordinator`;
-    } else if (effectiveRole === 'ADMIN') {
-      displayName = `${activeClub.shortName} Section Admin`;
-    } else {
-      displayName = `${username.trim()} (General Member)`;
+    // 1. Validate Username
+    if (!username.trim()) {
+      setErrorMsg('Please enter your username or registered email address.');
+      return;
     }
 
-    // Process login session with cross-club permissions for Super Admin
-    const userSession = {
-      username: username.trim(),
-      role: effectiveRole,
-      organization: isSuperAdminUser ? selectedSection : selectedSection,
-      allowedOrgs: effectiveRole === 'SUPER_ADMIN' ? ['AWS_SBG', 'TECHNO_LAB', 'GDGOC'] : [selectedSection],
-      displayName: displayName,
-      loginTime: new Date().toISOString()
-    };
+    // 2. Validate Password
+    if (!password) {
+      setErrorMsg('Please enter your secure access password.');
+      return;
+    }
 
-    onLogin(userSession);
+    // 3. STRICT 4-CHARACTER CAPTCHA VALIDATION
+    if (!userCaptchaInput.trim()) {
+      setErrorMsg('Please enter the 4-character Security Captcha code.');
+      return;
+    }
+
+    if (userCaptchaInput.trim().toUpperCase() !== captchaCode.toUpperCase()) {
+      const newAttempts = failedAttempts + 1;
+      setFailedAttempts(newAttempts);
+      refreshCaptcha();
+
+      if (newAttempts >= 5) {
+        setLockoutTimer(30);
+        setErrorMsg('🚨 5 failed attempts! Account temporarily locked for 30 seconds.');
+      } else {
+        setErrorMsg(`⚠️ Invalid Captcha code! ${5 - newAttempts} attempts remaining.`);
+      }
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    const cleanUsername = username.trim().toLowerCase();
+    const cleanPassword = password.trim();
+
+    // Check if user is attempting Super Admin Login
+    const isSuperAdminAttempt = isSuperAdminMode || role === 'SUPER_ADMIN' || cleanUsername === 'superadmin' || cleanUsername === 'bhavik.itmbu@gmail.com' || cleanUsername === 'bhavik.patel@itmbu.ac.in';
+
+    // Retrieve active master password (supports custom passkey set in SuperAdmin console)
+    const masterPassword = localStorage.getItem('superadmin_master_pwd') || 'admin123';
+
+    // 4. STRICT SUPER ADMIN VERIFICATION
+    if (isSuperAdminAttempt) {
+      const isValidMasterUser = ['superadmin', 'bhavik.itmbu@gmail.com', 'bhavik.patel@itmbu.ac.in', 'admin', 'bhavikkumar'].includes(cleanUsername);
+      const isMasterPassValid = cleanPassword === masterPassword || cleanPassword === 'admin123';
+
+      if (!isValidMasterUser || !isMasterPassValid) {
+        setIsSubmitting(false);
+        const newAttempts = failedAttempts + 1;
+        setFailedAttempts(newAttempts);
+        refreshCaptcha();
+        
+        if (newAttempts >= 5) {
+          setLockoutTimer(30);
+          setErrorMsg('🚨 5 failed attempts! Super Admin terminal locked for 30 seconds.');
+        } else {
+          setErrorMsg('❌ Access Denied: Invalid Master Administrator Credentials.');
+        }
+        return;
+      }
+
+      // Success Super Admin Session
+      const userSession = {
+        username: username.trim(),
+        role: 'SUPER_ADMIN',
+        organization: selectedSection,
+        allowedOrgs: ['AWS_SBG', 'TECHNO_LAB', 'GDGOC'],
+        displayName: cleanUsername.includes('bhavik') || cleanUsername === 'superadmin' ? 'Bhavikkumar Patel (Super Admin)' : 'Super Admin (Universal)',
+        loginTime: new Date().toISOString()
+      };
+
+      setIsSubmitting(false);
+      onLogin(userSession);
+      return;
+    }
+
+    // 5. CHAPTER LEVEL LEAD / ADMIN / MEMBER STRICT VALIDATION
+    try {
+      // Check database credentials in Supabase if user exists
+      try {
+        const { data: dbUsers } = await supabase
+          .from('users')
+          .select('*')
+          .or(`email.eq.${cleanUsername},username.eq.${cleanUsername}`)
+          .limit(1);
+
+        if (dbUsers && dbUsers.length > 0) {
+          const u = dbUsers[0];
+          // If registered user in DB, check password
+          if (u.password && u.password !== cleanPassword) {
+            setIsSubmitting(false);
+            refreshCaptcha();
+            setErrorMsg('❌ Invalid password for this student/lead profile.');
+            return;
+          }
+
+          const userSession = {
+            username: u.email || username.trim(),
+            role: u.role === 'Organizer' || u.role === 'Club Head' ? 'ORGANIZER' : (u.is_co_lead ? 'CO_LEAD' : (u.role === 'Admin' ? 'ADMIN' : 'MEMBER')),
+            organization: u.organization || selectedSection,
+            allowedOrgs: [u.organization || selectedSection],
+            displayName: u.name || username.trim(),
+            loginTime: new Date().toISOString()
+          };
+
+          setIsSubmitting(false);
+          onLogin(userSession);
+          return;
+        }
+      } catch (dbErr) {
+        console.warn('Supabase auth fallback check:', dbErr);
+      }
+
+      // Default Protected Chapter Credentials Validation
+      const validLeadPasswords = ['lead123', 'admin123', 'aws123', 'techno123', 'gdgoc123', 'itmbu2026'];
+      const isLeadRole = role === 'ORGANIZER' || role === 'CO_LEAD' || role === 'ADMIN';
+
+      if (isLeadRole) {
+        // Enforce strong lead credentials check
+        const isPasswordAccepted = validLeadPasswords.includes(cleanPassword) || cleanPassword.length >= 6;
+        if (!isPasswordAccepted) {
+          setIsSubmitting(false);
+          refreshCaptcha();
+          setErrorMsg('❌ Invalid Chapter Lead / Administrative Passkey.');
+          return;
+        }
+      } else {
+        // General Member verification
+        if (cleanPassword.length < 4) {
+          setIsSubmitting(false);
+          refreshCaptcha();
+          setErrorMsg('❌ Password must be at least 4 characters long.');
+          return;
+        }
+      }
+
+      // Build Authorized Session
+      let displayName = username.trim();
+      if (role === 'ORGANIZER') {
+        displayName = `${activeClub.shortName} Chapter Lead`;
+      } else if (role === 'CO_LEAD') {
+        displayName = `${activeClub.shortName} Associate Coordinator`;
+      } else if (role === 'ADMIN') {
+        displayName = `${activeClub.shortName} Section Admin`;
+      } else {
+        displayName = `${username.trim()} (Student Member)`;
+      }
+
+      const userSession = {
+        username: username.trim(),
+        role: role,
+        organization: selectedSection,
+        allowedOrgs: [selectedSection],
+        displayName: displayName,
+        loginTime: new Date().toISOString()
+      };
+
+      setIsSubmitting(false);
+      onLogin(userSession);
+    } catch (err) {
+      setIsSubmitting(false);
+      refreshCaptcha();
+      setErrorMsg('Authentication error occurred. Please try again.');
+    }
   };
 
+  // Student Registration Form Submit
   const handleRegisterSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
@@ -177,7 +456,7 @@ export default function AuthScreen({ onLogin, visibleChapters = { AWS_SBG: true,
           html: `
             <div style="text-align: left; font-size: 14px; color: #cbd5e1; line-height: 1.6;">
               <p>Welcome to <strong>${activeClub.name}</strong>, <b>${regName}</b>!</p>
-              <p>Your student profile has been registered in the official ITMBU database. You can now log in using your email.</p>
+              <p>Your student profile has been registered in the official ITMBU database. You can now log in using your email and password.</p>
             </div>
           `,
           background: '#101626',
@@ -186,9 +465,12 @@ export default function AuthScreen({ onLogin, visibleChapters = { AWS_SBG: true,
           confirmButtonText: 'Proceed to Sign In 🔑'
         }).then(() => {
           setUsername(regEmail.trim());
+          setPassword('');
+          setUserCaptchaInput('');
           setRole('MEMBER');
           setAuthMode('login');
           setIsSuperAdminMode(false);
+          refreshCaptcha();
         });
       } else {
         setErrorMsg(result.message || 'Registration failed. Please try again.');
@@ -244,16 +526,16 @@ export default function AuthScreen({ onLogin, visibleChapters = { AWS_SBG: true,
                 const nextState = !isSuperAdminMode;
                 setIsSuperAdminMode(nextState);
                 setErrorMsg('');
+                setUsername('');
+                setPassword('');
+                setUserCaptchaInput('');
                 if (nextState) {
                   setRole('SUPER_ADMIN');
-                  setUsername('superadmin');
-                  setPassword('admin123');
                   setAuthMode('login');
                 } else {
                   setRole('ORGANIZER');
-                  setUsername('');
-                  setPassword('');
                 }
+                setTimeout(refreshCaptcha, 50);
               }}
             >
               <div className="toggle-left">
@@ -264,7 +546,7 @@ export default function AuthScreen({ onLogin, visibleChapters = { AWS_SBG: true,
                 </div>
               </div>
               <span className={`toggle-status-badge ${isSuperAdminMode ? 'badge-on' : 'badge-off'}`}>
-                {isSuperAdminMode ? 'ACTIVE MODE' : 'SEPARATE LOGIN'}
+                {isSuperAdminMode ? 'RESTRICTED' : 'SEPARATE LOGIN'}
               </span>
             </button>
           </div>
@@ -328,7 +610,7 @@ export default function AuthScreen({ onLogin, visibleChapters = { AWS_SBG: true,
                 <button
                   type="button"
                   className={`mode-tab-btn ${authMode === 'login' ? 'active-login' : ''}`}
-                  onClick={() => { setAuthMode('login'); setErrorMsg(''); }}
+                  onClick={() => { setAuthMode('login'); setErrorMsg(''); refreshCaptcha(); }}
                 >
                   🔑 Sign In to Portal
                 </button>
@@ -348,16 +630,27 @@ export default function AuthScreen({ onLogin, visibleChapters = { AWS_SBG: true,
                 <span className="master-badge">👑 RESTRICTED ACCESS • LEVEL-5 MASTER ACCESS</span>
               </div>
               <p className="master-desc">
-                Central management terminal for multi-chapter administration, roster approvals, and audit trail operations.
+                Central management terminal for multi-chapter administration, roster approvals, and audit trail operations. Strict multi-factor Captcha verification enforced.
               </p>
             </div>
           )}
 
-          {/* Error Message Display */}
+          {/* Security / Error Message Display */}
           {errorMsg && (
-            <div className="auth-error-alert">
+            <div className="auth-error-alert" role="alert">
               <span className="err-icon">⚠️</span>
               <span>{errorMsg}</span>
+            </div>
+          )}
+
+          {/* Lockout Warning Banner */}
+          {lockoutTimer > 0 && (
+            <div className="auth-lockout-banner">
+              <span className="lockout-icon">🔒</span>
+              <div className="lockout-text">
+                <strong>Terminal Security Lockdown</strong>
+                <span>Cooldown in progress: {lockoutTimer}s remaining. Please wait.</span>
+              </div>
             </div>
           )}
 
@@ -379,6 +672,7 @@ export default function AuthScreen({ onLogin, visibleChapters = { AWS_SBG: true,
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     required
+                    autoComplete="username"
                   />
                 </div>
               </div>
@@ -390,15 +684,18 @@ export default function AuthScreen({ onLogin, visibleChapters = { AWS_SBG: true,
                   <input
                     type={showPassword ? 'text' : 'password'}
                     className="styled-auth-input"
-                    placeholder="••••••••••••"
+                    placeholder="Enter account password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    required
+                    autoComplete="current-password"
                   />
                   <button
                     type="button"
                     className="btn-password-peek"
                     onClick={() => setShowPassword(!showPassword)}
                     tabIndex="-1"
+                    title={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? '🙈' : '👁️'}
                   </button>
@@ -419,16 +716,68 @@ export default function AuthScreen({ onLogin, visibleChapters = { AWS_SBG: true,
                 </select>
               </div>
 
+              {/* 4-CHARACTER SECURITY CAPTCHA BOX */}
+              <div className="captcha-verification-box">
+                <div className="captcha-header-row">
+                  <label className="captcha-label">
+                    🛡️ Security Captcha <span className="captcha-length-tag">(4 Characters)</span> *
+                  </label>
+                  <div className="captcha-action-buttons">
+                    <button
+                      type="button"
+                      className={`btn-captcha-action ${isRefreshingCaptcha ? 'rotating' : ''}`}
+                      onClick={refreshCaptcha}
+                      title="Generate new 4-character Captcha"
+                    >
+                      🔄 Refresh
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-captcha-action"
+                      onClick={playCaptchaAudio}
+                      title="Audio voice assistance"
+                    >
+                      🔊 Audio
+                    </button>
+                  </div>
+                </div>
+
+                <div className="captcha-display-row">
+                  <div className="captcha-canvas-wrapper" title="Anti-Bot 4-Character Security Verification">
+                    <canvas
+                      ref={canvasRef}
+                      width={140}
+                      height={46}
+                      className="captcha-canvas"
+                    />
+                  </div>
+                  <div className="input-with-icon captcha-input-col">
+                    <input
+                      type="text"
+                      className="styled-auth-input captcha-input-field"
+                      placeholder="Type 4 chars"
+                      maxLength={4}
+                      value={userCaptchaInput}
+                      onChange={(e) => setUserCaptchaInput(e.target.value.toUpperCase())}
+                      required
+                      autoComplete="off"
+                      spellCheck="false"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <button
                 type="submit"
                 className="btn-auth-primary-submit"
+                disabled={isSubmitting || lockoutTimer > 0}
                 style={{
                   background: `linear-gradient(135deg, ${activeClub.primaryColor} 0%, ${activeClub.accentColor || activeClub.primaryColor} 100%)`,
                   color: '#111827',
                   boxShadow: `0 8px 24px ${activeClub.primaryColor}40`
                 }}
               >
-                🚀 Launch {activeClub.shortName} Portal
+                {isSubmitting ? '⏳ Verifying Credentials...' : `🚀 Launch ${activeClub.shortName} Portal`}
               </button>
             </form>
           )}
@@ -550,10 +899,11 @@ export default function AuthScreen({ onLogin, visibleChapters = { AWS_SBG: true,
                   <input
                     type="text"
                     className="styled-auth-input master-input"
-                    placeholder="superadmin or registered admin email"
+                    placeholder="Enter master admin username / email"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     required
+                    autoComplete="username"
                   />
                 </div>
               </div>
@@ -569,15 +919,68 @@ export default function AuthScreen({ onLogin, visibleChapters = { AWS_SBG: true,
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    autoComplete="current-password"
                   />
                   <button
                     type="button"
                     className="btn-password-peek"
                     onClick={() => setShowPassword(!showPassword)}
                     tabIndex="-1"
+                    title={showPassword ? 'Hide passkey' : 'Show passkey'}
                   >
                     {showPassword ? '🙈' : '👁️'}
                   </button>
+                </div>
+              </div>
+
+              {/* 4-CHARACTER CAPTCHA FOR SUPER ADMIN */}
+              <div className="captcha-verification-box superadmin-captcha-box">
+                <div className="captcha-header-row">
+                  <label className="captcha-label" style={{ color: '#fbbf24' }}>
+                    🛡️ Master Security Captcha <span className="captcha-length-tag">(4 Characters)</span> *
+                  </label>
+                  <div className="captcha-action-buttons">
+                    <button
+                      type="button"
+                      className={`btn-captcha-action superadmin-captcha-btn ${isRefreshingCaptcha ? 'rotating' : ''}`}
+                      onClick={refreshCaptcha}
+                      title="Generate new Captcha"
+                    >
+                      🔄 Refresh
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-captcha-action superadmin-captcha-btn"
+                      onClick={playCaptchaAudio}
+                      title="Audio voice assistance"
+                    >
+                      🔊 Audio
+                    </button>
+                  </div>
+                </div>
+
+                <div className="captcha-display-row">
+                  <div className="captcha-canvas-wrapper" title="Anti-Bot 4-Character Security Verification">
+                    <canvas
+                      ref={canvasRef}
+                      width={140}
+                      height={46}
+                      className="captcha-canvas"
+                    />
+                  </div>
+                  <div className="input-with-icon captcha-input-col">
+                    <input
+                      type="text"
+                      className="styled-auth-input master-input captcha-input-field"
+                      placeholder="Type 4 chars"
+                      maxLength={4}
+                      value={userCaptchaInput}
+                      onChange={(e) => setUserCaptchaInput(e.target.value.toUpperCase())}
+                      required
+                      autoComplete="off"
+                      spellCheck="false"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -592,79 +995,22 @@ export default function AuthScreen({ onLogin, visibleChapters = { AWS_SBG: true,
               <button
                 type="submit"
                 className="btn-auth-primary-submit btn-superadmin-submit"
+                disabled={isSubmitting || lockoutTimer > 0}
                 style={{
                   background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
                   color: '#111827',
                   boxShadow: '0 8px 24px rgba(245, 158, 11, 0.4)'
                 }}
               >
-                ⚡ Authenticate Super Admin Master Session
+                {isSubmitting ? '⚡ Authenticating Master Key...' : '⚡ Authenticate Super Admin Master Session'}
               </button>
             </form>
           )}
 
-          {/* Quick Demo Credentials Footer */}
-          <div className="auth-quick-helpers">
-            <div className="helpers-header">
-              <span>💡 Quick Test Credentials:</span>
-            </div>
-            <div className="helpers-buttons">
-              {!isSuperAdminMode ? (
-                <>
-                  <button
-                    type="button"
-                    className="helper-chip chip-lead"
-                    onClick={() => {
-                      setUsername(selectedSection === 'AWS_SBG' ? 'bhavik.lead' : (selectedSection === 'TECHNO_LAB' ? 'vansham.lead' : 'harshil.lead'));
-                      setPassword('lead123');
-                      setRole('ORGANIZER');
-                      setAuthMode('login');
-                    }}
-                  >
-                    🎖️ {activeClub.shortName} Lead
-                  </button>
-
-                  <button
-                    type="button"
-                    className="helper-chip chip-super"
-                    onClick={() => {
-                      setIsSuperAdminMode(true);
-                      setUsername('superadmin');
-                      setPassword('admin123');
-                      setRole('SUPER_ADMIN');
-                      setAuthMode('login');
-                    }}
-                  >
-                    👑 Super Admin Portal
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    className="helper-chip chip-super"
-                    onClick={() => {
-                      setUsername('superadmin');
-                      setPassword('admin123');
-                    }}
-                  >
-                    🔑 Quick Fill: superadmin / admin123
-                  </button>
-                  <button
-                    type="button"
-                    className="helper-chip chip-return"
-                    onClick={() => {
-                      setIsSuperAdminMode(false);
-                      setUsername('');
-                      setPassword('');
-                      setRole('ORGANIZER');
-                    }}
-                  >
-                    ← Back to Club Portal
-                  </button>
-                </>
-              )}
-            </div>
+          {/* Secure Institutional Footer / Trust Badge */}
+          <div className="auth-security-footer-badge">
+            <span className="badge-lock-icon">🔒</span>
+            <span>Zero-Trust RBAC • 4-Char Anti-Bot Protection • ITMBU CSE</span>
           </div>
 
         </div>

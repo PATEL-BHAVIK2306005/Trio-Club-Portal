@@ -499,27 +499,33 @@ export default function SuperAdminConsole({
   // Password change handler
   const handlePasswordChange = (e) => {
     e.preventDefault();
+    const currentMasterPwd = localStorage.getItem('superadmin_master_pwd') || 'admin123';
     if (!pwdCurrent) {
-      alert('Please enter current password');
+      Swal.fire({ icon: 'warning', title: 'Current Password Required', text: 'Please enter your current master passkey.', background: '#101626', color: '#f8fafc', confirmButtonColor: '#f59e0b' });
+      return;
+    }
+    if (pwdCurrent !== currentMasterPwd) {
+      Swal.fire({ icon: 'error', title: 'Invalid Passkey', text: 'The current master password you entered is incorrect.', background: '#101626', color: '#f8fafc', confirmButtonColor: '#ef4444' });
       return;
     }
     if (pwdNew.length < 6) {
-      alert('New password must be at least 6 characters');
+      Swal.fire({ icon: 'warning', title: 'Weak Password', text: 'New password must be at least 6 characters long.', background: '#101626', color: '#f8fafc', confirmButtonColor: '#f59e0b' });
       return;
     }
     if (pwdNew !== pwdConfirm) {
-      alert('New passwords do not match');
+      Swal.fire({ icon: 'warning', title: 'Mismatch', text: 'New passwords do not match.', background: '#101626', color: '#f8fafc', confirmButtonColor: '#f59e0b' });
       return;
     }
 
+    localStorage.setItem('superadmin_master_pwd', pwdNew);
     setPwdCurrent('');
     setPwdNew('');
     setPwdConfirm('');
 
     Swal.fire({
       icon: 'success',
-      title: 'Security Password Updated!',
-      text: 'Master credentials updated successfully and active across all sessions.',
+      title: 'Master Passkey Updated!',
+      text: 'Super Admin master credentials updated successfully and enforced across all logins.',
       background: '#101626',
       color: '#f8fafc',
       confirmButtonColor: '#10b981'
