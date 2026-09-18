@@ -55,7 +55,10 @@ export async function sendDirectReactEmail({
 
   // 1. Try Backend Nodemailer SMTP Server with PDF Attachment
   try {
-    const backendRes = await fetch('http://localhost:5000/api/send-offer-letter', {
+    const apiEndpoint = process.env.REACT_APP_API_URL 
+      ? `${process.env.REACT_APP_API_URL}/send-offer-letter` 
+      : (window.location.hostname === 'localhost' ? 'http://localhost:5000/api/send-offer-letter' : '/api/send-offer-letter');
+    const backendRes = await fetch(apiEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
