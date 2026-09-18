@@ -301,36 +301,57 @@ ITM (sls) Baroda University, Vadodara
 
       setIsSending(false);
 
-      Swal.fire({
-        icon: 'success',
-        title: 'Email Service Dispatched!',
-        html: `
-          <div style="text-align: left; font-size: 13.5px; color: #cbd5e1; line-height: 1.6;">
-            <p>Your Certifier.io-style offer letter has been processed through the React Email Service engine:</p>
-            <div style="background: rgba(15, 23, 42, 0.85); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); margin: 10px 0;">
-              <p style="margin: 0;"><strong>👤 Recipient:</strong> ${recipientEmail}</p>
-              <p style="margin: 4px 0 0 0;"><strong>🏛️ From Desk:</strong> ${officialSenderEmail}</p>
-              <p style="margin: 4px 0 0 0; color: #38bdf8;"><strong>⚡ Engine:</strong> ${result.deliveryMethod}</p>
-              <p style="margin: 4px 0 0 0; color: #34d399;"><strong>✓ Status:</strong> Dispatched with Official Joining Letter PDF Attached 📎</p>
+      if (result.isDelivered) {
+        Swal.fire({
+          icon: 'success',
+          title: 'Offer Letter Delivered!',
+          html: `
+            <div style="text-align: left; font-size: 13.5px; color: #cbd5e1; line-height: 1.6;">
+              <p>Your official appointment letter and PDF attachment have been sent successfully via <strong>${result.deliveryMethod}</strong>:</p>
+              <div style="background: rgba(15, 23, 42, 0.85); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); margin: 10px 0;">
+                <p style="margin: 0;"><strong>👤 Recipient:</strong> ${recipientEmail}</p>
+                <p style="margin: 4px 0 0 0;"><strong>🏛️ From Desk:</strong> ${officialSenderEmail}</p>
+                <p style="margin: 4px 0 0 0; color: #38bdf8;"><strong>⚡ Engine:</strong> ${result.deliveryMethod}</p>
+                <p style="margin: 4px 0 0 0; color: #34d399;"><strong>✓ Status:</strong> Delivered to inbox with PDF attached 📎</p>
+              </div>
+              <div style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;">
+                <a href="${gmailUrl}" target="_blank" rel="noopener noreferrer" 
+                   style="display: inline-flex; align-items: center; gap: 4px; padding: 8px 14px; background: #ea4335; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 700; font-size: 12.5px;">
+                  ✉️ Open Sent in Gmail
+                </a>
+              </div>
             </div>
-            <p style="font-size: 12px; color: #94a3b8; margin: 8px 0;">You can also launch 1-Click Gmail composer if you wish to verify sent messages:</p>
-            <div style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;">
-              <a href="${gmailUrl}" target="_blank" rel="noopener noreferrer" 
-                 style="display: inline-flex; align-items: center; gap: 4px; padding: 8px 14px; background: #ea4335; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 700; font-size: 12.5px;">
-                ✉️ Open Gmail Web
-              </a>
-              <a href="${mailtoUrl}" 
-                 style="display: inline-flex; align-items: center; gap: 4px; padding: 8px 14px; background: #0284c7; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 700; font-size: 12.5px;">
-                📧 Default Mail App
-              </a>
+          `,
+          background: '#0f172a',
+          color: '#f8fafc',
+          confirmButtonColor: '#10b981',
+          confirmButtonText: 'Done'
+        });
+      } else {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Direct SMTP Delivery Pending',
+          html: `
+            <div style="text-align: left; font-size: 13.5px; color: #cbd5e1; line-height: 1.6;">
+              <p>The letter was logged to the database, but direct Nodemailer dispatch requires the Gmail App Password in Vercel.</p>
+              <div style="background: rgba(15, 23, 42, 0.85); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); margin: 10px 0;">
+                <p style="margin: 0; color: #f59e0b;"><strong>⚠️ Reason:</strong> ${result.data?.message || 'SMTP Authentication required'}</p>
+              </div>
+              <p style="font-size: 12px; color: #94a3b8; margin: 8px 0;">You can send it manually with 1-click:</p>
+              <div style="display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap;">
+                <a href="${gmailUrl}" target="_blank" rel="noopener noreferrer" 
+                   style="display: inline-flex; align-items: center; gap: 4px; padding: 8px 14px; background: #ea4335; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 700; font-size: 12.5px;">
+                  ✉️ Send via Gmail Web
+                </a>
+              </div>
             </div>
-          </div>
-        `,
-        background: '#0f172a',
-        color: '#f8fafc',
-        confirmButtonColor: '#10b981',
-        confirmButtonText: 'Done'
-      });
+          `,
+          background: '#0f172a',
+          color: '#f8fafc',
+          confirmButtonColor: '#f59e0b',
+          confirmButtonText: 'OK'
+        });
+      }
     } catch (err) {
       setIsSending(false);
       Swal.fire({

@@ -53,11 +53,18 @@ export async function sendDirectReactEmail({
   let isDelivered = false;
   let responseData = null;
 
-  // 1. Try Backend Nodemailer SMTP Server with PDF Attachment
+  let lastError = null;
+
+  // 1. Try Backend / Vercel Serverless Nodemailer SMTP with PDF Attachment
   try {
-    const apiEndpoint = process.env.REACT_APP_API_URL 
-      ? `${process.env.REACT_APP_API_URL}/send-offer-letter` 
-      : (window.location.hostname === 'localhost' ? 'http://localhost:5000/api/send-offer-letter' : '/api/send-offer-letter');
+    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    let apiEndpoint = '/api/send-offer-letter';
+    if (process.env.REACT_APP_API_URL && !process.env.REACT_APP_API_URL.includes('localhost')) {
+      apiEndpoint = `${process.env.REACT_APP_API_URL}/send-offer-letter`;
+    } else if (isLocalhost) {
+      apiEndpoint = 'http://localhost:5000/api/send-offer-letter';
+    }
+
     const backendRes = await fetch(apiEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -82,14 +89,19 @@ export async function sendDirectReactEmail({
 
     if (backendRes.ok) {
       const json = await backendRes.json();
-      if (json.success) {
-        deliveryMethod = 'Node/Express SMTP Server';
+      if (json.success && json.dispatched) {
+        deliveryMethod = 'Vercel Serverless Nodemailer';
         isDelivered = true;
         responseData = json;
+      } else if (json.error || json.message) {
+        lastError = json.error || json.message;
       }
+    } else {
+      const errJson = await backendRes.json().catch(() => ({}));
+      lastError = errJson.error || `Server returned HTTP ${backendRes.status}`;
     }
   } catch (backendErr) {
-    // Backend fetch failed or offline, proceed to frontend SDK
+    lastError = backendErr.message || 'Network error communicating with email server';
   }
 
   // 2. Try EmailJS Browser SDK if configured
