@@ -275,7 +275,6 @@ ITM (sls) Baroda University, Vadodara
       });
 
       setIsSending(false);
-      setSendSuccess(true);
 
       Swal.fire({
         icon: 'success',
