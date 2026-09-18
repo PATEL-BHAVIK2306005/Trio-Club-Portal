@@ -1,0 +1,9 @@
+{
+  "name": "trio-club-portal",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Multi-Club Offer & Appointment Letter Portal with Vercel Serverless Nodemailer",
+  "dependencies": {
+    "nodemailer": "^6.9.13"
+  }
+}

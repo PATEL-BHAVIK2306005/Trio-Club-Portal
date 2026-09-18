@@ -423,7 +423,8 @@ export const sendOfferLetterEmailService = async ({
   // 1. Try sending via Backend API Endpoint (Nodemailer / SMTP)
   let apiSuccess = false;
   try {
-    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000/api';
+    const apiUrl = process.env.REACT_APP_API_URL 
+      || (window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : '/api');
     const response = await fetch(`${apiUrl}/send-offer-letter`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

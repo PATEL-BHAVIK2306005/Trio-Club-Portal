@@ -1,9 +1,14 @@
 {
+  "version": 2,
   "buildCommand": "cd offer-letter-genrator && npm install && npm run build",
   "outputDirectory": "offer-letter-genrator/build",
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    },
+    {
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]
