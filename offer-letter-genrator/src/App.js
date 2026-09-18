@@ -12,6 +12,7 @@ import TeamManagement from './components/TeamManagement';
 import BrandingSettings from './components/BrandingSettings';
 import AuthScreen from './components/AuthScreen';
 import SuperAdminConsole from './components/SuperAdminConsole';
+import CertifierEmailModal from './components/CertifierEmailModal';
 import Swal from 'sweetalert2';
 import {
   fetchSupabaseMembers,
@@ -23,8 +24,7 @@ import {
   fetchSupabaseBranding,
   saveSupabaseBranding,
   subscribeToSupabaseMembers,
-  subscribeToSupabaseBranding,
-  sendOfferLetterEmailService
+  subscribeToSupabaseBranding
 } from './services/supabaseService';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : '/api');
@@ -183,6 +183,7 @@ function App() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isPromoteModalOpen, setIsPromoteModalOpen] = useState(false);
+  const [isCertifierEmailModalOpen, setIsCertifierEmailModalOpen] = useState(false);
   const [promotingMember, setPromotingMember] = useState(null);
   const [isSuperAdminConsoleOpen, setIsSuperAdminConsoleOpen] = useState(false);
   const [batchPrintList, setBatchPrintList] = useState(null);
@@ -1151,8 +1152,8 @@ function App() {
     }
   };
 
-  // Send Offer Letter Email via Official Club Mail Handler
-  const handleSendOfferLetterEmail = async () => {
+  // Send Offer Letter Email via Certifier-Grade Official Club Mail Desk
+  const handleSendOfferLetterEmail = () => {
     const member = currentActiveMember;
     if (!member) {
       Swal.fire({
@@ -1165,174 +1166,7 @@ function App() {
       });
       return;
     }
-
-    const defaultTargetEmail = activeLetterConfig.memberEmail || member.email || `${member.name.toLowerCase().replace(/[^a-z0-9]/g, '.')}@gmail.com`;
-    const officialClubEmail = activeClub.email || (isAWS ? 'aws.itmbu@gmail.com' : (isTechno ? 'technolabclub25@gmail.com' : 'gdgoc.itmbu@gmail.com'));
-    const refId = member.letterRefId || activeLetterConfig.letterRefId || `${activeClub.refPrefix}-${member._id?.substring(0, 5) || '001'}`;
-    const tenure = activeLetterConfig.tenure || 'Academic Year 2026 – 2027';
-    const issueDate = activeLetterConfig.issueDate || new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-
-    const { value: formValues } = await Swal.fire({
-      title: `<span style="color:${activeClub.primaryColor}; font-weight:800;">📧 Send Official Offer Letter</span>`,
-      html: `
-        <div style="text-align: left; font-size: 13px; color: #cbd5e1; line-height: 1.6;">
-          <div style="background: rgba(15, 23, 42, 0.85); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 12px;">
-            <p style="margin: 0 0 4px 0; color: #94a3b8;"><strong>🏛️ Official Sender Desk:</strong></p>
-            <p style="margin: 0; color: #38bdf8; font-weight: 700;">${activeClub.name} &lt;${officialClubEmail}&gt;</p>
-          </div>
-          
-          <div style="margin-bottom: 12px;">
-            <label style="display: block; font-weight: 600; margin-bottom: 4px; color: #f8fafc;">Candidate Recipient Email (Gmail / Personal / Institutional):</label>
-            <input id="swal-recipient-email" class="swal2-input" style="width: 100%; margin: 0; background: #1e293b; color: #fff; border: 1px solid #475569; font-size: 13px;" value="${defaultTargetEmail}" placeholder="e.g. name@gmail.com" />
-          </div>
-
-          <div style="margin-bottom: 12px;">
-            <label style="display: block; font-weight: 600; margin-bottom: 4px; color: #f8fafc;">Optional Chapter Message / Note:</label>
-            <textarea id="swal-custom-note" class="swal2-textarea" style="width: 100%; margin: 0; background: #1e293b; color: #fff; border: 1px solid #475569; font-size: 12.5px; height: 65px;" placeholder="Welcome to the team! Looking forward to building together."></textarea>
-          </div>
-
-          <div style="font-size: 12px; color: #94a3b8; background: rgba(56, 189, 248, 0.08); padding: 8px 12px; border-radius: 6px; border-left: 3px solid #38bdf8;">
-            <b>📄 Letter Details:</b> ${member.name} (${member.designation || member.roleType}) • ${refId}
-          </div>
-        </div>
-      `,
-      focusConfirm: false,
-      showCancelButton: true,
-      confirmButtonText: '🚀 Send via Official Gmail',
-      cancelButtonText: 'Cancel',
-      confirmButtonColor: activeClub.primaryColor || '#ff9900',
-      cancelButtonColor: '#334155',
-      background: '#0f172a',
-      color: '#f8fafc',
-      preConfirm: () => {
-        const email = document.getElementById('swal-recipient-email').value;
-        const note = document.getElementById('swal-custom-note').value;
-        if (!email || !email.includes('@')) {
-          Swal.showValidationMessage('Please enter a valid recipient email address');
-          return false;
-        }
-        return { recipientEmail: email.trim(), customNote: note.trim() };
-      }
-    });
-
-    if (!formValues) return;
-
-    // Update member's email in local state and config immediately
-    const memberId = member._id || member.id;
-    const updatedMember = { ...member, email: formValues.recipientEmail };
-    setSelectedMember(updatedMember);
-    setMembers(prev => {
-      const next = prev.map(m => ((m._id && m._id === memberId) || (m.id && m.id === memberId) || (m.name === member.name && m.organization === activeOrg)) ? updatedMember : m);
-      localStorage.setItem('offer_gen_members', JSON.stringify(next));
-      return next;
-    });
-    if (isAWS) setAwsLetterConfig(prev => ({ ...prev, memberEmail: formValues.recipientEmail }));
-    else if (isTechno) setTechnoLetterConfig(prev => ({ ...prev, memberEmail: formValues.recipientEmail }));
-    else setGdgocLetterConfig(prev => ({ ...prev, memberEmail: formValues.recipientEmail }));
-
-    Swal.fire({
-      title: 'Dispatching Offer Letter...',
-      html: `<span style="color: #94a3b8; font-size: 13px;">Preparing official dispatch from <b>${officialClubEmail}</b> to <b>${formValues.recipientEmail}</b>...</span>`,
-      allowOutsideClick: false,
-      didOpen: () => {
-        Swal.showLoading();
-      },
-      background: '#0f172a',
-      color: '#f8fafc'
-    });
-
-    const plainTextBody = `Dear ${member.name},
-
-Congratulations! On behalf of ${activeClub.name} and ITM (sls) Baroda University, Department of Computer Science & Engineering, we are pleased to present your Official Appointment & Joining Letter.
-
-==================================================
-OFFICIAL APPOINTMENT CREDENTIALS
-==================================================
-• Candidate Name: ${member.name}
-• Designation / Role: ${member.designation || member.roleType}
-• Department / Wing: ${member.department || 'General'}
-• Reference Number: ${refId}
-• Academic Tenure: ${tenure}
-• Date of Issuance: ${issueDate}
-• Institution: ITM (sls) Baroda University, Vadodara, Gujarat
-
-${formValues.customNote ? `Note from Leadership:\n${formValues.customNote}\n\n` : ''}${member.responsibilities && member.responsibilities.length > 0 ? `Key Scope of Responsibilities:\n${member.responsibilities.map(r => `• ${r}`).join('\n')}\n\n` : ''}This document serves as your official verified appointment confirmation. For any administrative inquiries, contact the official chapter desk at ${officialClubEmail}.
-
-Warm regards,
-${activeClub.name} Leadership Team
-Department of Computer Science & Engineering
-ITM (sls) Baroda University, Vadodara, Gujarat
-"Think Big... Think Beyond"`;
-
-    const subject = `Official Appointment & Joining Letter | ${activeClub.name} • ITMBU [Ref: ${refId}]`;
-    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(formValues.recipientEmail)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(plainTextBody)}`;
-    const mailtoUrl = `mailto:${formValues.recipientEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(plainTextBody)}`;
-
-    try {
-      await sendOfferLetterEmailService({
-        member: updatedMember,
-        clubConfig: activeClub,
-        letterConfig: activeLetterConfig,
-        recipientEmail: formValues.recipientEmail,
-        senderEmail: officialClubEmail,
-        customNote: formValues.customNote
-      });
-
-      // Automatically launch Gmail web composer in new tab
-      window.open(gmailUrl, '_blank');
-
-      Swal.fire({
-        icon: 'success',
-        title: 'Offer Letter Ready & Dispatched!',
-        html: `
-          <div style="text-align: left; font-size: 13px; color: #cbd5e1; line-height: 1.6;">
-            <p>Official appointment letter for <strong>${member.name}</strong> is generated and logged in database!</p>
-            <div style="background: rgba(15, 23, 42, 0.8); padding: 10px; border-radius: 6px; margin: 10px 0; border: 1px solid rgba(255,255,255,0.08);">
-              <p style="margin: 0;"><strong>🏛️ From:</strong> ${officialClubEmail}</p>
-              <p style="margin: 4px 0 0 0;"><strong>👤 To:</strong> ${formValues.recipientEmail}</p>
-              <p style="margin: 4px 0 0 0; color: #34d399;"><strong>⚡ Status:</strong> Logged &amp; Prepared for Dispatch</p>
-            </div>
-            <p style="font-size: 12px; color: #94a3b8; margin: 8px 0;">Gmail composer has been opened. If popups were blocked, click the button below:</p>
-            <div style="display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap;">
-              <a href="${gmailUrl}" target="_blank" rel="noopener noreferrer" 
-                 style="display: inline-flex; align-items: center; gap: 4px; padding: 8px 14px; background: #ea4335; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 700; font-size: 12.5px;">
-                ✉️ Open in Gmail Web
-              </a>
-              <a href="${mailtoUrl}" 
-                 style="display: inline-flex; align-items: center; gap: 4px; padding: 8px 14px; background: #0284c7; color: #fff; text-decoration: none; border-radius: 6px; font-weight: 700; font-size: 12.5px;">
-                📧 Default Mail App
-              </a>
-              <button type="button" id="btn-copy-letter-text"
-                 style="padding: 8px 12px; background: #334155; color: #fff; border: none; border-radius: 6px; font-weight: 600; font-size: 12px; cursor: pointer;">
-                📋 Copy Text
-              </button>
-            </div>
-          </div>
-        `,
-        background: '#0f172a',
-        color: '#f8fafc',
-        confirmButtonColor: '#10b981',
-        confirmButtonText: 'Done',
-        didOpen: () => {
-          const copyBtn = document.getElementById('btn-copy-letter-text');
-          if (copyBtn) {
-            copyBtn.addEventListener('click', () => {
-              navigator.clipboard.writeText(plainTextBody);
-              copyBtn.innerText = '✅ Copied!';
-              setTimeout(() => { copyBtn.innerText = '📋 Copy Text'; }, 2000);
-            });
-          }
-        }
-      });
-    } catch (err) {
-      Swal.fire({
-        icon: 'error',
-        title: 'Dispatch Notice',
-        text: err.message || 'An error occurred while dispatching the email.',
-        background: '#0f172a',
-        color: '#f8fafc'
-      });
-    }
+    setIsCertifierEmailModalOpen(true);
   };
 
   const handleBatchPrint = (targetMembers) => {
@@ -1726,6 +1560,29 @@ ITM (sls) Baroda University, Vadodara, Gujarat
         onChangeTechnoConfig={setTechnoLetterConfig}
         onChangeGdgocConfig={setGdgocLetterConfig}
         onSaveBranding={handleSaveBrandingToDatabase}
+      />
+
+      {/* CERTIFIER.IO GRADE EMAIL DISPATCH & GREETING MODAL */}
+      <CertifierEmailModal
+        isOpen={isCertifierEmailModalOpen}
+        onClose={() => setIsCertifierEmailModalOpen(false)}
+        member={currentActiveMember}
+        clubConfig={activeClub}
+        letterConfig={activeLetterConfig}
+        onUpdateMemberEmail={(newEmail) => {
+          if (!currentActiveMember) return;
+          const memberId = currentActiveMember._id || currentActiveMember.id;
+          const updated = { ...currentActiveMember, email: newEmail };
+          setSelectedMember(updated);
+          setMembers(prev => {
+            const next = prev.map(m => ((m._id && m._id === memberId) || (m.id && m.id === memberId) || (m.name === currentActiveMember.name && m.organization === activeOrg)) ? updated : m);
+            localStorage.setItem('offer_gen_members', JSON.stringify(next));
+            return next;
+          });
+          if (isAWS) setAwsLetterConfig(prev => ({ ...prev, memberEmail: newEmail }));
+          else if (isTechno) setTechnoLetterConfig(prev => ({ ...prev, memberEmail: newEmail }));
+          else setGdgocLetterConfig(prev => ({ ...prev, memberEmail: newEmail }));
+        }}
       />
 
       {/* PRINT-ONLY CONTAINER */}
