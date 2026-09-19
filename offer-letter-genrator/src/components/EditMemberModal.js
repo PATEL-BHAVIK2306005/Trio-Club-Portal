@@ -75,6 +75,8 @@ export default function EditMemberModal({
 
     const updatedMember = {
       ...member,
+      _id: member._id || member.id || `custom-${Date.now()}`,
+      id: member.id || member._id || `custom-${Date.now()}`,
       name: formData.name.trim(),
       email: formData.email.trim() || `${formData.name.trim().toLowerCase().replace(/[^a-z0-9]/g, '.')}@itmbu.ac.in`,
       department: formData.department,
@@ -85,10 +87,10 @@ export default function EditMemberModal({
       branch: formData.branch,
       letterRefId: formData.letterRefId,
       responsibilities: formData.responsibilities,
-      organization: activeOrg
+      organization: member.organization || activeOrg
     };
 
-    onSaveMember(updatedMember);
+    onSaveMember(updatedMember, member);
     onClose();
   };
 

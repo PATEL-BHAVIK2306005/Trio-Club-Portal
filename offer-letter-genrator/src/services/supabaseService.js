@@ -86,11 +86,32 @@ export const insertSupabaseMember = async (member) => {
   }
 };
 
-// 3. Update existing member
-export const updateSupabaseMember = async (id, member) => {
+// 2b. Bulk Insert Multiple Members
+export const bulkInsertSupabaseMembers = async (membersList = []) => {
+  if (!membersList || membersList.length === 0) return [];
+  try {
+    const payloads = membersList.map(m => mapToDbMember(m));
+    const { data, error } = await supabase
+      .from('members')
+      .insert(payloads)
+      .select();
+
+    if (!error && data && data.length > 0) {
+      return data.map(mapFromDbMember);
+    }
+  } catch (err) {
+    console.warn('[Supabase] Bulk Insert notice:', err.message);
+  }
+  return membersList;
+};
+
+// 3. Update existing member with chapter isolation
+export const updateSupabaseMember = async (id, member, originalMember = null) => {
   const payload = mapToDbMember(member);
   try {
-    if (id && id.length > 8 && !String(id).includes('custom') && !String(id).includes('temp') && !String(id).includes('local')) {
+    // 1. Try updating by Supabase numeric / UUID ID if it's a real DB ID
+    const isDbId = id && !String(id).includes('custom') && !String(id).includes('temp') && !String(id).includes('local') && !String(id).includes('aws-') && !String(id).includes('techno-') && !String(id).includes('gdgoc-');
+    if (isDbId) {
       const { data, error } = await supabase
         .from('members')
         .update(payload)
@@ -100,27 +121,32 @@ export const updateSupabaseMember = async (id, member) => {
       if (!error && data && data.length > 0) return mapFromDbMember(data[0]);
     }
 
-    // Fallback: match by name and organization
-    const { data: fallbackData, error: fallbackError } = await supabase
-      .from('members')
-      .update(payload)
-      .eq('name', member.name)
-      .eq('organization', member.organization || 'AWS_SBG')
-      .select();
+    // 2. Match by original/current name and organization (isolated per chapter)
+    const searchName = (originalMember?.name || member.name || '').trim();
+    const org = member.organization || originalMember?.organization || 'AWS_SBG';
+    
+    if (searchName) {
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('members')
+        .update(payload)
+        .eq('name', searchName)
+        .eq('organization', org)
+        .select();
 
-    if (!fallbackError && fallbackData && fallbackData.length > 0) {
-      return mapFromDbMember(fallbackData[0]);
+      if (!fallbackError && fallbackData && fallbackData.length > 0) {
+        return mapFromDbMember(fallbackData[0]);
+      }
     }
 
-    // If update didn't find the record, insert it
-    const { data: insertedData } = await supabase
+    // 3. If update didn't find the record, insert it
+    const { data: insertedData, error: insertErr } = await supabase
       .from('members')
       .insert([payload])
       .select();
-    if (insertedData && insertedData.length > 0) {
+    if (!insertErr && insertedData && insertedData.length > 0) {
       return mapFromDbMember(insertedData[0]);
     }
-    return member;
+    return { ...member, _id: member._id || id, id: member.id || id };
   } catch (err) {
     console.warn('[Supabase] Update notice:', err.message);
     return member;

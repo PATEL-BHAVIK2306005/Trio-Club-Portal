@@ -1,31 +1,68 @@
 import emailjs from '@emailjs/browser';
 import { supabase } from '../lib/supabaseClient';
 
-// Email configuration defaults (can be overridden via localStorage or Settings)
-const EMAILJS_CONFIG_KEY = 'offer_gen_emailjs_config';
+// Email configuration defaults (stored per chapter & master superadmin vault)
+export const EMAILJS_CONFIG_KEY = 'offer_gen_emailjs_config';
+export const SMTP_MASTER_CONFIG_KEY = 'offer_gen_smtp_master_config';
 
-export function getEmailConfig() {
+export function getMasterSmtpConfig() {
   try {
-    const saved = localStorage.getItem(EMAILJS_CONFIG_KEY);
-    if (saved) return JSON.parse(saved);
+    const saved = localStorage.getItem(SMTP_MASTER_CONFIG_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return {
+        awsEmail: parsed.awsEmail || 'aws.itmbu@gmail.com',
+        awsAppPassword: parsed.awsAppPassword || parsed.masterAppPassword || 'uopdivcccgwkhwgl',
+        technoEmail: parsed.technoEmail || 'technolabclub25@gmail.com',
+        technoAppPassword: parsed.technoAppPassword || '',
+        gdgocEmail: parsed.gdgocEmail || 'gdgoc.itmbu@gmail.com',
+        gdgocAppPassword: parsed.gdgocAppPassword || '',
+        globalDefaultEmail: parsed.globalDefaultEmail || 'aws.itmbu@gmail.com',
+        masterAppPassword: parsed.masterAppPassword || 'uopdivcccgwkhwgl',
+        serviceId: parsed.serviceId || process.env.REACT_APP_EMAILJS_SERVICE_ID || '',
+        templateId: parsed.templateId || process.env.REACT_APP_EMAILJS_TEMPLATE_ID || '',
+        publicKey: parsed.publicKey || process.env.REACT_APP_EMAILJS_PUBLIC_KEY || ''
+      };
+    }
   } catch (e) {}
   return {
+    awsEmail: 'aws.itmbu@gmail.com',
+    awsAppPassword: process.env.REACT_APP_AWS_EMAIL_PASS || 'uopdivcccgwkhwgl',
+    technoEmail: 'technolabclub25@gmail.com',
+    technoAppPassword: process.env.REACT_APP_TECHNO_EMAIL_PASS || '',
+    gdgocEmail: 'gdgoc.itmbu@gmail.com',
+    gdgocAppPassword: process.env.REACT_APP_GDGOC_EMAIL_PASS || '',
+    globalDefaultEmail: 'aws.itmbu@gmail.com',
+    masterAppPassword: process.env.REACT_APP_MASTER_SMTP_PASS || 'uopdivcccgwkhwgl',
     serviceId: process.env.REACT_APP_EMAILJS_SERVICE_ID || '',
     templateId: process.env.REACT_APP_EMAILJS_TEMPLATE_ID || '',
     publicKey: process.env.REACT_APP_EMAILJS_PUBLIC_KEY || ''
   };
 }
 
+export function saveMasterSmtpConfig(cfg) {
+  localStorage.setItem(SMTP_MASTER_CONFIG_KEY, JSON.stringify(cfg));
+}
+
+export function getEmailConfig() {
+  const master = getMasterSmtpConfig();
+  try {
+    const saved = localStorage.getItem(EMAILJS_CONFIG_KEY);
+    if (saved) return { ...master, ...JSON.parse(saved) };
+  } catch (e) {}
+  return master;
+}
+
 export function saveEmailConfig(cfg) {
   localStorage.setItem(EMAILJS_CONFIG_KEY, JSON.stringify(cfg));
+  saveMasterSmtpConfig({ ...getMasterSmtpConfig(), ...cfg });
 }
 
 /**
  * Direct React Email Service
- * Equivalent to ASP.NET System.Net.Mail.SmtpClient.SendAsync()
- * Automatically routes through active delivery engine:
- * 1. EmailJS Browser SDK (Direct from React)
- * 2. Backend Nodemailer API (/api/send-offer-letter)
+ * Routes through active delivery engine:
+ * 1. Backend Nodemailer API (/api/send-offer-letter) with Chapter-Specific 16-Char App Password & PDF attachment
+ * 2. EmailJS Browser SDK (Direct from React)
  * 3. Supabase Dispatch Audit Logging
  */
 export async function sendDirectReactEmail({
@@ -44,7 +81,24 @@ export async function sendDirectReactEmail({
     throw new Error('Valid recipient email address is required (e.g. candidate@gmail.com).');
   }
 
-  const senderEmail = clubConfig?.email || 'aws.itmbu@gmail.com';
+  const smtpMaster = getMasterSmtpConfig();
+  let senderEmail = clubConfig?.email;
+  let activeAppPass = smtpMaster.masterAppPassword;
+
+  if (clubConfig?.id === 'AWS_SBG') {
+    senderEmail = smtpMaster.awsEmail || clubConfig?.email || 'aws.itmbu@gmail.com';
+    activeAppPass = smtpMaster.awsAppPassword || smtpMaster.masterAppPassword;
+  } else if (clubConfig?.id === 'TECHNO_LAB') {
+    senderEmail = smtpMaster.technoEmail || clubConfig?.email || 'technolabclub25@gmail.com';
+    activeAppPass = smtpMaster.technoAppPassword || smtpMaster.masterAppPassword;
+  } else if (clubConfig?.id === 'GDGOC') {
+    senderEmail = smtpMaster.gdgocEmail || clubConfig?.email || 'gdgoc.itmbu@gmail.com';
+    activeAppPass = smtpMaster.gdgocAppPassword || smtpMaster.masterAppPassword;
+  } else {
+    senderEmail = smtpMaster.globalDefaultEmail || clubConfig?.email || 'aws.itmbu@gmail.com';
+    activeAppPass = smtpMaster.masterAppPassword;
+  }
+
   const clubName = clubConfig?.name || 'ITMBU Student Community Chapter';
   const refId = member?.letterRefId || letterConfig?.letterRefId || `${clubConfig?.refPrefix || 'OFFER'}-001`;
 
@@ -52,10 +106,9 @@ export async function sendDirectReactEmail({
   let deliveryMethod = 'Direct Dispatch';
   let isDelivered = false;
   let responseData = null;
-
   let lastError = null;
 
-  // 1. Try Backend / Vercel Serverless Nodemailer SMTP with PDF Attachment
+  // 1. Try Backend / Vercel Serverless Nodemailer SMTP with Dedicated Chapter App Password & PDF Attachment
   try {
     const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     let apiEndpoint = '/api/send-offer-letter';
@@ -74,6 +127,7 @@ export async function sendDirectReactEmail({
         clubId: clubConfig?.id,
         clubName: clubName,
         senderEmail: senderEmail,
+        appPassword: activeAppPass,
         letterRefId: refId,
         roleType: member?.roleType,
         designation: member?.designation || member?.roleType,

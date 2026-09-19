@@ -6,6 +6,7 @@ import TeamRosterGrid from './components/TeamRosterGrid';
 import LetterControls from './components/LetterControls';
 import BatchGeneratorModal from './components/BatchGeneratorModal';
 import AddMemberModal from './components/AddMemberModal';
+import BulkAddMemberModal from './components/BulkAddMemberModal';
 import EditMemberModal from './components/EditMemberModal';
 import PromoteMemberModal from './components/PromoteMemberModal';
 import TeamManagement from './components/TeamManagement';
@@ -13,10 +14,14 @@ import BrandingSettings from './components/BrandingSettings';
 import AuthScreen from './components/AuthScreen';
 import SuperAdminConsole from './components/SuperAdminConsole';
 import CertifierEmailModal from './components/CertifierEmailModal';
+import CertificateStudio from './components/certificates/CertificateStudio';
+import PublicCertificateVerification from './components/certificates/PublicCertificateVerification';
+import { INITIAL_EVENT_CERTIFICATES } from './data/certificateData';
 import Swal from 'sweetalert2';
 import {
   fetchSupabaseMembers,
   insertSupabaseMember,
+  bulkInsertSupabaseMembers,
   updateSupabaseMember,
   deleteSupabaseMember,
   bulkDeleteSupabaseMembers,
@@ -30,13 +35,38 @@ import {
 const API_BASE_URL = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : '/api');
 
 function App() {
-  // Navigation View State: 'letter_studio' | 'team_management' | 'branding'
+  // Navigation View State: 'letter_studio' | 'certificate_studio' | 'team_management' | 'branding'
   const [currentView, setCurrentView] = useState('letter_studio');
 
   // Auth state
   const [currentUser, setCurrentUser] = useState(() => {
     const saved = localStorage.getItem('offer_gen_user');
     return saved ? JSON.parse(saved) : null;
+  });
+
+  // Public Certificate Verification State (Triggered by QR Code Scan or Direct Link ?verify=ID)
+  const [publicVerifyId, setPublicVerifyId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const verifyQ = params.get('verify');
+      if (verifyQ) return verifyQ;
+      if (window.location.hash.startsWith('#verify/')) {
+        return window.location.hash.replace('#verify/', '');
+      }
+    }
+    return null;
+  });
+
+  // Event Certificates Vault State
+  const [certificates, setCertificates] = useState(() => {
+    try {
+      const saved = localStorage.getItem('event_certificates_vault');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return INITIAL_EVENT_CERTIFICATES;
   });
 
   // Chapter Visibility Matrix (Super Admin controlled, synced with localStorage)
@@ -65,13 +95,25 @@ function App() {
     return 'AWS_SBG';
   });
 
-  // Data & Member State (Loaded instantly from localStorage with 0ms lag)
+  // Data & Member State (Loaded instantly from localStorage with 0ms lag + Auto-healing corruption filter)
   const [members, setMembers] = useState(() => {
     const saved = localStorage.getItem('offer_gen_members');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const uniqueNames = new Set(parsed.map(m => (m?.name || '').trim()).filter(Boolean));
+          if (parsed.length > 5 && uniqueNames.size <= 2) {
+            console.warn('[Auto-Heal] Resetting corrupted local cache to official rosters.');
+            localStorage.setItem('offer_gen_members', JSON.stringify(INITIAL_TEAM_DATA));
+            return INITIAL_TEAM_DATA;
+          }
+          return parsed.map(m => ({
+            ...m,
+            _id: m._id || m.id || `member-${Math.random().toString(36).substr(2, 9)}`,
+            id: m.id || m._id || `member-${Math.random().toString(36).substr(2, 9)}`
+          }));
+        }
       } catch (e) {}
     }
     return INITIAL_TEAM_DATA;
@@ -181,6 +223,7 @@ function App() {
   // Modals & Print State
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isBulkAddModalOpen, setIsBulkAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isPromoteModalOpen, setIsPromoteModalOpen] = useState(false);
   const [isCertifierEmailModalOpen, setIsCertifierEmailModalOpen] = useState(false);
@@ -231,21 +274,47 @@ function App() {
     }
   };
 
+  // Bulletproof member matching function (prevents undefined collisions and cross-org leaks)
+  const isSameMember = useCallback((a, b) => {
+    if (!a || !b) return false;
+    const aId = String(a._id || a.id || '').trim();
+    const bId = String(b._id || b.id || '').trim();
+    if (aId && bId && aId === bId) return true;
+
+    const aName = (a.name || '').trim().toLowerCase();
+    const bName = (b.name || '').trim().toLowerCase();
+    const aOrg = a.organization || 'AWS_SBG';
+    const bOrg = b.organization || 'AWS_SBG';
+
+    if (aName && bName && aName === bName && aOrg === bOrg) {
+      return true;
+    }
+    return false;
+  }, []);
+
   // Smart Merge Helper: Preserves local additions and merges with cloud data
   const mergeMembers = useCallback((cloudMembers, currentMembers) => {
     if (!Array.isArray(cloudMembers) || cloudMembers.length === 0) return currentMembers || INITIAL_TEAM_DATA;
     
+    // Check if currentMembers is corrupted with duplicate names (e.g. all Smit)
+    const validCurrent = (currentMembers || []).filter(Boolean);
+    const uniqueNames = new Set(validCurrent.map(m => (m?.name || '').trim()).filter(Boolean));
+    if (validCurrent.length > 5 && uniqueNames.size <= 2) {
+      console.warn('[Data Recovery] Corrupted local roster detected. Resetting to cloud roster.');
+      return cloudMembers;
+    }
+
     const merged = [...cloudMembers];
-    (currentMembers || []).forEach(localM => {
+    validCurrent.forEach(localM => {
       const localKey = String(localM._id || localM.id || '');
       const isLocalOrTemp = localKey.includes('custom') || localKey.includes('temp') || localKey.includes('local');
-      const alreadyInCloud = cloudMembers.some(cm => cm.name?.toLowerCase().trim() === localM.name?.toLowerCase().trim() && cm.organization === localM.organization);
+      const alreadyInCloud = cloudMembers.some(cm => isSameMember(cm, localM));
       if (isLocalOrTemp && !alreadyInCloud) {
         merged.unshift(localM);
       }
     });
     return merged;
-  }, []);
+  }, [isSameMember]);
 
   // Sync members to localStorage on any state change
   useEffect(() => {
@@ -256,11 +325,7 @@ function App() {
 
   // Real-time dynamic active member computed from latest members state
   const currentActiveMember = members.find(m => (
-    selectedMember && (
-      (m._id && selectedMember._id && m._id === selectedMember._id) ||
-      (m.id && selectedMember.id && m.id === selectedMember.id) ||
-      (m.name && selectedMember.name && m.name.trim().toLowerCase() === selectedMember.name.trim().toLowerCase())
-    )
+    selectedMember && isSameMember(m, selectedMember)
   )) || selectedMember;
 
   // Helper to apply branding list
@@ -509,7 +574,7 @@ function App() {
 
     initData();
 
-    // 2. Realtime WebSocket Subscription
+    // 2. Realtime WebSocket Subscription (Isolated & Safe)
     memberSubChannel = subscribeToSupabaseMembers((change) => {
       setLastSyncTime(new Date());
       setDbConnected(true);
@@ -517,10 +582,10 @@ function App() {
       if (change.eventType === 'INSERT' && change.newRecord) {
         const item = change.newRecord;
         setMembers(prev => {
-          const exists = prev.some(m => (m._id && m._id === item._id) || (m.id && m.id === item.id) || (m.name === item.name && m.organization === item.organization));
+          const exists = prev.some(m => isSameMember(m, item));
           let nextList;
           if (exists) {
-            nextList = prev.map(m => ((m._id && m._id === item._id) || (m.id && m.id === item.id) || (m.name === item.name && m.organization === item.organization)) ? item : m);
+            nextList = prev.map(m => isSameMember(m, item) ? item : m);
           } else {
             nextList = [item, ...prev];
           }
@@ -530,20 +595,24 @@ function App() {
       } else if (change.eventType === 'UPDATE' && change.newRecord) {
         const item = change.newRecord;
         setMembers(prev => {
-          const nextList = prev.map(m => ((m._id && m._id === item._id) || (m.id && m.id === item.id) || (m.name === item.name && m.organization === item.organization)) ? item : m);
+          const nextList = prev.map(m => isSameMember(m, item) ? item : m);
           localStorage.setItem('offer_gen_members', JSON.stringify(nextList));
           return nextList;
         });
-        setSelectedMember(prev => (prev && ((prev._id && prev._id === item._id) || (prev.id && prev.id === item.id) || prev.name === item.name)) ? item : prev);
+        setSelectedMember(prev => (prev && isSameMember(prev, item)) ? item : prev);
       } else if (change.eventType === 'DELETE') {
         const oldId = change.raw?.old?.id?.toString();
-        if (oldId) {
-          setMembers(prev => {
-            const nextList = prev.filter(m => m._id !== oldId && m.id !== oldId);
-            localStorage.setItem('offer_gen_members', JSON.stringify(nextList));
-            return nextList;
+        const oldName = change.raw?.old?.name;
+        const oldOrg = change.raw?.old?.organization;
+        setMembers(prev => {
+          const nextList = prev.filter(m => {
+            if (oldId && (m._id === oldId || m.id === oldId)) return false;
+            if (oldName && m.name === oldName && (!oldOrg || m.organization === oldOrg)) return false;
+            return true;
           });
-        }
+          localStorage.setItem('offer_gen_members', JSON.stringify(nextList));
+          return nextList;
+        });
       }
     });
 
@@ -584,7 +653,7 @@ function App() {
         clearInterval(autoSyncInterval);
       }
     };
-  }, [applyBrandingList, mergeMembers]);
+  }, [applyBrandingList, mergeMembers, isSameMember]);
 
   // Update selected member when switching active chapter
   useEffect(() => {
@@ -592,37 +661,31 @@ function App() {
     if (orgMembers.length > 0) {
       setSelectedMember(prev => {
         if (prev) {
-          const stillExists = orgMembers.find(m =>
-            (m._id && prev._id && m._id === prev._id) ||
-            (m.id && prev.id && m.id === prev.id) ||
-            (m.name && prev.name && m.name.trim().toLowerCase() === prev.name.trim().toLowerCase())
-          );
+          const stillExists = orgMembers.find(m => isSameMember(m, prev));
           if (stillExists) return stillExists;
         }
         return orgMembers[0];
       });
     }
-  }, [activeOrg, members]);
+  }, [activeOrg, members, isSameMember]);
 
   // Keep selectedMember synchronized with latest data
   useEffect(() => {
     if (selectedMember && members.length > 0) {
-      const updated = members.find(m =>
-        (m._id && selectedMember._id && m._id === selectedMember._id) ||
-        (m.id && selectedMember.id && m.id === selectedMember.id) ||
-        (m.name && selectedMember.name && m.name.trim().toLowerCase() === selectedMember.name.trim().toLowerCase())
-      );
+      const updated = members.find(m => isSameMember(m, selectedMember));
       if (updated && (
         updated.roleType !== selectedMember.roleType ||
         updated.designation !== selectedMember.designation ||
         updated.department !== selectedMember.department ||
         updated.letterRefId !== selectedMember.letterRefId ||
-        updated.avatar !== selectedMember.avatar
+        updated.avatar !== selectedMember.avatar ||
+        updated.email !== selectedMember.email ||
+        updated.name !== selectedMember.name
       )) {
         setSelectedMember(updated);
       }
     }
-  }, [members, selectedMember]);
+  }, [members, selectedMember, isSameMember]);
 
   const handleLogin = (userSession) => {
     setCurrentUser(userSession);
@@ -818,11 +881,15 @@ function App() {
       department: newMember.department || (activeClub.departments?.[0] || 'Technical Team')
     };
     const tempId = `custom-${Date.now()}`;
-    const localMember = { ...memberWithOrg, _id: memberWithOrg._id || tempId, id: memberWithOrg.id || tempId };
+    const localMember = { 
+      ...memberWithOrg, 
+      _id: memberWithOrg._id || tempId, 
+      id: memberWithOrg.id || tempId 
+    };
     
     // 1. Instant local persistence & UI update (0ms delay)
     setMembers(prev => {
-      const updated = [localMember, ...prev];
+      const updated = [localMember, ...prev.filter(m => !isSameMember(m, localMember))];
       localStorage.setItem('offer_gen_members', JSON.stringify(updated));
       return updated;
     });
@@ -831,9 +898,9 @@ function App() {
     // 2. Persist to Supabase in background
     try {
       const supaSaved = await insertSupabaseMember(memberWithOrg);
-      if (supaSaved && supaSaved._id) {
+      if (supaSaved && (supaSaved._id || supaSaved.id)) {
         setMembers(prev => {
-          const updated = prev.map(m => (m._id === localMember._id || m.id === localMember.id) ? supaSaved : m);
+          const updated = prev.map(m => isSameMember(m, localMember) ? supaSaved : m);
           localStorage.setItem('offer_gen_members', JSON.stringify(updated));
           return updated;
         });
@@ -856,14 +923,66 @@ function App() {
     });
   };
 
+  // Bulk Add Members Handler (Instant local update + Background Cloud Batch Sync)
+  const handleBulkAddMembers = async (newMembersList) => {
+    if (!newMembersList || newMembersList.length === 0) return;
+
+    const preparedMembers = newMembersList.map((m, idx) => {
+      const tempId = `${activeOrg.toLowerCase()}-bulk-${Date.now()}-${idx}`;
+      return {
+        ...m,
+        organization: m.organization || activeOrg,
+        department: m.department || (activeDepartments[0] || 'Technical Team'),
+        _id: m._id || tempId,
+        id: m.id || tempId
+      };
+    });
+
+    // 1. Instant local state update (0ms latency)
+    setMembers(prev => {
+      const updated = [...preparedMembers, ...prev];
+      localStorage.setItem('offer_gen_members', JSON.stringify(updated));
+      return updated;
+    });
+
+    if (preparedMembers.length > 0) {
+      setSelectedMember(preparedMembers[0]);
+    }
+
+    // 2. Background Cloud Batch Insert to Supabase
+    try {
+      const inserted = await bulkInsertSupabaseMembers(preparedMembers);
+      if (inserted && inserted.length > 0) {
+        setMembers(prev => {
+          const merged = mergeMembers(inserted, prev);
+          localStorage.setItem('offer_gen_members', JSON.stringify(merged));
+          return merged;
+        });
+      }
+    } catch (e) {
+      console.warn('Supabase bulk sync notice:', e.message);
+    }
+
+    setLastSyncTime(new Date());
+
+    Swal.fire({
+      icon: 'success',
+      title: `🎉 ${preparedMembers.length} Members Imported!`,
+      text: `Successfully added ${preparedMembers.length} new members to the ${activeClub.name} roster.`,
+      background: '#101626',
+      color: '#f8fafc',
+      confirmButtonColor: '#10b981'
+    });
+  };
+
   // Delete Member Handler
   const handleDeleteMember = async (memberId) => {
-    const memberToDelete = members.find(m => m._id === memberId || m.id === memberId);
+    const memberToDelete = members.find(m => (m._id && m._id === memberId) || (m.id && m.id === memberId) || m.name === memberId);
     const memberName = memberToDelete ? memberToDelete.name : 'Team Member';
 
     const result = await Swal.fire({
       title: `Remove ${memberName}?`,
-      text: 'Are you sure you want to remove this member from the active roster?',
+      text: `Are you sure you want to remove this member from ${activeClub.shortName}?`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#ef4444',
@@ -876,17 +995,22 @@ function App() {
     if (!result.isConfirmed) return;
 
     setMembers(prev => {
-      const updated = prev.filter(m => m._id !== memberId && m.id !== memberId);
+      const updated = prev.filter(m => {
+        if (memberToDelete && isSameMember(m, memberToDelete)) return false;
+        if (memberId && (m._id === memberId || m.id === memberId)) return false;
+        return true;
+      });
       localStorage.setItem('offer_gen_members', JSON.stringify(updated));
       return updated;
     });
-    if (selectedMember && (selectedMember._id === memberId || selectedMember.id === memberId)) {
-      const remaining = members.filter(m => m._id !== memberId && m.id !== memberId && (!m.organization || m.organization === activeOrg));
+
+    if (selectedMember && memberToDelete && isSameMember(selectedMember, memberToDelete)) {
+      const remaining = members.filter(m => !isSameMember(m, memberToDelete) && (!m.organization || m.organization === activeOrg));
       setSelectedMember(remaining.length > 0 ? remaining[0] : null);
     }
 
     try {
-      await deleteSupabaseMember(memberId, memberToDelete?.name, memberToDelete?.organization);
+      await deleteSupabaseMember(memberId, memberToDelete?.name, memberToDelete?.organization || activeOrg);
     } catch (e) {}
 
     setLastSyncTime(new Date());
@@ -920,8 +1044,9 @@ function App() {
 
     if (!result.isConfirmed) return;
 
+    const idsSet = new Set(memberIds);
     setMembers(prev => {
-      const updated = prev.filter(m => !memberIds.includes(m._id) && !memberIds.includes(m.id));
+      const updated = prev.filter(m => !idsSet.has(m._id) && !idsSet.has(m.id) && !idsSet.has(m.name));
       localStorage.setItem('offer_gen_members', JSON.stringify(updated));
       return updated;
     });
@@ -943,37 +1068,52 @@ function App() {
     });
   };
 
-  // Save / Update Member Handler
-  const handleSaveMember = async (updatedMember) => {
+  // Save / Update Member Handler (Guaranteed single-target update)
+  const handleSaveMember = async (updatedMember, originalMember = null) => {
+    if (!updatedMember) return;
+    const targetOriginal = originalMember || updatedMember;
+    const cleanUpdated = {
+      ...updatedMember,
+      _id: updatedMember._id || targetOriginal._id || targetOriginal.id || `custom-${Date.now()}`,
+      id: updatedMember.id || targetOriginal.id || targetOriginal._id || `custom-${Date.now()}`,
+      organization: updatedMember.organization || targetOriginal.organization || activeOrg
+    };
+
+    // 1. Update ONLY target member in local state
     setMembers(prev => {
-      const updated = prev.map(m => (m._id === updatedMember._id || m.id === updatedMember.id || m.name === updatedMember.name) ? updatedMember : m);
+      const updated = prev.map(m => isSameMember(m, targetOriginal) ? cleanUpdated : m);
       localStorage.setItem('offer_gen_members', JSON.stringify(updated));
       return updated;
     });
-    if (selectedMember && (selectedMember._id === updatedMember._id || selectedMember.id === updatedMember.id || selectedMember.name === updatedMember.name)) {
-      setSelectedMember(updatedMember);
+
+    if (selectedMember && isSameMember(selectedMember, targetOriginal)) {
+      setSelectedMember(cleanUpdated);
     }
 
+    // 2. Persist to Cloud Database (Supabase) in background
     try {
-      const supaUpdated = await updateSupabaseMember(updatedMember._id || updatedMember.id, updatedMember);
-      if (supaUpdated) {
+      const targetId = cleanUpdated._id || cleanUpdated.id;
+      const supaUpdated = await updateSupabaseMember(targetId, cleanUpdated, targetOriginal);
+      if (supaUpdated && (supaUpdated.name || supaUpdated._id)) {
         setMembers(prev => {
-          const updated = prev.map(m => (m._id === supaUpdated._id || m.id === supaUpdated.id || m.name === supaUpdated.name) ? supaUpdated : m);
+          const updated = prev.map(m => isSameMember(m, cleanUpdated) ? supaUpdated : m);
           localStorage.setItem('offer_gen_members', JSON.stringify(updated));
           return updated;
         });
-        if (selectedMember && (selectedMember._id === supaUpdated._id || selectedMember.id === supaUpdated.id || selectedMember.name === supaUpdated.name)) {
+        if (selectedMember && isSameMember(selectedMember, cleanUpdated)) {
           setSelectedMember(supaUpdated);
         }
       }
-    } catch (e) {}
+    } catch (e) {
+      console.warn('[Supabase Sync Error]', e);
+    }
 
     setLastSyncTime(new Date());
     Swal.fire({
       toast: true,
       position: 'top-end',
       icon: 'success',
-      title: 'Member profile updated & synced to Cloud!',
+      title: `✨ Profile for ${cleanUpdated.name} updated successfully!`,
       showConfirmButton: false,
       timer: 2500,
       background: '#101626',
@@ -981,33 +1121,46 @@ function App() {
     });
   };
 
-  // Promote Member Handler
-  const handlePromoteMember = async (updatedMember) => {
+  // Promote Member Handler (Guaranteed single-target update)
+  const handlePromoteMember = async (updatedMember, originalMember = null) => {
+    if (!updatedMember) return;
+    const targetOriginal = originalMember || updatedMember;
+    const cleanUpdated = {
+      ...updatedMember,
+      _id: updatedMember._id || targetOriginal._id || targetOriginal.id || `custom-${Date.now()}`,
+      id: updatedMember.id || targetOriginal.id || targetOriginal._id || `custom-${Date.now()}`,
+      organization: updatedMember.organization || targetOriginal.organization || activeOrg
+    };
+
     setMembers(prev => {
-      const updated = prev.map(m => (m._id === updatedMember._id || m.id === updatedMember.id || m.name === updatedMember.name) ? updatedMember : m);
+      const updated = prev.map(m => isSameMember(m, targetOriginal) ? cleanUpdated : m);
       localStorage.setItem('offer_gen_members', JSON.stringify(updated));
       return updated;
     });
-    setSelectedMember(updatedMember);
+    setSelectedMember(cleanUpdated);
+
     if (isAWS) {
-      setAwsLetterConfig(prev => ({ ...prev, letterRefId: updatedMember.letterRefId || prev.letterRefId }));
+      setAwsLetterConfig(prev => ({ ...prev, letterRefId: cleanUpdated.letterRefId || prev.letterRefId }));
     } else if (isTechno) {
-      setTechnoLetterConfig(prev => ({ ...prev, letterRefId: updatedMember.letterRefId || prev.letterRefId }));
+      setTechnoLetterConfig(prev => ({ ...prev, letterRefId: cleanUpdated.letterRefId || prev.letterRefId }));
     } else {
-      setGdgocLetterConfig(prev => ({ ...prev, letterRefId: updatedMember.letterRefId || prev.letterRefId }));
+      setGdgocLetterConfig(prev => ({ ...prev, letterRefId: cleanUpdated.letterRefId || prev.letterRefId }));
     }
 
     try {
-      const supaUpdated = await updateSupabaseMember(updatedMember._id || updatedMember.id, updatedMember);
-      if (supaUpdated) {
+      const targetId = cleanUpdated._id || cleanUpdated.id;
+      const supaUpdated = await updateSupabaseMember(targetId, cleanUpdated, targetOriginal);
+      if (supaUpdated && (supaUpdated.name || supaUpdated._id)) {
         setMembers(prev => {
-          const updated = prev.map(m => (m._id === supaUpdated._id || m.id === supaUpdated.id || m.name === supaUpdated.name) ? supaUpdated : m);
+          const updated = prev.map(m => isSameMember(m, cleanUpdated) ? supaUpdated : m);
           localStorage.setItem('offer_gen_members', JSON.stringify(updated));
           return updated;
         });
         setSelectedMember(supaUpdated);
       }
-    } catch (e) {}
+    } catch (e) {
+      console.warn('[Supabase Promotion Sync Error]', e);
+    }
 
     setLastSyncTime(new Date());
 
@@ -1016,10 +1169,10 @@ function App() {
       title: '🌟 Member Promoted Successfully!',
       html: `
         <div style="text-align: left; font-size: 14px; line-height: 1.6;">
-          <p><b>${updatedMember.name}</b> has been elevated to <b>${updatedMember.roleType}</b>.</p>
+          <p><b>${cleanUpdated.name}</b> has been elevated to <b>${cleanUpdated.roleType}</b>.</p>
           <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 10px 14px; margin: 10px 0;">
             <p style="margin: 0; color: #059669; font-weight: 700;">📜 Official Letter Generated:</p>
-            <p style="margin: 4px 0 0 0; color: #334155;">Title: <b>${updatedMember.designation}</b> • Ref: <b>${updatedMember.letterRefId || 'Generated'}</b></p>
+            <p style="margin: 4px 0 0 0; color: #334155;">Title: <b>${cleanUpdated.designation}</b> • Ref: <b>${cleanUpdated.letterRefId || 'Generated'}</b></p>
           </div>
         </div>
       `,
@@ -1177,9 +1330,38 @@ function App() {
     }, 250);
   };
 
+  // If Public Certificate Verification is requested (via QR scan or search lookup)
+  if (publicVerifyId) {
+    return (
+      <PublicCertificateVerification
+        certificateId={publicVerifyId}
+        allCertificates={certificates}
+        itmbuLogo={itmbuLogo}
+        clubLogo={activeClubLogo}
+        onNavigateHome={() => {
+          setPublicVerifyId(null);
+          if (typeof window !== 'undefined') {
+            window.history.replaceState(null, '', window.location.pathname);
+          }
+        }}
+      />
+    );
+  }
+
   // If user is not authenticated, show AuthScreen
   if (!currentUser) {
-    return <AuthScreen onLogin={handleLogin} visibleChapters={visibleChapters} />;
+    return (
+      <AuthScreen
+        onLogin={handleLogin}
+        onVerifyCertificate={(certId) => {
+          setPublicVerifyId(certId);
+          if (typeof window !== 'undefined') {
+            window.history.pushState(null, '', `?verify=${encodeURIComponent(certId)}`);
+          }
+        }}
+        visibleChapters={visibleChapters}
+      />
+    );
   }
 
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
@@ -1201,7 +1383,7 @@ function App() {
               {activeClub.name}
             </h1>
             <span className="nav-sub-title">
-              ITM (sls) BARODA UNIVERSITY &bull; Joining Letter Studio
+              ITM (sls) BARODA UNIVERSITY &bull; Joining Letter &amp; Certificate Authority
             </span>
           </div>
         </div>
@@ -1214,6 +1396,14 @@ function App() {
           >
             <span className="tab-icon">📄</span>
             <span className="tab-text">Letter Studio</span>
+          </button>
+
+          <button
+            className={`btn-view-tab ${currentView === 'certificate_studio' ? 'active' : ''}`}
+            onClick={() => setCurrentView('certificate_studio')}
+          >
+            <span className="tab-icon">📜</span>
+            <span className="tab-text">Certificate Studio</span>
           </button>
 
           <button
@@ -1412,7 +1602,27 @@ function App() {
         </main>
       )}
 
-      {/* VIEW 2: TEAM MANAGEMENT SUITE */}
+      {/* VIEW 2: CERTIFICATE AUTHORITY & EVENT CREDENTIAL STUDIO */}
+      {currentView === 'certificate_studio' && (
+        <main className="cert-studio-layout no-print">
+          <CertificateStudio
+            certificates={certificates}
+            setCertificates={setCertificates}
+            activeOrg={activeOrg}
+            currentUser={currentUser}
+            itmbuLogo={itmbuLogo}
+            clubLogo={activeClubLogo}
+            onOpenPublicVerification={(certId) => {
+              setPublicVerifyId(certId);
+              if (typeof window !== 'undefined') {
+                window.history.pushState(null, '', `?verify=${encodeURIComponent(certId)}`);
+              }
+            }}
+          />
+        </main>
+      )}
+
+      {/* VIEW 3: TEAM MANAGEMENT SUITE */}
       {currentView === 'team_management' && (
         <main className="team-mgmt-layout no-print">
           <TeamManagement
@@ -1424,6 +1634,7 @@ function App() {
             onDeleteDepartment={handleDeleteDepartment}
             onSelectMemberForLetter={handleSelectMemberForLetter}
             onOpenAddMemberModal={() => setIsAddModalOpen(true)}
+            onOpenBulkAddModal={() => setIsBulkAddModalOpen(true)}
             onOpenEditMemberModal={(member) => {
               setEditingMember(member);
               setIsEditModalOpen(true);
@@ -1503,6 +1714,14 @@ function App() {
         departments={activeDepartments}
       />
 
+      <BulkAddMemberModal
+        isOpen={isBulkAddModalOpen}
+        onClose={() => setIsBulkAddModalOpen(false)}
+        onBulkAddMembers={handleBulkAddMembers}
+        activeOrg={activeOrg}
+        departments={activeDepartments}
+      />
+
       <EditMemberModal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
@@ -1545,6 +1764,7 @@ function App() {
           setIsPromoteModalOpen(true);
         }}
         onAddMember={() => setIsAddModalOpen(true)}
+        onBulkAddMembers={() => setIsBulkAddModalOpen(true)}
         onEditMember={(member) => {
           setEditingMember(member);
           setIsEditModalOpen(true);

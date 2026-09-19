@@ -29,6 +29,7 @@ export default function TeamManagement({
   onDeleteDepartment,
   onSelectMemberForLetter,
   onOpenAddMemberModal,
+  onOpenBulkAddModal,
   onOpenEditMemberModal,
   onOpenPromoteModal,
   onDeleteMember,
@@ -301,6 +302,22 @@ export default function TeamManagement({
           >
             ➕ Add Member
           </button>
+
+          {onOpenBulkAddModal && (
+            <button
+              className="btn-mgmt-primary"
+              style={{
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                color: '#ffffff',
+                border: 'none',
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)'
+              }}
+              onClick={onOpenBulkAddModal}
+              title="Bulk import multiple members via CSV or Spreadsheet"
+            >
+              📥 Bulk Add
+            </button>
+          )}
 
           <button className="btn-mgmt-secondary" onClick={handleExportCSV} title="Export roster to CSV">
             📥 Export CSV

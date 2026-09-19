@@ -215,22 +215,26 @@ app.post('/api/send-offer-letter', async (req, res) => {
     }
 
     // Determine official club sender & credentials
+    const clientPass = (req.body.appPassword || '').replace(/\s+/g, '');
+    const masterPass = clientPass || process.env.AWS_EMAIL_PASS || process.env.EMAIL_PASS || process.env.SMTP_PASS || 'uopdivcccgwkhwgl';
+    const masterUser = process.env.AWS_EMAIL_USER || process.env.EMAIL_USER || 'aws.itmbu@gmail.com';
+
     let officialSender = senderEmail;
     let authUser = '';
     let authPass = '';
 
     if (clubId === 'AWS_SBG') {
       officialSender = senderEmail || 'aws.itmbu@gmail.com';
-      authUser = process.env.AWS_EMAIL_USER || process.env.EMAIL_USER || officialSender;
-      authPass = process.env.AWS_EMAIL_PASS || process.env.EMAIL_PASS || process.env.SMTP_PASS;
+      authUser = process.env.AWS_EMAIL_USER || officialSender || masterUser;
+      authPass = clientPass || process.env.AWS_EMAIL_PASS || masterPass;
     } else if (clubId === 'TECHNO_LAB') {
       officialSender = senderEmail || 'technolabclub25@gmail.com';
-      authUser = process.env.TECHNO_EMAIL_USER || process.env.EMAIL_USER || officialSender;
-      authPass = process.env.TECHNO_EMAIL_PASS || process.env.EMAIL_PASS || process.env.SMTP_PASS;
+      authUser = process.env.TECHNO_EMAIL_USER || officialSender || masterUser;
+      authPass = clientPass || process.env.TECHNO_EMAIL_PASS || masterPass;
     } else {
       officialSender = senderEmail || 'gdgoc.itmbu@gmail.com';
-      authUser = process.env.GDGOC_EMAIL_USER || process.env.EMAIL_USER || officialSender;
-      authPass = process.env.GDGOC_EMAIL_PASS || process.env.EMAIL_PASS || process.env.SMTP_PASS;
+      authUser = process.env.GDGOC_EMAIL_USER || officialSender || masterUser;
+      authPass = clientPass || process.env.GDGOC_EMAIL_PASS || masterPass;
     }
 
     const emailSubject = subject || `Official Appointment & Joining Letter | ${clubName || 'ITMBU Student Chapter'} [${letterRefId || '2026'}]`;

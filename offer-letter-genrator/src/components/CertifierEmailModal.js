@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
-import { sendDirectReactEmail, getEmailConfig, saveEmailConfig } from '../services/reactEmailService';
+import { sendDirectReactEmail, getEmailConfig, saveEmailConfig, getMasterSmtpConfig } from '../services/reactEmailService';
 
 export default function CertifierEmailModal({
   isOpen,
@@ -48,10 +48,11 @@ export default function CertifierEmailModal({
 
   if (!isOpen || !member) return null;
 
+  const smtpMaster = getMasterSmtpConfig();
   const refId = member.letterRefId || letterConfig.letterRefId || `${activeClub.refPrefix || 'OFFER'}-${member._id?.substring(0, 5) || '001'}`;
   const tenure = letterConfig.tenure || 'Academic Year 2026 – 2027';
   const issueDate = letterConfig.issueDate || new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-  const officialSenderEmail = activeClub.email || (isAWS ? 'aws.itmbu@gmail.com' : (isTechno ? 'technolabclub25@gmail.com' : 'gdgoc.itmbu@gmail.com'));
+  const officialSenderEmail = (isAWS ? smtpMaster.awsEmail : (isTechno ? smtpMaster.technoEmail : smtpMaster.gdgocEmail)) || activeClub.email || smtpMaster.globalDefaultEmail || 'aws.itmbu@gmail.com';
 
   const subject = `🎉 Congratulations ${member.name}! Official Appointment & Joining Letter from ${activeClub.name}`;
 

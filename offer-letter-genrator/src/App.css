@@ -6657,6 +6657,82 @@ body {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
 }
 
+/* ========================================================================= */
+/* CERTIFICATE AUTHORITY & EVENT CREDENTIAL STUDIO STYLES                   */
+/* ========================================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Playfair+Display:ital,wght@0,600;0,700;0,800;1,400;1,700&family=Outfit:wght@400;500;600;700;800;900&display=swap');
+
+/* Role Radio Certifier Active State */
+.role-radio-option.active-certifier {
+  background: rgba(16, 185, 129, 0.15) !important;
+  border-color: #10b981 !important;
+  color: #34d399 !important;
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.2);
+}
+
+.role-radio-option.active-certifier .radio-custom-dot {
+  background: #10b981 !important;
+  box-shadow: 0 0 8px #10b981;
+}
+
+/* Layout for Certificate Studio */
+.cert-studio-layout {
+  min-height: calc(100vh - 72px);
+  background: radial-gradient(circle at top, #0f172a 0%, #080c16 100%);
+  padding-bottom: 40px;
+}
+
+/* Certificate Canvas Glow and Hover */
+.certificate-root-canvas {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.certificate-root-canvas:hover {
+  box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.8), 0 0 40px rgba(16, 185, 129, 0.15) !important;
+}
+
+/* Print Rules for Certificates */
+@media print {
+  body {
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .no-print,
+  .app-navbar,
+  .nav-view-switcher,
+  .nav-right-controls,
+  .login-public-verify-box,
+  .public-verifier-container header,
+  .public-verifier-container .itmbu-error-alert {
+    display: none !important;
+  }
+
+  .public-verifier-container,
+  .cert-studio-layout {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+  }
+
+  #printable-certificate {
+    width: 100% !important;
+    height: 100vh !important;
+    transform: none !important;
+    box-shadow: none !important;
+    page-break-inside: avoid;
+    page-break-after: avoid;
+  }
+
+  @page {
+    size: landscape;
+    margin: 0;
+  }
+}
+
+
 
 
 

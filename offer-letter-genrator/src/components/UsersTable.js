@@ -26,6 +26,7 @@ export default function UsersTable({
   activeOrg = 'AWS_SBG',
   onPromoteUser,
   onAddUser,
+  onBulkAddUser,
   onEditUser,
   onDeleteUser,
   onResendVerification
@@ -286,6 +287,16 @@ export default function UsersTable({
               style={{ background: 'linear-gradient(135deg, #0284c7, #0369a1)', color: '#fff', border: 'none', padding: '9px 16px', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer' }}
             >
               ➕ Add User
+            </button>
+          )}
+
+          {onBulkAddUser && (
+            <button
+              onClick={onBulkAddUser}
+              style={{ background: 'linear-gradient(135deg, #10b981, #059669)', color: '#fff', border: 'none', padding: '9px 16px', borderRadius: '8px', fontWeight: 700, fontSize: '13px', cursor: 'pointer', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)' }}
+              title="Bulk Import Members via CSV or Spreadsheet"
+            >
+              📥 Bulk Import
             </button>
           )}
 

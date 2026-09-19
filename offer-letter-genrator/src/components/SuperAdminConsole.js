@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import UsersTable from './UsersTable';
+import { getMasterSmtpConfig, saveMasterSmtpConfig, sendDirectReactEmail } from '../services/reactEmailService';
 
 // 10 System Administrative RBAC Roles Configuration
 export const SYSTEM_ROLES = {
@@ -170,6 +171,7 @@ export default function SuperAdminConsole({
   onResetDatabase,
   onOpenPromoteModal,
   onAddMember,
+  onBulkAddMembers,
   onEditMember,
   onDeleteMember,
   dbConnected = true,
@@ -222,6 +224,16 @@ export default function SuperAdminConsole({
   const [pwdCurrent, setPwdCurrent] = useState('');
   const [pwdNew, setPwdNew] = useState('');
   const [pwdConfirm, setPwdConfirm] = useState('');
+
+  // Dedicated Multi-Chapter Email & SMTP Engine State (Restricted exclusively to Super Administrator)
+  const [smtpConfig, setSmtpConfig] = useState(() => getMasterSmtpConfig());
+  const [showAwsPass, setShowAwsPass] = useState(false);
+  const [showTechnoPass, setShowTechnoPass] = useState(false);
+  const [showGdgocPass, setShowGdgocPass] = useState(false);
+  const [showMasterPass, setShowMasterPass] = useState(false);
+  const [testEmailClub, setTestEmailClub] = useState('AWS_SBG');
+  const [testEmailRecipient, setTestEmailRecipient] = useState(currentUser?.email || 'bhavik.itmbu@gmail.com');
+  const [isSendingTest, setIsSendingTest] = useState(false);
 
   // Audit Logs State & Filter
   const [auditFilter, setAuditFilter] = useState('ALL');
@@ -681,6 +693,18 @@ export default function SuperAdminConsole({
               </div>
             </button>
 
+            {/* TAB 6: EMAIL & SMTP ENGINE */}
+            <button
+              className={`super-nav-btn ${activeTab === 'email_smtp' ? 'active' : ''}`}
+              onClick={() => setActiveTab('email_smtp')}
+            >
+              <span className="nav-btn-icon">📧</span>
+              <div className="nav-btn-text">
+                <strong>6. Email & SMTP Engine</strong>
+                <small>Multi-Club Mail & 16-Char Passkey</small>
+              </div>
+            </button>
+
             <div className="super-sidebar-footer">
               <div className="super-active-user-card">
                 <span className="u-avatar">👑</span>
@@ -963,14 +987,23 @@ export default function SuperAdminConsole({
                     activeOrg={activeOrg}
                     onPromoteUser={(user) => {
                       if (onOpenPromoteModal) {
-                        const targetMember = members.find(m => m._id === user.id || m.id === user.id || m.name === user.name);
+                        const targetMember = members.find(m => 
+                          (m._id && (m._id === user.id || m._id === user._id)) || 
+                          (m.id && (m.id === user.id || m.id === user._id)) || 
+                          (m.name && user.name && m.name.trim().toLowerCase() === user.name.trim().toLowerCase() && (m.organization || 'AWS_SBG') === (user.organization || 'AWS_SBG'))
+                        );
                         onOpenPromoteModal(targetMember || user);
                       }
                     }}
                     onAddUser={onAddMember}
+                    onBulkAddUser={onBulkAddMembers}
                     onEditUser={(user) => {
                       if (onEditMember) {
-                        const targetMember = members.find(m => m._id === user.id || m.id === user.id || m.name === user.name);
+                        const targetMember = members.find(m => 
+                          (m._id && (m._id === user.id || m._id === user._id)) || 
+                          (m.id && (m.id === user.id || m.id === user._id)) || 
+                          (m.name && user.name && m.name.trim().toLowerCase() === user.name.trim().toLowerCase() && (m.organization || 'AWS_SBG') === (user.organization || 'AWS_SBG'))
+                        );
                         onEditMember(targetMember || user);
                       }
                     }}
@@ -1442,6 +1475,482 @@ export default function SuperAdminConsole({
                     <button className="super-btn-danger" onClick={handleTerminateSessions} style={{ marginTop: '10px' }}>
                       🚫 Terminate All Other Sessions
                     </button>
+                  </div>
+
+                </div>
+              </div>
+            )}
+
+            {/* ======================================================== */}
+            {/* 6. UNIVERSAL EMAIL & SMTP ENGINE (SUPER ADMIN ONLY)      */}
+            {/* ======================================================== */}
+            {activeTab === 'email_smtp' && (
+              <div className="super-tab-content">
+                <div className="super-tab-header">
+                  <div>
+                    <h3>📧 Multi-Chapter Email & SMTP Configuration Vault</h3>
+                    <p>Har ek chapter (AWS SBG, Techno Lab, GDGoC ITMBU) ke liye unka apna dedicated Official Email Address aur unka alag 16-character Google App Password configure karein.</p>
+                  </div>
+                  <span className="badge-master-level" style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', borderColor: 'rgba(239, 68, 68, 0.4)' }}>
+                    🔒 SUPER ADMIN CONFIDENTIAL
+                  </span>
+                </div>
+
+                <div className="super-security-grid">
+                  
+                  {/* CHAPTER 1: AWS STUDENT BUILDER GROUP (AWS SBG) */}
+                  <div className="sec-card full-sec-card" style={{ border: '1px solid rgba(255, 153, 0, 0.4)', background: 'rgba(255, 153, 0, 0.04)' }}>
+                    <div className="sec-card-header">
+                      <span className="sec-icon" style={{ background: 'rgba(255, 153, 0, 0.15)', color: '#ff9900' }}>☁️</span>
+                      <div>
+                        <strong style={{ color: '#ff9900', fontSize: '15px' }}>1. AWS Student Builder Group (AWS SBG)</strong>
+                        <p>Dedicated sender email and 16-character Google App Password for AWS SBG offer letters & certificates.</p>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px', marginTop: '14px' }}>
+                      <div className="form-group">
+                        <label style={{ color: '#ff9900', fontWeight: 700, fontSize: '12.5px' }}>AWS SBG Official Email</label>
+                        <input
+                          type="email"
+                          className="super-input"
+                          value={smtpConfig.awsEmail || ''}
+                          onChange={(e) => setSmtpConfig({ ...smtpConfig, awsEmail: e.target.value.trim() })}
+                          placeholder="aws.itmbu@gmail.com"
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label style={{ color: '#ff9900', fontWeight: 700, fontSize: '12.5px' }}>AWS SBG 16-Char Google App Password</label>
+                        <div style={{ position: 'relative' }}>
+                          <input
+                            type={showAwsPass ? 'text' : 'password'}
+                            className="super-input"
+                            style={{
+                              fontFamily: 'monospace',
+                              fontSize: '14px',
+                              letterSpacing: showAwsPass ? '2px' : '3px',
+                              fontWeight: 700,
+                              paddingRight: '40px'
+                            }}
+                            placeholder="e.g. uopdivcccgwkhwgl"
+                            value={smtpConfig.awsAppPassword || ''}
+                            onChange={(e) => setSmtpConfig({ ...smtpConfig, awsAppPassword: e.target.value.trim() })}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowAwsPass(!showAwsPass)}
+                            style={{
+                              position: 'absolute',
+                              right: '10px',
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              color: '#94a3b8',
+                              fontSize: '15px'
+                            }}
+                            title={showAwsPass ? 'Hide' : 'Show'}
+                          >
+                            {showAwsPass ? '👁️' : '🙈'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                      <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                        Status: <b style={{ color: smtpConfig.awsAppPassword ? '#34d399' : '#f59e0b' }}>{smtpConfig.awsAppPassword ? '✓ 16-Char Key Configured' : '⚠️ No Key Set'}</b>
+                      </span>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          type="button"
+                          className="super-btn-secondary"
+                          onClick={() => {
+                            if (smtpConfig.awsAppPassword) {
+                              navigator.clipboard.writeText(smtpConfig.awsAppPassword);
+                              Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'AWS Passkey copied!', timer: 2000, background: '#101626', color: '#f8fafc', showConfirmButton: false });
+                            }
+                          }}
+                        >
+                          📋 Copy Key
+                        </button>
+                        <button
+                          type="button"
+                          className="super-btn-primary"
+                          onClick={() => {
+                            saveMasterSmtpConfig(smtpConfig);
+                            Swal.fire({ icon: 'success', title: 'AWS SBG Credentials Saved!', text: 'AWS SBG Email & Passkey updated in vault.', background: '#101626', color: '#f8fafc', confirmButtonColor: '#ff9900' });
+                          }}
+                        >
+                          💾 Save AWS SBG Config
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* CHAPTER 2: TECHNO LAB INNOVATION WING */}
+                  <div className="sec-card full-sec-card" style={{ border: '1px solid rgba(0, 210, 255, 0.4)', background: 'rgba(0, 210, 255, 0.04)' }}>
+                    <div className="sec-card-header">
+                      <span className="sec-icon" style={{ background: 'rgba(0, 210, 255, 0.15)', color: '#00d2ff' }}>🔬</span>
+                      <div>
+                        <strong style={{ color: '#00d2ff', fontSize: '15px' }}>2. Techno Lab (Techno+Techiz Community)</strong>
+                        <p>Dedicated sender email and 16-character Google App Password for Techno Lab offer letters & certificates.</p>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px', marginTop: '14px' }}>
+                      <div className="form-group">
+                        <label style={{ color: '#00d2ff', fontWeight: 700, fontSize: '12.5px' }}>Techno Lab Official Email</label>
+                        <input
+                          type="email"
+                          className="super-input"
+                          value={smtpConfig.technoEmail || ''}
+                          onChange={(e) => setSmtpConfig({ ...smtpConfig, technoEmail: e.target.value.trim() })}
+                          placeholder="technolabclub25@gmail.com"
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label style={{ color: '#00d2ff', fontWeight: 700, fontSize: '12.5px' }}>Techno Lab 16-Char Google App Password</label>
+                        <div style={{ position: 'relative' }}>
+                          <input
+                            type={showTechnoPass ? 'text' : 'password'}
+                            className="super-input"
+                            style={{
+                              fontFamily: 'monospace',
+                              fontSize: '14px',
+                              letterSpacing: showTechnoPass ? '2px' : '3px',
+                              fontWeight: 700,
+                              paddingRight: '40px'
+                            }}
+                            placeholder="e.g. 16-character google app password"
+                            value={smtpConfig.technoAppPassword || ''}
+                            onChange={(e) => setSmtpConfig({ ...smtpConfig, technoAppPassword: e.target.value.trim() })}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowTechnoPass(!showTechnoPass)}
+                            style={{
+                              position: 'absolute',
+                              right: '10px',
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              color: '#94a3b8',
+                              fontSize: '15px'
+                            }}
+                            title={showTechnoPass ? 'Hide' : 'Show'}
+                          >
+                            {showTechnoPass ? '👁️' : '🙈'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                      <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                        Status: <b style={{ color: smtpConfig.technoAppPassword ? '#34d399' : '#f59e0b' }}>{smtpConfig.technoAppPassword ? '✓ 16-Char Key Configured' : '⚠️ Fallback to Master Passkey'}</b>
+                      </span>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          type="button"
+                          className="super-btn-secondary"
+                          onClick={() => {
+                            if (smtpConfig.technoAppPassword) {
+                              navigator.clipboard.writeText(smtpConfig.technoAppPassword);
+                              Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Techno Lab Passkey copied!', timer: 2000, background: '#101626', color: '#f8fafc', showConfirmButton: false });
+                            }
+                          }}
+                        >
+                          📋 Copy Key
+                        </button>
+                        <button
+                          type="button"
+                          className="super-btn-primary"
+                          style={{ background: 'linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%)' }}
+                          onClick={() => {
+                            saveMasterSmtpConfig(smtpConfig);
+                            Swal.fire({ icon: 'success', title: 'Techno Lab Credentials Saved!', text: 'Techno Lab Email & Passkey updated in vault.', background: '#101626', color: '#f8fafc', confirmButtonColor: '#00d2ff' });
+                          }}
+                        >
+                          💾 Save Techno Lab Config
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* CHAPTER 3: GOOGLE DEVELOPER GROUPS ON CAMPUS (GDGOC ITMBU) */}
+                  <div className="sec-card full-sec-card" style={{ border: '1px solid rgba(66, 133, 244, 0.4)', background: 'rgba(66, 133, 244, 0.04)' }}>
+                    <div className="sec-card-header">
+                      <span className="sec-icon" style={{ background: 'rgba(66, 133, 244, 0.15)', color: '#4285F4' }}>🎯</span>
+                      <div>
+                        <strong style={{ color: '#4285F4', fontSize: '15px' }}>3. Google Developer Groups on Campus (GDGoC ITMBU)</strong>
+                        <p>Dedicated sender email and 16-character Google App Password for GDGoC offer letters & certificates.</p>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px', marginTop: '14px' }}>
+                      <div className="form-group">
+                        <label style={{ color: '#4285F4', fontWeight: 700, fontSize: '12.5px' }}>GDGoC Official Email</label>
+                        <input
+                          type="email"
+                          className="super-input"
+                          value={smtpConfig.gdgocEmail || ''}
+                          onChange={(e) => setSmtpConfig({ ...smtpConfig, gdgocEmail: e.target.value.trim() })}
+                          placeholder="gdgoc.itmbu@gmail.com"
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label style={{ color: '#4285F4', fontWeight: 700, fontSize: '12.5px' }}>GDGoC 16-Char Google App Password</label>
+                        <div style={{ position: 'relative' }}>
+                          <input
+                            type={showGdgocPass ? 'text' : 'password'}
+                            className="super-input"
+                            style={{
+                              fontFamily: 'monospace',
+                              fontSize: '14px',
+                              letterSpacing: showGdgocPass ? '2px' : '3px',
+                              fontWeight: 700,
+                              paddingRight: '40px'
+                            }}
+                            placeholder="e.g. 16-character google app password"
+                            value={smtpConfig.gdgocAppPassword || ''}
+                            onChange={(e) => setSmtpConfig({ ...smtpConfig, gdgocAppPassword: e.target.value.trim() })}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowGdgocPass(!showGdgocPass)}
+                            style={{
+                              position: 'absolute',
+                              right: '10px',
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              color: '#94a3b8',
+                              fontSize: '15px'
+                            }}
+                            title={showGdgocPass ? 'Hide' : 'Show'}
+                          >
+                            {showGdgocPass ? '👁️' : '🙈'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                      <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                        Status: <b style={{ color: smtpConfig.gdgocAppPassword ? '#34d399' : '#f59e0b' }}>{smtpConfig.gdgocAppPassword ? '✓ 16-Char Key Configured' : '⚠️ Fallback to Master Passkey'}</b>
+                      </span>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button
+                          type="button"
+                          className="super-btn-secondary"
+                          onClick={() => {
+                            if (smtpConfig.gdgocAppPassword) {
+                              navigator.clipboard.writeText(smtpConfig.gdgocAppPassword);
+                              Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'GDGoC Passkey copied!', timer: 2000, background: '#101626', color: '#f8fafc', showConfirmButton: false });
+                            }
+                          }}
+                        >
+                          📋 Copy Key
+                        </button>
+                        <button
+                          type="button"
+                          className="super-btn-primary"
+                          style={{ background: 'linear-gradient(135deg, #4285F4 0%, #0F9D58 100%)' }}
+                          onClick={() => {
+                            saveMasterSmtpConfig(smtpConfig);
+                            Swal.fire({ icon: 'success', title: 'GDGoC Credentials Saved!', text: 'GDGoC Email & Passkey updated in vault.', background: '#101626', color: '#f8fafc', confirmButtonColor: '#4285F4' });
+                          }}
+                        >
+                          💾 Save GDGoC Config
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* GLOBAL MASTER / FALLBACK PASSKEY */}
+                  <div className="sec-card full-sec-card" style={{ border: '1px solid rgba(16, 185, 129, 0.4)', background: 'rgba(16, 185, 129, 0.04)' }}>
+                    <div className="sec-card-header">
+                      <span className="sec-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981' }}>🌐</span>
+                      <div>
+                        <strong style={{ color: '#10b981', fontSize: '15px' }}>Universal Master Passkey & Fallback Email</strong>
+                        <p>Used when a chapter has not set its own dedicated 16-character password or for universal system dispatches.</p>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px', marginTop: '14px' }}>
+                      <div className="form-group">
+                        <label style={{ color: '#10b981', fontWeight: 700, fontSize: '12.5px' }}>Global Default Sender Email</label>
+                        <input
+                          type="email"
+                          className="super-input"
+                          value={smtpConfig.globalDefaultEmail || ''}
+                          onChange={(e) => setSmtpConfig({ ...smtpConfig, globalDefaultEmail: e.target.value.trim() })}
+                          placeholder="aws.itmbu@gmail.com"
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label style={{ color: '#10b981', fontWeight: 700, fontSize: '12.5px' }}>Universal 16-Char Google App Password</label>
+                        <div style={{ position: 'relative' }}>
+                          <input
+                            type={showMasterPass ? 'text' : 'password'}
+                            className="super-input"
+                            style={{
+                              fontFamily: 'monospace',
+                              fontSize: '14px',
+                              letterSpacing: showMasterPass ? '2px' : '3px',
+                              fontWeight: 700,
+                              paddingRight: '40px'
+                            }}
+                            placeholder="e.g. uopdivcccgwkhwgl"
+                            value={smtpConfig.masterAppPassword || ''}
+                            onChange={(e) => setSmtpConfig({ ...smtpConfig, masterAppPassword: e.target.value.trim() })}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowMasterPass(!showMasterPass)}
+                            style={{
+                              position: 'absolute',
+                              right: '10px',
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              background: 'none',
+                              border: 'none',
+                              cursor: 'pointer',
+                              color: '#94a3b8',
+                              fontSize: '15px'
+                            }}
+                            title={showMasterPass ? 'Hide' : 'Show'}
+                          >
+                            {showMasterPass ? '👁️' : '🙈'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                      <button
+                        type="button"
+                        className="super-btn-primary"
+                        onClick={() => {
+                          saveMasterSmtpConfig(smtpConfig);
+                          Swal.fire({ icon: 'success', title: 'All Settings Saved!', text: 'All chapter emails and 16-character app passwords saved successfully.', background: '#101626', color: '#f8fafc', confirmButtonColor: '#10b981' });
+                        }}
+                      >
+                        💾 Save All Chapter Settings
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* DIAGNOSTIC TEST DISPATCHER */}
+                  <div className="sec-card full-sec-card">
+                    <div className="sec-card-header">
+                      <span className="sec-icon">🧪</span>
+                      <div>
+                        <strong>Live Diagnostic Email Test per Chapter</strong>
+                        <p>Select any chapter to verify that its individual sender email and dedicated 16-char password work properly.</p>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '12px', marginTop: '14px', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <select
+                        className="super-select"
+                        style={{ width: 'auto', minWidth: '180px' }}
+                        value={testEmailClub}
+                        onChange={(e) => setTestEmailClub(e.target.value)}
+                      >
+                        <option value="AWS_SBG">☁️ AWS SBG</option>
+                        <option value="TECHNO_LAB">🔬 Techno Lab</option>
+                        <option value="GDGOC">🎯 GDGoC ITMBU</option>
+                      </select>
+
+                      <input
+                        type="email"
+                        className="super-input"
+                        style={{ flex: 1, minWidth: '220px' }}
+                        value={testEmailRecipient}
+                        onChange={(e) => setTestEmailRecipient(e.target.value)}
+                        placeholder="Recipient test email"
+                      />
+
+                      <button
+                        type="button"
+                        className="super-btn-primary"
+                        style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}
+                        disabled={isSendingTest}
+                        onClick={async () => {
+                          if (!testEmailRecipient || !testEmailRecipient.includes('@')) {
+                            Swal.fire({ icon: 'warning', title: 'Invalid Email', text: 'Please enter a valid recipient email address.', background: '#101626', color: '#f8fafc', confirmButtonColor: '#f59e0b' });
+                            return;
+                          }
+                          setIsSendingTest(true);
+                          try {
+                            const sender = testEmailClub === 'AWS_SBG' 
+                              ? (smtpConfig.awsEmail || 'aws.itmbu@gmail.com') 
+                              : (testEmailClub === 'TECHNO_LAB' ? (smtpConfig.technoEmail || 'technolabclub25@gmail.com') : (smtpConfig.gdgocEmail || 'gdgoc.itmbu@gmail.com'));
+                            
+                            const clubObj = {
+                              id: testEmailClub,
+                              name: testEmailClub === 'AWS_SBG' ? 'AWS Student Builder Group' : (testEmailClub === 'TECHNO_LAB' ? 'Techno Lab' : 'GDGoC ITMBU'),
+                              shortName: testEmailClub === 'AWS_SBG' ? 'AWS SBG' : (testEmailClub === 'TECHNO_LAB' ? 'Techno Lab' : 'GDGoC ITMBU'),
+                              email: sender
+                            };
+
+                            const res = await sendDirectReactEmail({
+                              toEmail: testEmailRecipient,
+                              toName: 'Super Administrator',
+                              subject: `[Diagnostic] Live Verification from ${clubObj.shortName} • ITMBU`,
+                              htmlContent: `<div style="font-family: Arial, sans-serif; padding: 24px; color: #0f172a; background: #ffffff; border-radius: 8px;"><h2>🎉 Verified SMTP Diagnostic Success!</h2><p>Your dedicated 16-character Google App Password and email configuration for <b>${clubObj.name}</b> are working 100% properly.</p><p style="color: #64748b; font-size: 13px;">Sender: ${sender} &bull; Timestamp: ${new Date().toLocaleString()}</p></div>`,
+                              plainText: `Verified SMTP Diagnostic Success for ${clubObj.name}!`,
+                              clubConfig: clubObj,
+                              member: { name: 'Super Administrator', designation: 'Super Admin Test', roleType: 'Universal Master', letterRefId: 'TEST-SMTP-01' }
+                            });
+
+                            if (res.isDelivered) {
+                              Swal.fire({
+                                icon: 'success',
+                                title: `✅ ${clubObj.shortName} Test Delivered!`,
+                                text: `Successfully sent test email from ${sender} to ${testEmailRecipient} via ${res.deliveryMethod}.`,
+                                background: '#101626',
+                                color: '#f8fafc',
+                                confirmButtonColor: '#10b981'
+                              });
+                            } else {
+                              Swal.fire({
+                                icon: 'info',
+                                title: 'Test Email Logged',
+                                text: res.error || 'Email logged to audit database.',
+                                background: '#101626',
+                                color: '#f8fafc',
+                                confirmButtonColor: '#38bdf8'
+                              });
+                            }
+                          } catch (err) {
+                            Swal.fire({
+                              icon: 'error',
+                              title: 'Dispatch Test Failed',
+                              text: err.message || 'Error communicating with SMTP server.',
+                              background: '#101626',
+                              color: '#f8fafc',
+                              confirmButtonColor: '#ef4444'
+                            });
+                          } finally {
+                            setIsSendingTest(false);
+                          }
+                        }}
+                      >
+                        {isSendingTest ? '⏳ Sending Test...' : '🚀 Test Chapter Email'}
+                      </button>
+                    </div>
                   </div>
 
                 </div>
