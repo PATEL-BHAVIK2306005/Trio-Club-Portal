@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "description": "Multi-Club Offer & Appointment Letter Portal with Vercel Serverless Nodemailer",
+  "scripts": {
+    "build": "cd offer-letter-genrator && npm install --legacy-peer-deps && npm run build",
+    "vercel-build": "cd offer-letter-genrator && npm install --legacy-peer-deps && npm run build",
+    "start": "cd offer-letter-genrator && npm start"
+  },
   "dependencies": {
     "nodemailer": "^6.9.13"
   }

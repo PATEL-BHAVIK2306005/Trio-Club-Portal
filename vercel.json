@@ -1,5 +1,5 @@
 {
-  "buildCommand": "cd offer-letter-genrator && npm install && npm run build",
+  "buildCommand": "cd offer-letter-genrator && npm install --legacy-peer-deps && npm run build",
   "outputDirectory": "offer-letter-genrator/build",
   "rewrites": [
     {
