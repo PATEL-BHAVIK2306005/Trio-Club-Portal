@@ -11,8 +11,6 @@ export default function BulkAddMemberModal({
   departments = []
 }) {
   const activeClub = CLUB_CONFIGS[activeOrg] || CLUB_CONFIGS.AWS_SBG;
-  const isAWS = activeOrg === 'AWS_SBG';
-  const isTechno = activeOrg === 'TECHNO_LAB';
 
   const defaultDept = (departments && departments.length > 0 && departments[0] !== 'All') 
     ? departments.find(d => d !== 'All') 
