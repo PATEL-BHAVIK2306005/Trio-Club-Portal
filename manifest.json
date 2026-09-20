@@ -1,6 +1,7 @@
 {
-  "short_name": "Campus Core Link Club",
+  "short_name": "Campus Core",
   "name": "Campus Core Link Club • ITM (sls) Baroda University",
+  "description": "Official Verified Appointment & Joining Letter Generation Portal for AWS SBG, Techno Lab, and GDGoC ITMBU.",
   "icons": [
     {
       "src": "favicon.ico",
@@ -10,16 +11,20 @@
     {
       "src": "logo192.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "any maskable"
     },
     {
       "src": "logo512.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any maskable"
     }
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "orientation": "portrait-primary",
+  "theme_color": "#0f172a",
+  "background_color": "#0f172a",
+  "categories": ["productivity", "education", "utilities"]
 }
