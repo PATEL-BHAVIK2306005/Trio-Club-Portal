@@ -41,7 +41,9 @@ import {
   QrCode,
   MessageSquare,
   Cpu,
-  Globe
+  Globe,
+  Menu,
+  X
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import {
@@ -96,6 +98,8 @@ function App() {
   const [currentView, setCurrentView] = useState('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [letterStudioMobileTab, setLetterStudioMobileTab] = useState('letter'); // 'roster' | 'letter'
 
   // Auth state
   const [currentUser, setCurrentUser] = useState(() => {
@@ -1545,11 +1549,28 @@ function App() {
     <div className={`app-root theme-${activeOrg.toLowerCase().replace('_', '-')} donezo-theme-root app-theme-${appTheme} role-view-${userRole.toLowerCase()}`} data-theme={appTheme}>
       <div className="donezo-app-layout">
         
+        {/* MOBILE SIDEBAR BACKDROP OVERLAY */}
+        <div 
+          className={`donezo-sidebar-backdrop ${isMobileDrawerOpen ? 'open' : ''} no-print`} 
+          onClick={() => setIsMobileDrawerOpen(false)} 
+          aria-hidden="true"
+        />
+
         {/* LEFT SIDEBAR NAVIGATION */}
-        <aside className="donezo-sidebar no-print">
+        <aside className={`donezo-sidebar ${isMobileDrawerOpen ? 'mobile-drawer-open' : ''} no-print`}>
+          
+          {/* Mobile Drawer Close Button */}
+          <button 
+            type="button" 
+            className="mobile-sidebar-close-btn no-print" 
+            onClick={() => setIsMobileDrawerOpen(false)}
+            aria-label="Close navigation menu"
+          >
+            <X size={20} />
+          </button>
           
           {/* Logo Brand Header */}
-          <div className="donezo-sidebar-brand" onClick={() => setCurrentView('dashboard')}>
+          <div className="donezo-sidebar-brand" onClick={() => { setCurrentView('dashboard'); setIsMobileDrawerOpen(false); }}>
             <div className="donezo-brand-icon">
               {activeOrg === 'AWS_SBG' ? (
                 <img src={awsChipLogo} alt="AWS Builder Official" className="brand-official-logo-img" />
@@ -1617,7 +1638,7 @@ function App() {
               {/* Dashboard */}
               <button
                 className={`sidebar-nav-item ${currentView === 'dashboard' ? 'active' : ''}`}
-                onClick={() => setCurrentView('dashboard')}
+                onClick={() => { setCurrentView('dashboard'); setIsMobileDrawerOpen(false); }}
               >
                 <div className="nav-item-content">
                   <LayoutDashboard size={18} className="nav-icon" />
@@ -1628,7 +1649,7 @@ function App() {
               {/* Tasks / Letter Studio / My Letter */}
               <button
                 className={`sidebar-nav-item ${currentView === 'letter_studio' ? 'active' : ''}`}
-                onClick={() => setCurrentView('letter_studio')}
+                onClick={() => { setCurrentView('letter_studio'); setIsMobileDrawerOpen(false); }}
               >
                 <div className="nav-item-content">
                   <FileText size={18} className="nav-icon" />
@@ -1640,7 +1661,7 @@ function App() {
               {/* Certificate Studio / My Certificates */}
               <button
                 className={`sidebar-nav-item ${currentView === 'certificate_studio' ? 'active' : ''}`}
-                onClick={() => setCurrentView('certificate_studio')}
+                onClick={() => { setCurrentView('certificate_studio'); setIsMobileDrawerOpen(false); }}
               >
                 <div className="nav-item-content">
                   <Award size={18} className="nav-icon" />
@@ -1652,7 +1673,7 @@ function App() {
               {/* Team Management / Directory */}
               <button
                 className={`sidebar-nav-item ${currentView === 'team_management' ? 'active' : ''}`}
-                onClick={() => setCurrentView('team_management')}
+                onClick={() => { setCurrentView('team_management'); setIsMobileDrawerOpen(false); }}
               >
                 <div className="nav-item-content">
                   <Users size={18} className="nav-icon" />
@@ -1664,7 +1685,7 @@ function App() {
               {(isSuperAdmin || isOrganizer) && (
                 <button
                   className={`sidebar-nav-item ${currentView === 'branding' ? 'active' : ''}`}
-                  onClick={() => setCurrentView('branding')}
+                  onClick={() => { setCurrentView('branding'); setIsMobileDrawerOpen(false); }}
                 >
                   <div className="nav-item-content">
                     <Palette size={18} className="nav-icon" />
@@ -1676,7 +1697,7 @@ function App() {
               {/* Club Queries & Live Discussion Hub */}
               <button
                 className="sidebar-nav-item"
-                onClick={() => setIsQueryModalOpen(true)}
+                onClick={() => { setIsQueryModalOpen(true); setIsMobileDrawerOpen(false); }}
                 title="Open Club Queries & Helpdesk Discussions"
                 id="sidebar-project-queries-btn"
               >
@@ -1702,7 +1723,7 @@ function App() {
               {isSuperAdmin ? (
                 <button
                   className="sidebar-nav-item"
-                  onClick={() => setIsSuperAdminConsoleOpen(true)}
+                  onClick={() => { setIsSuperAdminConsoleOpen(true); setIsMobileDrawerOpen(false); }}
                   title="Open Universal Super Admin Console"
                 >
                   <div className="nav-item-content">
@@ -1714,7 +1735,7 @@ function App() {
               ) : isCertifier ? (
                 <button
                   className="sidebar-nav-item"
-                  onClick={() => setIsCertifierEmailModalOpen(true)}
+                  onClick={() => { setIsCertifierEmailModalOpen(true); setIsMobileDrawerOpen(false); }}
                   title="Open Email Dispatch & Certifier Verification Modal"
                 >
                   <div className="nav-item-content">
@@ -1728,6 +1749,7 @@ function App() {
                   onClick={() => {
                     setPublicVerifyId('DEMO-VERIFY');
                     if (typeof window !== 'undefined') window.history.pushState(null, '', `?verify=DEMO-VERIFY`);
+                    setIsMobileDrawerOpen(false);
                   }}
                   title="Public Certificate Verification Hub"
                 >
@@ -1739,7 +1761,7 @@ function App() {
               ) : (
                 <button
                   className="sidebar-nav-item"
-                  onClick={() => setCurrentView('branding')}
+                  onClick={() => { setCurrentView('branding'); setIsMobileDrawerOpen(false); }}
                   title="Chapter Settings & Signatures"
                 >
                   <div className="nav-item-content">
@@ -1753,7 +1775,7 @@ function App() {
               {!isStudent && (
                 <button
                   className="sidebar-nav-item"
-                  onClick={() => handleSyncDatabase(false)}
+                  onClick={() => { handleSyncDatabase(false); setIsMobileDrawerOpen(false); }}
                   title="Sync database realtime"
                 >
                   <div className="nav-item-content">
@@ -1767,7 +1789,7 @@ function App() {
               {/* Logout */}
               <button
                 className="sidebar-nav-item item-logout"
-                onClick={handleLogout}
+                onClick={() => { handleLogout(); setIsMobileDrawerOpen(false); }}
               >
                 <div className="nav-item-content">
                   <LogOut size={18} className="nav-icon" />
@@ -1781,6 +1803,7 @@ function App() {
           <div 
             className="donezo-sidebar-user-card clickable-admin-card" 
             onClick={() => {
+              setIsMobileDrawerOpen(false);
               if (isSuperAdmin) setIsSuperAdminConsoleOpen(true);
               else if (isCertifier) setIsCertifierEmailModalOpen(true);
               else if (isStudent) setCurrentView('letter_studio');
@@ -1819,6 +1842,24 @@ function App() {
           {/* TOP ULTRA-CLEAN GLASS HEADER */}
           <header className="donezo-top-header no-print">
             
+            {/* Mobile Menu Hamburger + Brand Chip */}
+            <div className="header-mobile-left-cluster">
+              <button
+                type="button"
+                className="donezo-mobile-menu-btn no-print"
+                onClick={() => setIsMobileDrawerOpen(true)}
+                aria-label="Open Navigation Menu"
+                id="donezo-mobile-hamburger-btn"
+              >
+                <Menu size={20} />
+              </button>
+              <div className="header-mobile-brand-tag" onClick={() => setCurrentView('dashboard')}>
+                <span className="mobile-brand-pill" style={{ borderColor: activeClub.primaryColor || '#0284c7', color: activeClub.primaryColor || '#0284c7' }}>
+                  {activeClub.shortName}
+                </span>
+              </div>
+            </div>
+
             {/* Search Bar with Shortcut ⌘F */}
             <div className="donezo-header-search-wrapper">
               <Search size={17} className="header-search-icon" />
@@ -1848,6 +1889,7 @@ function App() {
                           setSelectedMember(m);
                           if (m.organization) setActiveOrg(m.organization);
                           setCurrentView('letter_studio');
+                          setLetterStudioMobileTab('letter');
                         }}
                       >
                         <div className="search-item-avatar">
@@ -1992,6 +2034,7 @@ function App() {
                 onSelectMemberForLetter={(member) => {
                   setSelectedMember(member);
                   setCurrentView('letter_studio');
+                  setLetterStudioMobileTab('letter');
                 }}
                 onOpenAddMember={() => setIsAddModalOpen(true)}
                 onOpenBatchModal={() => setIsBatchModalOpen(true)}
@@ -2004,112 +2047,135 @@ function App() {
 
             {/* VIEW 1: LETTER STUDIO VIEW */}
             {currentView === 'letter_studio' && (
-              <main className="main-content-layout no-print">
-          
-          {/* Left Column: Team Roster Selector */}
-          <aside className="roster-column">
-            <TeamRosterGrid
-              members={members}
-              activeOrg={activeOrg}
-              currentUser={currentUser}
-              selectedMember={currentActiveMember}
-              onSelectMember={(member) => {
-                setSelectedMember(member);
-                if (isAWS) {
-                  setAwsLetterConfig(prev => ({ ...prev, letterRefId: member.letterRefId || '' }));
-                } else if (isTechno) {
-                  setTechnoLetterConfig(prev => ({ ...prev, letterRefId: member.letterRefId || '' }));
-                } else {
-                  setGdgocLetterConfig(prev => ({ ...prev, letterRefId: member.letterRefId || '' }));
-                }
-              }}
-              onOpenAddMemberModal={() => setIsAddModalOpen(true)}
-              onOpenBatchModal={() => setIsBatchModalOpen(true)}
-              onOpenPromoteModal={(member) => {
-                setPromotingMember(member);
-                setIsPromoteModalOpen(true);
-              }}
-              onOpenEditModal={(member) => {
-                setEditingMember(member);
-                setIsEditModalOpen(true);
-              }}
-              onDeleteMember={handleDeleteMember}
-            />
-          </aside>
+              <div className="letter-studio-wrapper no-print">
+                {/* Mobile Sub-Navigation Tabs for Letter Studio */}
+                <div className="letter-studio-mobile-tabs no-print">
+                  <button
+                    type="button"
+                    className={`ls-mobile-tab-btn ${letterStudioMobileTab === 'roster' ? 'active' : ''}`}
+                    onClick={() => setLetterStudioMobileTab('roster')}
+                  >
+                    <Users size={15} />
+                    <span>Team Roster ({activeOrgMembersCount})</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`ls-mobile-tab-btn ${letterStudioMobileTab === 'letter' ? 'active' : ''}`}
+                    onClick={() => setLetterStudioMobileTab('letter')}
+                  >
+                    <FileText size={15} />
+                    <span>Letter &amp; Canvas</span>
+                  </button>
+                </div>
 
-          {/* Center Column: Official Document Canvas & Letter Controls */}
-          <section className="document-column">
-            <LetterControls
-              member={currentActiveMember}
-              config={activeLetterConfig}
-              clubConfig={activeClub}
-              onChangeConfig={(key, value) => {
-                if (key === 'memberEmail' && currentActiveMember) {
-                  const memberId = currentActiveMember._id || currentActiveMember.id;
-                  const updatedMember = { ...currentActiveMember, email: value };
-                  setSelectedMember(updatedMember);
-                  setMembers(prev => {
-                    const next = prev.map(m => ((m._id && m._id === memberId) || (m.id && m.id === memberId) || (m.name === currentActiveMember.name && m.organization === activeOrg)) ? updatedMember : m);
-                    localStorage.setItem('offer_gen_members', JSON.stringify(next));
-                    return next;
-                  });
-                }
-                if (isAWS) {
-                  setAwsLetterConfig(prev => ({ ...prev, [key]: value }));
-                } else if (isTechno) {
-                  setTechnoLetterConfig(prev => ({ ...prev, [key]: value }));
-                } else {
-                  setGdgocLetterConfig(prev => ({ ...prev, [key]: value }));
-                }
-              }}
-              onSaveConfig={() => handleSaveLetterConfig(activeOrg)}
-              itmbuLogo={itmbuLogo}
-              onUploadItmbuLogo={setItmbuLogo}
-              clubLogo={activeClubLogo}
-              onUploadClubLogo={(val) => {
-                if (isAWS) setAwsClubLogo(val);
-                else if (isTechno) setTechnoClubLogo(val);
-                else setGdgocClubLogo(val);
-              }}
-              organizerSignatureImage={activeOrganizerSig}
-              onUploadOrganizerSignature={(val) => {
-                if (isAWS) setAwsOrganizerSig(val);
-                else if (isTechno) setTechnoOrganizerSig(val);
-                else setGdgocOrganizerSig(val);
-              }}
-              advisorSignatureImage={activeAdvisorSig}
-              onUploadAdvisorSignature={(val) => {
-                if (isAWS) setAwsAdvisorSig(val);
-                else if (isTechno) setTechnoAdvisorSig(val);
-                else setGdgocAdvisorSig(val);
-              }}
-              mentorSignatureImage={activeMentorSig}
-              onUploadMentorSignature={(val) => {
-                if (isAWS) setAwsMentorSig(val);
-                else if (isTechno) setTechnoMentorSig(val);
-                else setGdgocMentorSig(val);
-              }}
-              onPrint={handlePrint}
-              onDownloadPdf={() => handleDownloadFhdPdf(currentActiveMember?.name)}
-              onSendEmail={handleSendOfferLetterEmail}
-            />
+                <main className={`main-content-layout no-print mobile-view-${letterStudioMobileTab}`}>
+                  {/* Left Column: Team Roster Selector */}
+                  <aside className={`roster-column ${letterStudioMobileTab !== 'roster' ? 'mobile-hidden-tab' : ''}`}>
+                    <TeamRosterGrid
+                      members={members}
+                      activeOrg={activeOrg}
+                      currentUser={currentUser}
+                      selectedMember={currentActiveMember}
+                      onSelectMember={(member) => {
+                        setSelectedMember(member);
+                        setLetterStudioMobileTab('letter');
+                        if (isAWS) {
+                          setAwsLetterConfig(prev => ({ ...prev, letterRefId: member.letterRefId || '' }));
+                        } else if (isTechno) {
+                          setTechnoLetterConfig(prev => ({ ...prev, letterRefId: member.letterRefId || '' }));
+                        } else {
+                          setGdgocLetterConfig(prev => ({ ...prev, letterRefId: member.letterRefId || '' }));
+                        }
+                      }}
+                      onOpenAddMemberModal={() => setIsAddModalOpen(true)}
+                      onOpenBatchModal={() => setIsBatchModalOpen(true)}
+                      onOpenPromoteModal={(member) => {
+                        setPromotingMember(member);
+                        setIsPromoteModalOpen(true);
+                      }}
+                      onOpenEditModal={(member) => {
+                        setEditingMember(member);
+                        setIsEditModalOpen(true);
+                      }}
+                      onDeleteMember={handleDeleteMember}
+                    />
+                  </aside>
 
-            <div className="letter-preview-viewport">
-              <OfficialJoiningLetter
-                member={currentActiveMember}
-                config={activeLetterConfig}
-                clubConfig={activeClub}
-                itmbuLogo={itmbuLogo}
-                clubLogo={activeClubLogo}
-                organizerSignatureImage={activeOrganizerSig}
-                advisorSignatureImage={activeAdvisorSig}
-                mentorSignatureImage={activeMentorSig}
-              />
-            </div>
-          </section>
+                  {/* Center Column: Official Document Canvas & Letter Controls */}
+                  <section className={`document-column ${letterStudioMobileTab !== 'letter' ? 'mobile-hidden-tab' : ''}`}>
+                    <LetterControls
+                      member={currentActiveMember}
+                      config={activeLetterConfig}
+                      clubConfig={activeClub}
+                      onChangeConfig={(key, value) => {
+                        if (key === 'memberEmail' && currentActiveMember) {
+                          const memberId = currentActiveMember._id || currentActiveMember.id;
+                          const updatedMember = { ...currentActiveMember, email: value };
+                          setSelectedMember(updatedMember);
+                          setMembers(prev => {
+                            const next = prev.map(m => ((m._id && m._id === memberId) || (m.id && m.id === memberId) || (m.name === currentActiveMember.name && m.organization === activeOrg)) ? updatedMember : m);
+                            localStorage.setItem('offer_gen_members', JSON.stringify(next));
+                            return next;
+                          });
+                        }
+                        if (isAWS) {
+                          setAwsLetterConfig(prev => ({ ...prev, [key]: value }));
+                        } else if (isTechno) {
+                          setTechnoLetterConfig(prev => ({ ...prev, [key]: value }));
+                        } else {
+                          setGdgocLetterConfig(prev => ({ ...prev, [key]: value }));
+                        }
+                      }}
+                      onSaveConfig={() => handleSaveLetterConfig(activeOrg)}
+                      itmbuLogo={itmbuLogo}
+                      onUploadItmbuLogo={setItmbuLogo}
+                      clubLogo={activeClubLogo}
+                      onUploadClubLogo={(val) => {
+                        if (isAWS) setAwsClubLogo(val);
+                        else if (isTechno) setTechnoClubLogo(val);
+                        else setGdgocClubLogo(val);
+                      }}
+                      organizerSignatureImage={activeOrganizerSig}
+                      onUploadOrganizerSignature={(val) => {
+                        if (isAWS) setAwsOrganizerSig(val);
+                        else if (isTechno) setTechnoOrganizerSig(val);
+                        else setGdgocOrganizerSig(val);
+                      }}
+                      advisorSignatureImage={activeAdvisorSig}
+                      onUploadAdvisorSignature={(val) => {
+                        if (isAWS) setAwsAdvisorSig(val);
+                        else if (isTechno) setTechnoAdvisorSig(val);
+                        else setGdgocAdvisorSig(val);
+                      }}
+                      mentorSignatureImage={activeMentorSig}
+                      onUploadMentorSignature={(val) => {
+                        if (isAWS) setAwsMentorSig(val);
+                        else if (isTechno) setTechnoMentorSig(val);
+                        else setGdgocMentorSig(val);
+                      }}
+                      onPrint={handlePrint}
+                      onDownloadPdf={() => handleDownloadFhdPdf(currentActiveMember?.name)}
+                      onSendEmail={handleSendOfferLetterEmail}
+                    />
 
-        </main>
-      )}
+                    <div className="letter-preview-viewport">
+                      <div className="letter-viewport-scaler">
+                        <OfficialJoiningLetter
+                          member={currentActiveMember}
+                          config={activeLetterConfig}
+                          clubConfig={activeClub}
+                          itmbuLogo={itmbuLogo}
+                          clubLogo={activeClubLogo}
+                          organizerSignatureImage={activeOrganizerSig}
+                          advisorSignatureImage={activeAdvisorSig}
+                          mentorSignatureImage={activeMentorSig}
+                        />
+                      </div>
+                    </div>
+                  </section>
+                </main>
+              </div>
+            )}
 
       {/* VIEW 2: CERTIFICATE AUTHORITY & EVENT CREDENTIAL STUDIO */}
       {currentView === 'certificate_studio' && (
@@ -2217,6 +2283,50 @@ function App() {
           </div>
         </div>
       </div>
+
+      {/* MOBILE FLOATING BOTTOM DOCK NAVIGATION (320px - 768px) */}
+      <nav className="donezo-mobile-bottom-nav no-print" aria-label="Mobile Navigation Dock">
+        <button 
+          type="button"
+          className={`mobile-bottom-nav-item ${currentView === 'dashboard' ? 'active' : ''}`}
+          onClick={() => { setCurrentView('dashboard'); setIsMobileDrawerOpen(false); }}
+        >
+          <LayoutDashboard size={19} />
+          <span>Home</span>
+        </button>
+        <button 
+          type="button"
+          className={`mobile-bottom-nav-item ${currentView === 'letter_studio' ? 'active' : ''}`}
+          onClick={() => { setCurrentView('letter_studio'); setLetterStudioMobileTab('letter'); setIsMobileDrawerOpen(false); }}
+        >
+          <FileText size={19} />
+          <span>Letter</span>
+        </button>
+        <button 
+          type="button"
+          className={`mobile-bottom-nav-item ${currentView === 'certificate_studio' ? 'active' : ''}`}
+          onClick={() => { setCurrentView('certificate_studio'); setIsMobileDrawerOpen(false); }}
+        >
+          <Award size={19} />
+          <span>Certs</span>
+        </button>
+        <button 
+          type="button"
+          className={`mobile-bottom-nav-item ${currentView === 'team_management' ? 'active' : ''}`}
+          onClick={() => { setCurrentView('team_management'); setIsMobileDrawerOpen(false); }}
+        >
+          <Users size={19} />
+          <span>Team</span>
+        </button>
+        <button 
+          type="button"
+          className={`mobile-bottom-nav-item ${isMobileDrawerOpen ? 'active' : ''}`}
+          onClick={() => setIsMobileDrawerOpen(prev => !prev)}
+        >
+          <Menu size={19} />
+          <span>Menu</span>
+        </button>
+      </nav>
 
       {/* MODALS */}
       <AddMemberModal

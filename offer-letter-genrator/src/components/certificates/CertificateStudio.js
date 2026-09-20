@@ -579,28 +579,10 @@ Vikram Singh, vikram@example.com, Participant, COMPLETION`);
 
       {/* TAB 1: LIVE DESIGNER & CUSTOMIZER */}
       {studioTab === 'designer' && (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '400px minmax(0, 1fr)',
-          gap: '24px',
-          alignItems: 'start'
-        }}>
+        <div className="cert-designer-grid">
           
           {/* Left Controls Column */}
-          <div style={{
-            background: 'rgba(255, 255, 255, 0.94)',
-            backdropFilter: 'blur(24px)',
-            WebkitBackdropFilter: 'blur(24px)',
-            border: '1.5px solid rgba(226, 232, 240, 0.95)',
-            borderRadius: '20px',
-            padding: '22px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '18px',
-            maxHeight: 'calc(100vh - 180px)',
-            overflowY: 'auto',
-            boxShadow: '0 10px 30px rgba(0,0,0,0.03)'
-          }}>
+          <div className="cert-controls-panel">
             
             {/* Header & Quick Actions */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1.5px solid #f1f5f9', paddingBottom: '12px' }}>
