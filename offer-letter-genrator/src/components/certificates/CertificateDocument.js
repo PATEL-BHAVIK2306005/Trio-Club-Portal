@@ -604,15 +604,14 @@ export default function CertificateDocument({
               
               <h1 style={{
                 margin: '0',
-                fontSize: '34px',
+                fontSize: '32px',
                 fontWeight: 900,
                 letterSpacing: '3px',
                 textTransform: 'uppercase',
                 fontFamily: "'Cinzel', 'Playfair Display', Georgia, serif",
-                background: theme.badgeGradient || `linear-gradient(135deg, ${theme.accentColor}, ${theme.accentSecondary})`,
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                textShadow: '0 2px 10px rgba(0,0,0,0.3)'
+                color: theme.accentSecondary || theme.accentColor || '#ffffff',
+                textShadow: theme.isLight ? 'none' : '0 2px 14px rgba(0,0,0,0.6)',
+                lineHeight: 1.2
               }}>
                 {categoryObj.defaultPrefix || 'CERTIFICATE OF ACHIEVEMENT'}
               </h1>

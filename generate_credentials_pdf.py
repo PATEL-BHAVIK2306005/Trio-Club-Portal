@@ -24,7 +24,7 @@ def generate_usecase_diagram(image_path):
     )
     ax.add_patch(rect)
     
-    ax.text(5.5, 6.55, "TRIO-CLUB PORTAL SYSTEM BOUNDARY", 
+    ax.text(5.5, 6.55, "THE CLUB QUERY SYSTEM BOUNDARY", 
             color='#38bdf8', fontsize=13, fontweight='bold', ha='center', va='center',
             bbox=dict(boxstyle='round,pad=0.3', facecolor='#0f172a', edgecolor='#38bdf8', lw=1.5))
 
@@ -158,7 +158,7 @@ def draw_watermark_and_footer(canvas, doc):
         
         canvas.setFont('Helvetica-Bold', 7.5)
         canvas.setFillColor(colors.HexColor('#64748b'))
-        canvas.drawString(28, page_h - 18, "ITM (SLS) BARODA UNIVERSITY • TRIO-CLUB PORTAL & OFFER LETTER SYSTEM")
+        canvas.drawString(28, page_h - 18, "ITM (SLS) BARODA UNIVERSITY • THE CLUB QUERY & OFFER LETTER SYSTEM")
         canvas.drawRightString(page_w - 28, page_h - 18, f"SECURITY DIRECTORY • PAGE {doc.page}")
 
     # Bottom Footer Rule
@@ -295,7 +295,7 @@ def create_credentials_pdf(pdf_path):
     # TOP BANNER
     story.append(Paragraph("ITM (SLS) BARODA UNIVERSITY", ParagraphStyle('UniHeader', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=12, leading=14, textColor=colors.HexColor('#475569'), alignment=1)))
     story.append(Spacer(1, 2))
-    story.append(Paragraph("TRIO-CLUB PORTAL &amp; OFFER LETTER STUDIO", header_title_style))
+    story.append(Paragraph("THE CLUB QUERY &amp; OFFER LETTER STUDIO", header_title_style))
     story.append(Spacer(1, 2))
     story.append(Paragraph("OFFICIAL SECURITY DIRECTORY • USER CREDENTIALS • 15-TIER RBAC MATRIX", sub_title_style))
     story.append(Spacer(1, 2))
@@ -550,7 +550,7 @@ def create_credentials_pdf(pdf_path):
     story.append(HRFlowable(width="100%", thickness=0.6, color=colors.HexColor('#cbd5e1'), spaceAfter=4))
     story.append(Paragraph(
         "Visual representation of core system actors (Super Admin, Club Leads, Dept Heads, Faculty, and Students) "
-        "and their interaction across the 7 primary functional use-case modules within the Trio-Club Unified Platform.",
+        "and their interaction across the 7 primary functional use-case modules within The Club Query Unified Platform.",
         meta_style
     ))
     story.append(Spacer(1, 4))

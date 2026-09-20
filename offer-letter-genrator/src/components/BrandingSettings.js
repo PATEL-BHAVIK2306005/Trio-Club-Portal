@@ -125,7 +125,7 @@ export default function BrandingSettings({
         <div className="branding-hero-content">
           <div className="branding-top-badges">
             <span className={`branding-badge ${getChipClass()}`}>
-              {isSuperAdmin ? '👑 SUPER ADMIN • TRIO CLUB BRANDING SUITE' : `${activeClub.shortName} • BRAND ASSET MANAGEMENT`}
+              {isSuperAdmin ? 'SUPER ADMIN • CAMPUS CORE LINK CLUB BRANDING SUITE' : `${activeClub.shortName} • BRAND ASSET MANAGEMENT`}
             </span>
             {dbSaveStatus && (
               <span className="db-save-toast">
@@ -174,7 +174,7 @@ export default function BrandingSettings({
             <span className="module-label">SUPER ADMIN BRANDING MODULE CONTROLS:</span>
             <span className="module-desc">Switch between club modules to customize branding, emails, and executive signature vaults</span>
           </div>
-          <div className="module-toggle-pills" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+          <div className="module-toggle-pills">
             <button
               className={`btn-module-pill ${selectedModule === 'AWS_SBG' ? 'active-aws' : ''}`}
               onClick={() => setSelectedModule('AWS_SBG')}
@@ -194,11 +194,10 @@ export default function BrandingSettings({
             <button
               className={`btn-module-pill ${selectedModule === 'GDGOC' ? 'active-gdgoc' : ''}`}
               onClick={() => setSelectedModule('GDGOC')}
-              style={{ borderColor: selectedModule === 'GDGOC' ? '#4285F4' : '#1e293b' }}
             >
               <span className="pill-icon">🌐</span>
               <span className="pill-text">GDGoC ITMBU Chapter</span>
-              <span className="pill-tag" style={{ background: '#4285F4', color: '#fff' }}>GDGoC</span>
+              <span className="pill-tag">GDGoC</span>
             </button>
           </div>
         </div>
@@ -290,7 +289,7 @@ export default function BrandingSettings({
               </div>
             ) : (
               <div className="gdgoc-badge-logo preview-inner" style={{ textAlign: 'center' }}>
-                <div className="gdgoc-pill-white" style={{ display: 'inline-flex', alignItems: 'center', background: '#ffffff', color: '#3c4043', padding: '4px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
+                <div className="gdgoc-pill-white">
                   <svg width="22" height="14" viewBox="0 0 120 76" fill="none" style={{ verticalAlign: 'middle', marginRight: '6px' }}>
                     <line x1="42" y1="12" x2="16" y2="38" stroke="#EA4335" strokeWidth="14" strokeLinecap="round"/>
                     <line x1="16" y1="38" x2="42" y2="64" stroke="#4285F4" strokeWidth="14" strokeLinecap="round"/>
@@ -300,7 +299,7 @@ export default function BrandingSettings({
                   <span style={{ fontWeight: 800, fontSize: '14px', color: '#3c4043' }}>GDG</span>
                 </div>
                 <div style={{ fontSize: '11px', color: '#4285F4', fontWeight: 700, marginTop: '4px' }}>Google Developer Groups on Campus</div>
-                <div style={{ fontSize: '10px', color: '#94a3b8' }}>ITM (sls) Baroda University</div>
+                <div style={{ fontSize: '10px', color: '#64748b' }}>ITM (sls) Baroda University</div>
               </div>
             )}
           </div>
@@ -333,13 +332,13 @@ export default function BrandingSettings({
       </div>
 
       {/* SECTION 1.5: LETTERHEAD SUBTITLE & CHAPTER AFFILIATION LINE */}
-      <div className="branding-subtitle-card" style={{ background: '#131b2e', border: '1px solid #23314a', borderRadius: '12px', padding: '20px', marginBottom: '25px', boxShadow: '0 4px 20px rgba(0,0,0,0.2)' }}>
-        <div className="branding-card-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div className="b-card-icon" style={{ fontSize: '24px' }}>🏷️</div>
+      <div className="branding-subtitle-card">
+        <div className="branding-card-header">
+          <div className="branding-card-title-group">
+            <div className="b-card-icon">🏷️</div>
             <div>
-              <h3 style={{ margin: 0, fontSize: '16px', color: '#f8fafc' }}>Letterhead Chapter Subtitle & Department Affiliation Line</h3>
-              <span style={{ fontSize: '12.5px', color: '#94a3b8' }}>The official chapter tagline and contact email printed directly on official letterheads</span>
+              <h3>Letterhead Chapter Subtitle & Department Affiliation Line</h3>
+              <span>The official chapter tagline and contact email printed directly on official letterheads</span>
             </div>
           </div>
           <span className={`club-tag-pill ${getChipClass()}`}>
@@ -348,12 +347,12 @@ export default function BrandingSettings({
         </div>
 
         <div className="branding-subtitle-body">
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '16px' }}>
+          <div className="branding-input-grid">
             {/* Tagline input */}
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span style={{ fontWeight: 600, color: '#f8fafc', fontSize: '13.5px' }}>Chapter Affiliation & Department Line *</span>
-                <span className="editable-pill-badge" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 700 }}>✏️ Live Editable</span>
+            <div className="form-group">
+              <label>
+                <span>Chapter Affiliation & Department Line *</span>
+                <span className="editable-pill-badge badge-blue">✏️ Live Editable</span>
               </label>
               <input
                 type="text"
@@ -364,15 +363,14 @@ export default function BrandingSettings({
                   const val = e.target.value;
                   updateCurrentConfig(prev => ({ ...prev, subtitle: val }));
                 }}
-                style={{ width: '100%', padding: '12px 14px', fontSize: '14px', borderRadius: '8px', background: '#0a0f1d', border: '1px solid #38bdf8', color: '#f8fafc' }}
               />
             </div>
 
             {/* Official Chapter Email input */}
-            <div className="form-group" style={{ marginBottom: 0 }}>
-              <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span style={{ fontWeight: 600, color: '#f8fafc', fontSize: '13.5px' }}>Official Chapter Contact Email *</span>
-                <span className="editable-pill-badge" style={{ background: 'rgba(34, 197, 94, 0.15)', color: '#4ade80', padding: '3px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: 700 }}>✉️ Live Editable</span>
+            <div className="form-group">
+              <label>
+                <span>Official Chapter Contact Email *</span>
+                <span className="editable-pill-badge badge-green">✉️ Live Editable</span>
               </label>
               <input
                 type="email"
@@ -383,65 +381,50 @@ export default function BrandingSettings({
                   const val = e.target.value;
                   updateCurrentConfig(prev => ({ ...prev, contactEmail: val }));
                 }}
-                style={{ width: '100%', padding: '12px 14px', fontSize: '14px', borderRadius: '8px', background: '#0a0f1d', border: '1px solid #4ade80', color: '#f8fafc' }}
               />
             </div>
           </div>
 
           {/* Live Letterhead Header Preview Box */}
-          <div className="subtitle-live-preview-box" style={{ background: '#0a0f1d', padding: '14px 18px', borderRadius: '8px', border: '1px solid #1e293b' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-              <span style={{ fontSize: '11px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+          <div className="subtitle-live-preview-box">
+            <div className="preview-top-info">
+              <span className="preview-label">
                 🔍 LIVE LETTERHEAD HEADER PREVIEW:
               </span>
-              <span style={{ fontSize: '11px', color: '#4ade80', fontWeight: 600 }}>
+              <span className="preview-email-tag">
                 ✉️ {(currentConfig?.contactEmail !== undefined && currentConfig?.contactEmail !== '') ? currentConfig.contactEmail : activeClub.email}
               </span>
             </div>
-            <div style={{ textAlign: 'center', fontWeight: 600, fontSize: '12px', color: '#38bdf8', letterSpacing: '0.04em', textTransform: 'uppercase', lineHeight: '1.5' }}>
+            <div className="preview-tagline-text">
               {(currentConfig?.subtitle !== undefined && currentConfig?.subtitle !== '') ? currentConfig.subtitle : activeClub.subtitle}
             </div>
-            <div style={{ height: '2px', background: activeClub.primaryColor || '#00d2ff', marginTop: '8px', opacity: 0.8, borderRadius: '2px' }}></div>
+            <div className="preview-accent-divider" style={{ background: activeClub.primaryColor || '#0284c7' }}></div>
           </div>
 
           {/* ACTIONS ROW WITH SAVE BUTTON */}
-          <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+          <div className="branding-subtitle-footer">
             <div>
               {subtitleSavedToast && (
-                <span style={{ color: '#4ade80', fontWeight: 600, fontSize: '13px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span className="save-success-toast">
                   ✅ Changes Saved Successfully!
                 </span>
               )}
             </div>
-            <div style={{ display: 'flex', gap: '10px' }}>
+            <div className="subtitle-action-buttons">
               <button
                 type="button"
-                className="btn-brand-reset"
+                className="btn-brand-reset-plain"
                 onClick={() => {
                   updateCurrentConfig(prev => ({ ...prev, subtitle: activeClub.subtitle, contactEmail: activeClub.email }));
                 }}
-                style={{ padding: '8px 16px', fontSize: '12.5px', borderRadius: '6px', cursor: 'pointer', background: '#1e293b', color: '#cbd5e1', border: '1px solid #334155' }}
               >
                 🔄 Reset to Default Club Tagline & Email
               </button>
               <button
                 type="button"
+                className="btn-save-tagline"
                 onClick={handleSaveCurrent}
                 disabled={isSavingToDb}
-                style={{
-                  padding: '8px 20px',
-                  fontSize: '13px',
-                  fontWeight: 700,
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-                  color: '#ffffff',
-                  border: 'none',
-                  boxShadow: '0 4px 12px rgba(2, 132, 199, 0.4)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}
               >
                 {isSavingToDb ? '⏳ Saving...' : '💾 Save Chapter Subtitle & Email'}
               </button>
@@ -481,12 +464,12 @@ export default function BrandingSettings({
               {currentOrganizerSig ? (
                 <img src={currentOrganizerSig} alt="Club Lead Signature" className="vault-sig-img" />
               ) : (
-                <div className="sig-stylized">{currentConfig?.organizerName || activeClub.organizer?.name || 'Bhavik Patel'}</div>
+                <div className="sig-stylized">{currentConfig?.organizerName || activeClub.organizer?.name || 'Bhavikkumar Patel'}</div>
               )}
             </div>
 
             <div className="vault-sig-meta">
-              <span>{currentConfig?.organizerName || activeClub.organizer?.name || 'Bhavik Patel'}</span>
+              <span>{currentConfig?.organizerName || activeClub.organizer?.name || 'Bhavikkumar Patel'}</span>
               <small>{currentConfig?.organizerTitle || activeClub.organizer?.title || 'Organizer / Lead'}</small>
             </div>
 

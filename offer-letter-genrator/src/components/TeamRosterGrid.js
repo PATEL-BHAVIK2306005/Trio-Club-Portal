@@ -1,6 +1,51 @@
 import React, { useState } from 'react';
 import { CLUB_CONFIGS } from '../data/teamData';
 
+// Modern SVG Icons for Team Roster
+const RosterIcons = {
+  Plus: () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="12" y1="5" x2="12" y2="19"></line>
+      <line x1="5" y1="12" x2="19" y2="12"></line>
+    </svg>
+  ),
+  Zap: () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+    </svg>
+  ),
+  Search: () => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8"></circle>
+      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+    </svg>
+  ),
+  ArrowRight: () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="5" y1="12" x2="19" y2="12"></line>
+      <polyline points="12 5 19 12 12 19"></polyline>
+    </svg>
+  ),
+  Check: () => (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+      <polyline points="20 6 9 17 4 12"></polyline>
+    </svg>
+  ),
+  Star: () => (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+    </svg>
+  ),
+  Users: () => (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+      <circle cx="9" cy="7" r="4"></circle>
+      <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+      <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+    </svg>
+  )
+};
+
 export default function TeamRosterGrid({
   members,
   selectedMember,
@@ -45,11 +90,11 @@ export default function TeamRosterGrid({
   const getDeptColor = (dept) => {
     switch (dept) {
       case 'Executive Leadership':
-      case 'Core Leadership': return isAWS ? '#ff9900' : '#00d2ff';
+      case 'Core Leadership': return isAWS ? '#f59e0b' : '#0284c7';
       case 'Event Management':
       case 'Outreach & Event Operations': return '#10b981';
       case 'Technical Team':
-      case 'Robotics & IoT Wing': return '#f59e0b';
+      case 'Robotics & IoT Wing': return '#d97706';
       case 'Designing Team':
       case 'Creative & Media Wing': return '#8b5cf6';
       case 'Social Media + HOST':
@@ -61,7 +106,7 @@ export default function TeamRosterGrid({
       case 'Faculty Mentors':
       case 'Advisory & Mentors': return '#f97316';
       case 'General / Unassigned': return '#eab308';
-      default: return '#38bdf8';
+      default: return '#0284c7';
     }
   };
 
@@ -85,31 +130,40 @@ export default function TeamRosterGrid({
         <div className="roster-header-actions">
           {onOpenAddMemberModal && (
             <button
+              type="button"
               className="btn-add-member"
               title="Add New Team Member"
               onClick={onOpenAddMemberModal}
             >
-              ➕ Add Member
+              <RosterIcons.Plus />
+              <span>Add Member</span>
             </button>
           )}
 
-          <button className={`btn-batch-generate ${isAWS ? 'btn-aws-bg' : 'btn-techno-bg'}`} onClick={onOpenBatchModal}>
-            <span>⚡ Batch Print</span>
+          <button
+            type="button"
+            className="btn-batch-generate" 
+            onClick={onOpenBatchModal}
+            title="Batch Print All Joining Letters"
+          >
+            <RosterIcons.Zap />
+            <span>Batch Print</span>
           </button>
         </div>
       </div>
 
       {/* Search Bar */}
       <div className="search-bar-container">
+        <span className="search-icon-adornment"><RosterIcons.Search /></span>
         <input
           type="text"
-          placeholder={`🔍 Search ${activeClub.shortName} members by name or role...`}
+          placeholder={`Search ${activeClub.shortName} members...`}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="search-input"
         />
         {searchQuery && (
-          <button className="btn-clear-search" onClick={() => setSearchQuery('')}>✕</button>
+          <button type="button" className="btn-clear-search" onClick={() => setSearchQuery('')}>✕</button>
         )}
       </div>
 
@@ -122,6 +176,7 @@ export default function TeamRosterGrid({
 
           return (
             <button
+              type="button"
               key={dept}
               onClick={() => setSelectedDept(dept)}
               className={`dept-tab-btn ${selectedDept === dept ? 'active' : ''}`}
@@ -173,13 +228,13 @@ export default function TeamRosterGrid({
                       <span className="badge-director">HEAD</span>
                     )}
                     {member.roleType === 'University Event + Club Coordinator' && (
-                      <span className="badge-advisor" style={{ background: 'rgba(56, 189, 248, 0.2)', color: '#38bdf8' }}>COORDINATOR</span>
+                      <span className="badge-advisor">COORDINATOR</span>
                     )}
                     {member.roleType === 'Advisor' && (
                       <span className="badge-advisor">ADVISOR</span>
                     )}
                     {isGeneral && (
-                      <span className="badge-general-reg" style={{ background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24', fontSize: '10px', padding: '2px 6px', borderRadius: '4px', fontWeight: 700 }}>GENERAL MEMBER</span>
+                      <span className="badge-general-reg">GENERAL MEMBER</span>
                     )}
                   </div>
 
@@ -190,37 +245,39 @@ export default function TeamRosterGrid({
 
                 <div className="card-designation">{member.designation || (isGeneral ? 'General Member (Registered)' : 'Core Member')}</div>
 
-                <div className="card-footer-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                <div className="card-footer-row">
                   <span className="card-dept-tag" style={{ color: deptColor }}>
                     {member.department || 'General'}
                   </span>
 
-                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     {canPromote && onOpenPromoteModal && isGeneral && (
                       <button
+                        type="button"
                         className="btn-card-promote-mini"
                         onClick={(e) => {
                           e.stopPropagation();
                           onOpenPromoteModal(member);
                         }}
-                        style={{
-                          background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-                          color: '#fff',
-                          border: 'none',
-                          padding: '3px 8px',
-                          borderRadius: '4px',
-                          fontSize: '11px',
-                          fontWeight: 700,
-                          cursor: 'pointer'
-                        }}
                         title="Promote General Member to Core Role"
                       >
-                        ⭐ Promote
+                        <RosterIcons.Star />
+                        <span>Promote</span>
                       </button>
                     )}
 
-                    <span className="btn-preview-indicator">
-                      {isSelected ? '✓ Viewing Letter' : 'Generate Letter →'}
+                    <span className={`btn-preview-indicator ${isSelected ? 'indicator-active' : ''}`}>
+                      {isSelected ? (
+                        <>
+                          <RosterIcons.Check />
+                          <span>Viewing Letter</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Generate Letter</span>
+                          <RosterIcons.ArrowRight />
+                        </>
+                      )}
                     </span>
                   </div>
                 </div>

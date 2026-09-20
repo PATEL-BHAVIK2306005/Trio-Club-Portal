@@ -1,4 +1,4 @@
-# Trio Club Portal • ITM (sls) Baroda University
+# The Club Query • ITM (sls) Baroda University
 ### Official Appointment & Joining Letter Studio • Multi-Chapter Management Suite
 
 An enterprise-grade, multi-organization official joining letter generator and team management portal designed for **AWS Student Builder Group (AWS SBG)**, **Techno Lab (Techno+Techies Community)**, and **Google Developer Groups on Campus (GDGoC)** at **ITM (sls) Baroda University**.

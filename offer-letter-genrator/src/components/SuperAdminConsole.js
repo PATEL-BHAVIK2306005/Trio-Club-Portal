@@ -1,22 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import UsersTable from './UsersTable';
-import { getMasterSmtpConfig, saveMasterSmtpConfig, sendDirectReactEmail } from '../services/reactEmailService';
+import { getMasterSmtpConfig, saveMasterSmtpConfig, sendDirectReactEmail, fetchMasterSmtpConfigFromSupabase, subscribeToSmtpConfigRealtime } from '../services/reactEmailService';
+import { getStoredKeys, saveStoredKeys, generateAiEventIdea } from '../services/newsAndAiService';
 
 // 10 System Administrative RBAC Roles Configuration
 export const SYSTEM_ROLES = {
   SUPER_ADMIN: {
     id: 'SUPER_ADMIN',
     title: 'Super Administrator (Universal)',
-    badge: '👑 Universal Master',
-    color: '#ff9900',
+    badge: 'Universal Master',
+    color: '#f59e0b',
     description: 'Unrestricted universal master access across AWS SBG and Techno Lab, user RBAC management, database operations, and branding.',
     permissions: ['ALL_PERMISSIONS', 'USER_MANAGEMENT', 'CLOUD_DATABASE_SEED', 'GLOBAL_GOVERNANCE', 'LETTER_ISSUANCE', 'BRANDING_VAULT']
   },
   AWS_LEAD_ADMIN: {
     id: 'AWS_LEAD_ADMIN',
     title: 'AWS SBG Lead Organizer',
-    badge: '☁️ AWS SBG Lead',
+    badge: 'AWS SBG Lead',
     color: '#ff9900',
     description: 'Full operational administration over AWS Student Builder Group roster, letter drafting, department workflows, and signatures.',
     permissions: ['AWS_ROSTER_MANAGE', 'AWS_LETTER_GENERATE', 'AWS_BRANDING_EDIT', 'AWS_CSV_EXPORT']
@@ -24,23 +25,23 @@ export const SYSTEM_ROLES = {
   TECHNO_LEAD_ADMIN: {
     id: 'TECHNO_LEAD_ADMIN',
     title: 'Techno Lab Lead Organizer',
-    badge: '🔬 Techno Lab Lead',
-    color: '#00d2ff',
+    badge: 'Techno Lab Lead',
+    color: '#0284c7',
     description: 'Full operational administration over Techno Lab roster, robotics/AI wing appointments, and letter issuance.',
     permissions: ['TECHNO_ROSTER_MANAGE', 'TECHNO_LETTER_GENERATE', 'TECHNO_BRANDING_EDIT', 'TECHNO_CSV_EXPORT']
   },
   GDGOC_LEAD_ADMIN: {
     id: 'GDGOC_LEAD_ADMIN',
     title: 'GDGoC ITMBU Lead Organizer',
-    badge: '🌐 GDGoC Lead',
-    color: '#4285F4',
+    badge: 'GDGoC Lead',
+    color: '#4285f4',
     description: 'Full operational administration over Google Developer Groups on Campus ITMBU roster, tech wings, and letter issuance.',
     permissions: ['GDGOC_ROSTER_MANAGE', 'GDGOC_LETTER_GENERATE', 'GDGOC_BRANDING_EDIT', 'GDGOC_CSV_EXPORT']
   },
   EXECUTIVE_SECRETARY: {
     id: 'EXECUTIVE_SECRETARY',
     title: 'Executive Secretary & Records Keeper',
-    badge: '📜 Executive Secretary',
+    badge: 'Executive Secretary',
     color: '#ec4899',
     description: 'Manages chapter documentation registries, meeting proceedings, appointment letter logs, and institutional correspondence.',
     permissions: ['RECORDS_MANAGEMENT', 'LETTER_REGISTRY_VIEW', 'MINUTES_OF_MEETING', 'ROSTER_VIEW']
@@ -48,48 +49,48 @@ export const SYSTEM_ROLES = {
   TREASURER_FINANCE: {
     id: 'TREASURER_FINANCE',
     title: 'Treasurer & Finance Head',
-    badge: '💰 Treasurer & Finance',
-    color: '#eab308',
+    badge: 'Treasurer & Finance',
+    color: '#d97706',
     description: 'Controls departmental financial budgets, university allocations, sponsorship invoices, and event expenditure approvals.',
     permissions: ['BUDGET_MANAGEMENT', 'FINANCE_AUDIT', 'EXPENSE_APPROVAL', 'ROSTER_VIEW']
   },
   TECHNICAL_ARCHITECT: {
     id: 'TECHNICAL_ARCHITECT',
     title: 'Technical Lead & Cloud Architect',
-    badge: '💻 Technical Architect',
-    color: '#06b6d4',
+    badge: 'Technical Architect',
+    color: '#0891b2',
     description: 'Oversees technical infrastructure, hands-on lab deployments, GitHub code repositories, and hackathon judge evaluation.',
     permissions: ['TECH_INFRA_CONTROL', 'WORKSHOP_LEAD', 'GITHUB_REPO_ADMIN', 'ROSTER_VIEW']
   },
   CREATIVE_DIRECTOR: {
     id: 'CREATIVE_DIRECTOR',
     title: 'Creative & Media Director',
-    badge: '🎨 Creative Director',
-    color: '#f43f5e',
+    badge: 'Creative Director',
+    color: '#e11d48',
     description: 'Directs digital creative assets, branding consistency, social media broadcasting, and event photography campaigns.',
     permissions: ['MEDIA_ASSETS_MANAGE', 'BRAND_ASSET_VAULT', 'SOCIAL_MEDIA_BROADCAST', 'ROSTER_VIEW']
   },
   OUTREACH_AMBASSADOR: {
     id: 'OUTREACH_AMBASSADOR',
     title: 'Outreach & PR Ambassador',
-    badge: '🌐 Outreach & PR Lead',
-    color: '#3b82f6',
+    badge: 'Outreach & PR Lead',
+    color: '#2563eb',
     description: 'Manages university collaborations, inter-college partnerships, external sponsor relations, and campus ambassador networks.',
     permissions: ['OUTREACH_CAMPAIGNS', 'PARTNERSHIP_MANAGEMENT', 'COMMUNITY_PR', 'ROSTER_VIEW']
   },
   FACULTY_ADVISOR: {
     id: 'FACULTY_ADVISOR',
     title: 'Faculty & Academic Mentor',
-    badge: '🎓 Faculty Advisor',
-    color: '#10b981',
+    badge: 'Faculty Advisor',
+    color: '#059669',
     description: 'Academic oversight, official letter review & audit verification, digital faculty signature authorization.',
     permissions: ['AUDIT_VIEW_ALL', 'SIGNATURE_APPROVE', 'LETTER_VERIFICATION', 'ROSTER_VIEW']
   },
   VIEWER_AUDITOR: {
     id: 'VIEWER_AUDITOR',
     title: 'Auditor & Compliance Officer',
-    badge: '👁️ Auditor (Read-Only)',
-    color: '#8b5cf6',
+    badge: 'Auditor (Read-Only)',
+    color: '#7c3aed',
     description: 'Institutional compliance officer with read-only inspection access across issued letters, reference IDs, and roster logs.',
     permissions: ['ROSTER_VIEW_ONLY', 'LETTER_VERIFY_ONLY', 'AUDIT_LOGS_VIEW']
   }
@@ -185,7 +186,7 @@ export default function SuperAdminConsole({
   onChangeGdgocConfig,
   onSaveBranding
 }) {
-  // Navigation tabs: 'users' | 'audit' | 'database' | 'governance' | 'security'
+  // Navigation tabs: 'users' | 'audit' | 'database' | 'governance' | 'security' | 'email_smtp'
   const [activeTab, setActiveTab] = useState('users');
   
   // User Management Sub-Tab: 'rbac_admins' | 'all_members_table'
@@ -256,6 +257,96 @@ export default function SuperAdminConsole({
     localStorage.setItem('offer_gen_admin_users', JSON.stringify(adminUsers));
   }, [adminUsers]);
 
+  // Realtime Supabase Cloud Synchronization for Multi-Chapter SMTP Credentials
+  const [isSmtpCloudSynced, setIsSmtpCloudSynced] = useState(false);
+  const [isSyncingSmtp, setIsSyncingSmtp] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setIsSyncingSmtp(true);
+      fetchMasterSmtpConfigFromSupabase()
+        .then((cfg) => {
+          if (cfg) {
+            setSmtpConfig(cfg);
+            setIsSmtpCloudSynced(true);
+          }
+        })
+        .catch(() => {})
+        .finally(() => setIsSyncingSmtp(false));
+
+      const sub = subscribeToSmtpConfigRealtime((liveCfg) => {
+        if (liveCfg) {
+          setSmtpConfig(liveCfg);
+          setIsSmtpCloudSynced(true);
+        }
+      });
+
+      return () => {
+        if (sub && typeof sub.unsubscribe === 'function') {
+          sub.unsubscribe();
+        }
+      };
+    }
+  }, [isOpen]);
+
+  // 7. AI & Open API Settings State
+  const [apiConfig, setApiConfig] = useState(() => getStoredKeys());
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [isTestingAi, setIsTestingAi] = useState(false);
+  const [aiTestOutput, setAiTestOutput] = useState(null);
+
+  const handleSaveApiSettings = () => {
+    saveStoredKeys(apiConfig);
+    Swal.fire({
+      toast: true,
+      position: 'top-end',
+      icon: 'success',
+      title: 'API & AI Engine settings saved successfully!',
+      timer: 2000,
+      showConfirmButton: false,
+      background: '#0f172a',
+      color: '#f8fafc'
+    });
+  };
+
+  const handleTestAiConnection = async () => {
+    setIsTestingAi(true);
+    setAiTestOutput(null);
+    try {
+      saveStoredKeys(apiConfig);
+      const res = await generateAiEventIdea({
+        targetOrg: 'AWS_SBG',
+        topic: 'Cloud & AI Diagnostic Verification',
+        format: 'Workshop',
+        targetAudience: 'B.Tech CSE Students'
+      });
+      if (res && res.success) {
+        setAiTestOutput({
+          status: 'success',
+          engine: res.source,
+          title: res.data?.title || 'Operational Connection Verified',
+          desc: res.data?.overview || 'API returned a valid JSON blueprint response.'
+        });
+      } else {
+        setAiTestOutput({
+          status: 'fallback',
+          engine: 'Open-Source AI Fallback Engine',
+          title: 'Fallback Active',
+          desc: 'Primary API returned fallback response.'
+        });
+      }
+    } catch (err) {
+      setAiTestOutput({
+        status: 'error',
+        engine: 'Engine Error',
+        title: 'Connection Issue',
+        desc: err.message || 'Check API key or network connection.'
+      });
+    } finally {
+      setIsTestingAi(false);
+    }
+  };
+
   // Sync tenure prop changes
   useEffect(() => {
     if (awsLetterConfig?.tenure) {
@@ -289,7 +380,14 @@ export default function SuperAdminConsole({
   const handleSaveUserForm = (e) => {
     e.preventDefault();
     if (!userFormData.name || !userFormData.username || !userFormData.email) {
-      alert('Please provide name, username, and email');
+      Swal.fire({
+        icon: 'warning',
+        title: 'Required Fields Missing',
+        text: 'Please provide full name, username, and official email.',
+        background: '#ffffff',
+        color: '#0f172a',
+        confirmButtonColor: '#0f172a'
+      });
       return;
     }
 
@@ -311,8 +409,8 @@ export default function SuperAdminConsole({
         title: `Updated ${userFormData.name}'s administrator profile!`,
         timer: 2500,
         showConfirmButton: false,
-        background: '#101626',
-        color: '#f8fafc'
+        background: '#ffffff',
+        color: '#0f172a'
       });
     } else {
       // Create new
@@ -326,7 +424,7 @@ export default function SuperAdminConsole({
         status: 'ACTIVE',
         lastActive: 'Never',
         createdAt: new Date().toISOString(),
-        avatar: userFormData.role === 'SUPER_ADMIN' ? '👑' : userFormData.role === 'AWS_LEAD_ADMIN' ? '☁️' : userFormData.role === 'TECHNO_LEAD_ADMIN' ? '🔬' : userFormData.role === 'FACULTY_ADVISOR' ? '🎓' : '👁️'
+        avatar: '👤'
       };
 
       setAdminUsers(prev => [newUser, ...prev]);
@@ -352,8 +450,8 @@ export default function SuperAdminConsole({
         title: `Administrator ${newUser.name} created!`,
         timer: 2500,
         showConfirmButton: false,
-        background: '#101626',
-        color: '#f8fafc'
+        background: '#ffffff',
+        color: '#0f172a'
       });
     }
 
@@ -380,22 +478,23 @@ export default function SuperAdminConsole({
         icon: 'error',
         title: 'Protected Account',
         text: 'The primary Master Super Administrator account cannot be deleted.',
-        background: '#101626',
-        color: '#f8fafc'
+        background: '#ffffff',
+        color: '#0f172a',
+        confirmButtonColor: '#0f172a'
       });
       return;
     }
 
     Swal.fire({
-      title: `Delete ${user.name}?`,
+      title: `Revoke ${user.name}?`,
       text: `Are you sure you want to revoke all access privileges for ${user.username}?`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#ef4444',
-      cancelButtonColor: '#334155',
+      cancelButtonColor: '#64748b',
       confirmButtonText: 'Yes, Revoke Access',
-      background: '#101626',
-      color: '#f8fafc'
+      background: '#ffffff',
+      color: '#0f172a'
     }).then((result) => {
       if (result.isConfirmed) {
         setAdminUsers(prev => prev.filter(u => u.id !== user.id));
@@ -405,8 +504,8 @@ export default function SuperAdminConsole({
           icon: 'success',
           title: `Access revoked for ${user.name}`,
           timer: 2000,
-          background: '#101626',
-          color: '#f8fafc',
+          background: '#ffffff',
+          color: '#0f172a',
           showConfirmButton: false
         });
       }
@@ -449,9 +548,9 @@ export default function SuperAdminConsole({
       icon: 'success',
       title: 'Global Governance Synced!',
       text: `Academic Tenure updated to "${govTenure}" across all official chapter letterheads and templates.`,
-      background: '#101626',
-      color: '#f8fafc',
-      confirmButtonColor: '#10b981'
+      background: '#ffffff',
+      color: '#0f172a',
+      confirmButtonColor: '#0f172a'
     });
   };
 
@@ -483,7 +582,7 @@ export default function SuperAdminConsole({
       version: '2.0.0',
       exportedAt: new Date().toISOString(),
       institution: 'ITM (sls) Baroda University',
-      dualClubs: ['AWS Student Builder Group (AWS_SBG)', 'Techno Lab (TECHNO_LAB)'],
+      dualClubs: ['AWS Student Builder Group (AWS_SBG)', 'Techno Lab (TECHNO_LAB)', 'GDGoC ITMBU (GDGOC)'],
       totalMembers: members.length,
       members: members,
       adminUsers: adminUsers,
@@ -502,9 +601,9 @@ export default function SuperAdminConsole({
       icon: 'success',
       title: 'Database Backup Generated!',
       text: `Full snapshot exported (${members.length} members & ${adminUsers.length} administrators).`,
-      background: '#101626',
-      color: '#f8fafc',
-      confirmButtonColor: '#ff9900'
+      background: '#ffffff',
+      color: '#0f172a',
+      confirmButtonColor: '#0f172a'
     });
   };
 
@@ -513,19 +612,19 @@ export default function SuperAdminConsole({
     e.preventDefault();
     const currentMasterPwd = localStorage.getItem('superadmin_master_pwd') || 'admin123';
     if (!pwdCurrent) {
-      Swal.fire({ icon: 'warning', title: 'Current Password Required', text: 'Please enter your current master passkey.', background: '#101626', color: '#f8fafc', confirmButtonColor: '#f59e0b' });
+      Swal.fire({ icon: 'warning', title: 'Current Password Required', text: 'Please enter your current master passkey.', background: '#ffffff', color: '#0f172a', confirmButtonColor: '#0f172a' });
       return;
     }
     if (pwdCurrent !== currentMasterPwd) {
-      Swal.fire({ icon: 'error', title: 'Invalid Passkey', text: 'The current master password you entered is incorrect.', background: '#101626', color: '#f8fafc', confirmButtonColor: '#ef4444' });
+      Swal.fire({ icon: 'error', title: 'Invalid Passkey', text: 'The current master password you entered is incorrect.', background: '#ffffff', color: '#0f172a', confirmButtonColor: '#ef4444' });
       return;
     }
     if (pwdNew.length < 6) {
-      Swal.fire({ icon: 'warning', title: 'Weak Password', text: 'New password must be at least 6 characters long.', background: '#101626', color: '#f8fafc', confirmButtonColor: '#f59e0b' });
+      Swal.fire({ icon: 'warning', title: 'Weak Password', text: 'New password must be at least 6 characters long.', background: '#ffffff', color: '#0f172a', confirmButtonColor: '#0f172a' });
       return;
     }
     if (pwdNew !== pwdConfirm) {
-      Swal.fire({ icon: 'warning', title: 'Mismatch', text: 'New passwords do not match.', background: '#101626', color: '#f8fafc', confirmButtonColor: '#f59e0b' });
+      Swal.fire({ icon: 'warning', title: 'Mismatch', text: 'New passwords do not match.', background: '#ffffff', color: '#0f172a', confirmButtonColor: '#ef4444' });
       return;
     }
 
@@ -538,9 +637,9 @@ export default function SuperAdminConsole({
       icon: 'success',
       title: 'Master Passkey Updated!',
       text: 'Super Admin master credentials updated successfully and enforced across all logins.',
-      background: '#101626',
-      color: '#f8fafc',
-      confirmButtonColor: '#10b981'
+      background: '#ffffff',
+      color: '#0f172a',
+      confirmButtonColor: '#0f172a'
     });
   };
 
@@ -552,19 +651,19 @@ export default function SuperAdminConsole({
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#ef4444',
-      cancelButtonColor: '#334155',
+      cancelButtonColor: '#64748b',
       confirmButtonText: 'Yes, Revoke Sessions',
-      background: '#101626',
-      color: '#f8fafc'
+      background: '#ffffff',
+      color: '#0f172a'
     }).then((result) => {
       if (result.isConfirmed) {
         Swal.fire({
           icon: 'success',
           title: 'All Other Sessions Revoked',
           text: 'Only this active Master Universal session remains authenticated.',
-          background: '#101626',
-          color: '#f8fafc',
-          confirmButtonColor: '#10b981'
+          background: '#ffffff',
+          color: '#0f172a',
+          confirmButtonColor: '#0f172a'
         });
       }
     });
@@ -576,19 +675,19 @@ export default function SuperAdminConsole({
       icon: 'info',
       title: 'Security & Compliance Certificate',
       html: `
-        <div style="text-align: left; font-size: 13px; line-height: 1.6; color: #cbd5e1;">
+        <div style="text-align: left; font-size: 13.5px; line-height: 1.6; color: #334155;">
           <p><b>Institution:</b> ITM (sls) Baroda University</p>
-          <p><b>Dual-Club Portal:</b> AWS SBG & Techno Lab</p>
+          <p><b>Dual-Club Portal:</b> AWS SBG, Techno Lab & GDGoC ITMBU</p>
           <p><b>Database Integrity:</b> PostgreSQL RLS Active & WebSockets Live</p>
           <p><b>Audited Roles:</b> 5 Administrative Tiers & 8 Official Student Roles</p>
           <p><b>Compliance Status:</b> ISO/IEC 27001 & ITMBU Standards Compliant</p>
           <p><b>Timestamp:</b> ${new Date().toLocaleString()}</p>
         </div>
       `,
-      background: '#101626',
-      color: '#f8fafc',
-      confirmButtonText: '🖨️ Print Certificate',
-      confirmButtonColor: '#38bdf8'
+      background: '#ffffff',
+      color: '#0f172a',
+      confirmButtonText: 'Print Certificate',
+      confirmButtonColor: '#0f172a'
     }).then((res) => {
       if (res.isConfirmed) {
         window.print();
@@ -603,14 +702,18 @@ export default function SuperAdminConsole({
         {/* TOP HEADER BAR */}
         <header className="super-console-header">
           <div className="super-header-left">
-            <div className="super-crown-box">👑</div>
+            <div className="super-crown-box">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M2 4l3 12h14l3-12-6 7-4-7-4 7-6-7zm3 16h14a2 2 0 0 1 2 2H3a2 2 0 0 1 2-2z" />
+              </svg>
+            </div>
             <div className="super-title-block">
               <div className="super-badge-row">
                 <h2>Super Administrator Universal Control Center</h2>
                 <span className="badge-master-level">LEVEL 5 MASTER ACCESS</span>
               </div>
               <p className="super-subtext">
-                ITM (sls) Baroda University &bull; Dual-Club Governance & Security Command (AWS SBG + Techno Lab)
+                ITM (sls) Baroda University &bull; Dual-Club Governance & Security Command (AWS SBG + Techno Lab + GDGoC)
               </p>
             </div>
           </div>
@@ -621,7 +724,10 @@ export default function SuperAdminConsole({
               <span>{dbProvider} (Live Synchronized)</span>
             </div>
             <button className="btn-close-super-console" onClick={onClose} title="Close Super Admin Console">
-              ✕
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
             </button>
           </div>
         </header>
@@ -629,7 +735,7 @@ export default function SuperAdminConsole({
         {/* 2-COLUMN LAYOUT: SIDEBAR NAVIGATION + CONTENT AREA */}
         <div className="super-console-body">
           
-          {/* LEFT SIDEBAR NAVIGATION (5 MODULES) */}
+          {/* LEFT SIDEBAR NAVIGATION (6 MODULES) */}
           <nav className="super-sidebar-nav">
             <span className="nav-group-label">NAVIGATION MODULES</span>
             
@@ -638,7 +744,14 @@ export default function SuperAdminConsole({
               className={`super-nav-btn ${activeTab === 'users' ? 'active' : ''}`}
               onClick={() => setActiveTab('users')}
             >
-              <span className="nav-btn-icon">👥</span>
+              <span className="nav-btn-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="9" cy="7" r="4"></circle>
+                  <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                  <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                </svg>
+              </span>
               <div className="nav-btn-text">
                 <strong>1. User Management</strong>
                 <small>5 Roles & RBAC Control</small>
@@ -650,7 +763,15 @@ export default function SuperAdminConsole({
               className={`super-nav-btn ${activeTab === 'audit' ? 'active' : ''}`}
               onClick={() => setActiveTab('audit')}
             >
-              <span className="nav-btn-icon">📜</span>
+              <span className="nav-btn-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                  <polyline points="10 9 9 9 8 9"></polyline>
+                </svg>
+              </span>
               <div className="nav-btn-text">
                 <strong>2. Audit & Activity Logs</strong>
                 <small>Live Timeline & Trails</small>
@@ -662,7 +783,13 @@ export default function SuperAdminConsole({
               className={`super-nav-btn ${activeTab === 'database' ? 'active' : ''}`}
               onClick={() => setActiveTab('database')}
             >
-              <span className="nav-btn-icon">⚡</span>
+              <span className="nav-btn-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                  <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                  <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                </svg>
+              </span>
               <div className="nav-btn-text">
                 <strong>3. Database & Cloud Sync</strong>
                 <small>PostgreSQL & Realtime Hub</small>
@@ -674,7 +801,19 @@ export default function SuperAdminConsole({
               className={`super-nav-btn ${activeTab === 'governance' ? 'active' : ''}`}
               onClick={() => setActiveTab('governance')}
             >
-              <span className="nav-btn-icon">🏛️</span>
+              <span className="nav-btn-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="4" y1="21" x2="4" y2="14"></line>
+                  <line x1="4" y1="10" x2="4" y2="3"></line>
+                  <line x1="12" y1="21" x2="12" y2="12"></line>
+                  <line x1="12" y1="8" x2="12" y2="3"></line>
+                  <line x1="20" y1="21" x2="20" y2="16"></line>
+                  <line x1="20" y1="12" x2="20" y2="3"></line>
+                  <line x1="1" y1="14" x2="7" y2="14"></line>
+                  <line x1="9" y1="8" x2="15" y2="8"></line>
+                  <line x1="17" y1="16" x2="23" y2="16"></line>
+                </svg>
+              </span>
               <div className="nav-btn-text">
                 <strong>4. Dual-Club Governance</strong>
                 <small>Tenure & Ref Series Rules</small>
@@ -686,7 +825,11 @@ export default function SuperAdminConsole({
               className={`super-nav-btn ${activeTab === 'security' ? 'active' : ''}`}
               onClick={() => setActiveTab('security')}
             >
-              <span className="nav-btn-icon">🛡️</span>
+              <span className="nav-btn-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                </svg>
+              </span>
               <div className="nav-btn-text">
                 <strong>5. Security & Sessions</strong>
                 <small>Auto-Lock & Keys</small>
@@ -698,18 +841,44 @@ export default function SuperAdminConsole({
               className={`super-nav-btn ${activeTab === 'email_smtp' ? 'active' : ''}`}
               onClick={() => setActiveTab('email_smtp')}
             >
-              <span className="nav-btn-icon">📧</span>
+              <span className="nav-btn-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                  <polyline points="22,6 12,13 2,6"></polyline>
+                </svg>
+              </span>
               <div className="nav-btn-text">
                 <strong>6. Email & SMTP Engine</strong>
                 <small>Multi-Club Mail & 16-Char Passkey</small>
               </div>
             </button>
 
+            {/* TAB 7: AI & OPEN API SETTINGS */}
+            <button
+              className={`super-nav-btn ${activeTab === 'api_settings' ? 'active' : ''}`}
+              onClick={() => setActiveTab('api_settings')}
+            >
+              <span className="nav-btn-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path>
+                </svg>
+              </span>
+              <div className="nav-btn-text">
+                <strong>7. AI & Open API Settings</strong>
+                <small>OpenAI, Groq & News Feeds</small>
+              </div>
+            </button>
+
             <div className="super-sidebar-footer">
               <div className="super-active-user-card">
-                <span className="u-avatar">👑</span>
+                <div className="u-avatar-svg" style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#f8fafc', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f59e0b' }}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                  </svg>
+                </div>
                 <div className="u-meta">
-                  <strong>{currentUser?.displayName || 'Super Admin'}</strong>
+                  <strong>{currentUser?.displayName || 'Bhavikkumar Patel (Super Admin)'}</strong>
                   <small>Master Universal Session</small>
                 </div>
               </div>
@@ -727,7 +896,7 @@ export default function SuperAdminConsole({
                 
                 <div className="tab-view-header">
                   <div>
-                    <h3>👥 Administrator & User Access Management</h3>
+                    <h3>Administrator & User Access Management</h3>
                     <p>Assign and manage administrative privileges (5 Roles) and registered chapter students (8 Official Roles).</p>
                   </div>
                   <div style={{ display: 'flex', gap: '8px' }}>
@@ -736,45 +905,66 @@ export default function SuperAdminConsole({
                       setUserFormData({ name: '', username: '', email: '', role: 'AWS_LEAD_ADMIN', organization: 'AWS_SBG', password: '' });
                       setIsAddUserModalOpen(true);
                     }}>
-                      ➕ Add Administrator
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                      </svg>
+                      Add Administrator
                     </button>
                   </div>
                 </div>
 
                 {/* SUB-TAB SELECTOR: RBAC ADMINS VS ALL REGISTERED MEMBERS TABLE */}
-                <div style={{ display: 'flex', gap: '10px', marginBottom: '18px' }}>
+                <div style={{ display: 'flex', gap: '10px', marginBottom: '8px' }}>
                   <button
                     type="button"
                     onClick={() => setUserViewSubTab('rbac_admins')}
                     style={{
-                      padding: '8px 16px',
-                      borderRadius: '8px',
-                      border: userViewSubTab === 'rbac_admins' ? '1px solid #ff9900' : '1px solid #1e293b',
-                      background: userViewSubTab === 'rbac_admins' ? 'rgba(255, 153, 0, 0.15)' : 'rgba(15, 23, 42, 0.6)',
-                      color: userViewSubTab === 'rbac_admins' ? '#ff9900' : '#94a3b8',
+                      padding: '8px 18px',
+                      borderRadius: '10px',
+                      border: userViewSubTab === 'rbac_admins' ? '1.5px solid #0f172a' : '1.5px solid #e2e8f0',
+                      background: userViewSubTab === 'rbac_admins' ? '#0f172a' : '#ffffff',
+                      color: userViewSubTab === 'rbac_admins' ? '#ffffff' : '#475569',
                       fontWeight: 700,
                       fontSize: '13px',
-                      cursor: 'pointer'
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
                     }}
                   >
-                    🛡️ System Administrators (5 Master Roles & RBAC)
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    </svg>
+                    System Administrators (5 Master Roles & RBAC)
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setUserViewSubTab('all_members_table')}
                     style={{
-                      padding: '8px 16px',
-                      borderRadius: '8px',
-                      border: userViewSubTab === 'all_members_table' ? '1px solid #38bdf8' : '1px solid #1e293b',
-                      background: userViewSubTab === 'all_members_table' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(15, 23, 42, 0.6)',
-                      color: userViewSubTab === 'all_members_table' ? '#38bdf8' : '#94a3b8',
+                      padding: '8px 18px',
+                      borderRadius: '10px',
+                      border: userViewSubTab === 'all_members_table' ? '1.5px solid #0f172a' : '1.5px solid #e2e8f0',
+                      background: userViewSubTab === 'all_members_table' ? '#0f172a' : '#ffffff',
+                      color: userViewSubTab === 'all_members_table' ? '#ffffff' : '#475569',
                       fontWeight: 700,
                       fontSize: '13px',
-                      cursor: 'pointer'
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
                     }}
                   >
-                    📋 Full Registered Members Table (8 Roles & Verifications)
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                      <line x1="16" y1="13" x2="8" y2="13"></line>
+                      <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>
+                    Full Registered Members Table (8 Roles & Verifications)
                   </button>
                 </div>
 
@@ -789,7 +979,7 @@ export default function SuperAdminConsole({
                           onClick={() => setRoleFilter(roleFilter === r.id ? 'ALL' : r.id)}
                         >
                           <div className="role-card-top">
-                            <span className="role-tag" style={{ borderColor: r.color, color: r.color }}>{r.badge}</span>
+                            <span className="role-tag" style={{ borderColor: r.color, color: r.color, background: `${r.color}15` }}>{r.badge}</span>
                             <span className="role-count-badge">
                               {adminUsers.filter(u => u.role === r.id).length} Active
                             </span>
@@ -804,21 +994,25 @@ export default function SuperAdminConsole({
                     <div className="users-table-box">
                       <div className="users-table-toolbar">
                         <div className="users-search-input-wrap">
-                          <span>🔍</span>
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }}>
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                          </svg>
                           <input
                             type="text"
                             placeholder="Search administrators by name, username, email..."
                             value={searchUserQuery}
                             onChange={(e) => setSearchUserQuery(e.target.value)}
+                            style={{ paddingLeft: '36px' }}
                           />
                           {searchUserQuery && (
-                            <button onClick={() => setSearchUserQuery('')}>✕</button>
+                            <button onClick={() => setSearchUserQuery('')} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}>✕</button>
                           )}
                         </div>
 
                         <div className="users-filter-dropdowns">
-                          <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)}>
-                            <option value="ALL">All 5 System Roles ({adminUsers.length})</option>
+                          <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="super-select" style={{ height: '38px', padding: '6px 12px', fontSize: '13px' }}>
+                            <option value="ALL">All System Roles ({adminUsers.length})</option>
                             {Object.values(SYSTEM_ROLES).map(r => (
                               <option key={r.id} value={r.id}>{r.badge} ({adminUsers.filter(u => u.role === r.id).length})</option>
                             ))}
@@ -830,7 +1024,7 @@ export default function SuperAdminConsole({
                         <thead>
                           <tr>
                             <th>ADMINISTRATOR</th>
-                            <th>ASSIGNED ROLE (5 TIERS)</th>
+                            <th>ASSIGNED ROLE</th>
                             <th>SCOPE / CLUB</th>
                             <th>STATUS</th>
                             <th>LAST ACTIVE</th>
@@ -844,7 +1038,7 @@ export default function SuperAdminConsole({
                               <tr key={u.id}>
                                 <td>
                                   <div className="user-profile-cell">
-                                    <span className="user-avatar-pill">{u.avatar || '🛡️'}</span>
+                                    <span className="user-avatar-pill">{u.name ? u.name.charAt(0) : 'A'}</span>
                                     <div>
                                       <strong className="user-name-text">{u.name}</strong>
                                       <div className="user-meta-sub">
@@ -860,7 +1054,7 @@ export default function SuperAdminConsole({
                                 </td>
                                 <td>
                                   <span className={`scope-badge ${u.organization === 'ALL' ? 'scope-universal' : u.organization === 'AWS_SBG' ? 'scope-aws' : 'scope-techno'}`}>
-                                    {u.organization === 'ALL' ? 'Universal (Both Clubs)' : u.organization === 'AWS_SBG' ? 'AWS SBG Chapter' : 'Techno Lab Hub'}
+                                    {u.organization === 'ALL' ? 'Universal (All Clubs)' : u.organization === 'AWS_SBG' ? 'AWS SBG Chapter' : 'Techno Lab Hub'}
                                   </span>
                                 </td>
                                 <td>
@@ -889,21 +1083,28 @@ export default function SuperAdminConsole({
                                       }}
                                       title="Edit role and credentials"
                                     >
-                                      ✏️ Edit
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '4px' }}>
+                                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                                      </svg>
+                                      Edit
                                     </button>
                                     <button
                                       className={`btn-super-toggle ${u.status === 'ACTIVE' ? 'btn-suspend' : 'btn-activate'}`}
                                       onClick={() => handleToggleUserStatus(u.id)}
                                       title={u.status === 'ACTIVE' ? 'Suspend account' : 'Activate account'}
                                     >
-                                      {u.status === 'ACTIVE' ? '🚫 Suspend' : '✓ Activate'}
+                                      {u.status === 'ACTIVE' ? 'Suspend' : 'Activate'}
                                     </button>
                                     <button
                                       className="btn-super-delete"
                                       onClick={() => handleDeleteUser(u)}
                                       title="Revoke administrator access"
                                     >
-                                      🗑️
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="3 6 5 6 21 6"></polyline>
+                                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                                      </svg>
                                     </button>
                                   </div>
                                 </td>
@@ -916,7 +1117,12 @@ export default function SuperAdminConsole({
 
                     {/* RBAC MATRIX */}
                     <div className="rbac-matrix-box" style={{ marginTop: '24px' }}>
-                      <h4>🛡️ Role-Based Access Control (RBAC) Permission Matrix</h4>
+                      <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0f172a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                        </svg>
+                        Role-Based Access Control (RBAC) Permission Matrix
+                      </h4>
                       <table className="rbac-table">
                         <thead>
                           <tr>
@@ -1025,18 +1231,27 @@ export default function SuperAdminConsole({
               <div className="super-tab-view">
                 <div className="tab-view-header">
                   <div>
-                    <h3>📜 Live System Audit & Action History</h3>
+                    <h3>Live System Audit & Action History</h3>
                     <p>Tamper-evident timestamped trail of all appointments issued, deletions, logins, and database syncs.</p>
                   </div>
                   <div style={{ display: 'flex', gap: '10px' }}>
                     <button className="super-btn-secondary" onClick={handleExportAuditCSV}>
-                      📥 Export Audit CSV
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                      </svg>
+                      Export Audit CSV
                     </button>
                     <button className="super-btn-danger" onClick={() => {
                       setAuditLogs([]);
                       localStorage.removeItem('offer_gen_audit_logs');
                     }}>
-                      🧹 Clear Audit History
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                      </svg>
+                      Clear Audit History
                     </button>
                   </div>
                 </div>
@@ -1044,20 +1259,25 @@ export default function SuperAdminConsole({
                 {/* AUDIT FILTER & SEARCH TOOLBAR */}
                 <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '16px' }}>
                   <div style={{ position: 'relative', flex: 1 }}>
-                    <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}>🔍</span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }}>
+                      <circle cx="11" cy="11" r="8"></circle>
+                      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
                     <input
                       type="text"
                       placeholder="Search audit trail by description, actor, action..."
                       value={auditSearchQuery}
                       onChange={(e) => setAuditSearchQuery(e.target.value)}
-                      style={{ width: '100%', padding: '9px 12px 9px 36px', background: '#111828', border: '1px solid #1e293b', borderRadius: '8px', color: '#f8fafc', fontSize: '13px', outline: 'none' }}
+                      className="super-input"
+                      style={{ width: '100%', paddingLeft: '36px', height: '42px', fontSize: '13px' }}
                     />
                   </div>
 
                   <select
                     value={auditFilter}
                     onChange={(e) => setAuditFilter(e.target.value)}
-                    style={{ padding: '9px 14px', background: '#111828', border: '1px solid #1e293b', borderRadius: '8px', color: '#f8fafc', fontSize: '13px', outline: 'none' }}
+                    className="super-select"
+                    style={{ height: '42px', padding: '8px 14px', fontSize: '13px', minWidth: '220px' }}
                   >
                     <option value="ALL">All Event Categories ({auditLogs.length})</option>
                     <option value="AUTH">Authentication & Logins</option>
@@ -1072,7 +1292,7 @@ export default function SuperAdminConsole({
                 <div className="audit-timeline-container">
                   {filteredAuditLogs.length === 0 ? (
                     <div className="empty-audit-state">
-                      <span>📜 No audit actions recorded matching current filter.</span>
+                      <span>No audit actions recorded matching current filter.</span>
                     </div>
                   ) : (
                     filteredAuditLogs.map((log) => (
@@ -1103,11 +1323,16 @@ export default function SuperAdminConsole({
               <div className="super-tab-view">
                 <div className="tab-view-header">
                   <div>
-                    <h3>⚡ Cloud Database Health & Bilateral Sync Engine</h3>
+                    <h3>Cloud Database Health & Bilateral Sync Engine</h3>
                     <p>Live health metrics for Supabase PostgreSQL & MongoDB with one-click snapshot backups.</p>
                   </div>
                   <button className="super-btn-primary" onClick={() => onSyncDatabase && onSyncDatabase(false)}>
-                    🔄 Force 100% Cloud Refresh
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+                      <polyline points="23 4 23 10 17 10"></polyline>
+                      <polyline points="1 20 1 14 7 14"></polyline>
+                      <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                    </svg>
+                    Force 100% Cloud Refresh
                   </button>
                 </div>
 
@@ -1115,25 +1340,25 @@ export default function SuperAdminConsole({
                 <div className="db-metrics-grid">
                   <div className="db-metric-card">
                     <span className="m-label">Active Cloud Provider</span>
-                    <strong className="m-value" style={{ color: '#38bdf8' }}>{dbProvider}</strong>
+                    <strong className="m-value" style={{ color: '#0284c7' }}>{dbProvider}</strong>
                     <span className="m-sub">PostgreSQL Cloud Tables</span>
                   </div>
 
                   <div className="db-metric-card">
                     <span className="m-label">Roster Records in DB</span>
-                    <strong className="m-value" style={{ color: '#10b981' }}>{members.length} Members</strong>
-                    <span className="m-sub">AWS SBG + Techno Lab</span>
+                    <strong className="m-value" style={{ color: '#059669' }}>{members.length} Members</strong>
+                    <span className="m-sub">AWS SBG + Techno Lab + GDGoC</span>
                   </div>
 
                   <div className="db-metric-card">
                     <span className="m-label">Realtime WebSockets</span>
-                    <strong className="m-value" style={{ color: '#a855f7' }}>Live Active</strong>
+                    <strong className="m-value" style={{ color: '#7c3aed' }}>Live Active</strong>
                     <span className="m-sub">Multi-Client Instant Sync</span>
                   </div>
 
                   <div className="db-metric-card">
                     <span className="m-label">Last Successful Sync</span>
-                    <strong className="m-value" style={{ color: '#f59e0b', fontSize: '15px' }}>
+                    <strong className="m-value" style={{ color: '#d97706', fontSize: '15px' }}>
                       {lastSyncTime ? lastSyncTime.toLocaleTimeString() : 'Connected'}
                     </strong>
                     <span className="m-sub">Auto-poller active (15s)</span>
@@ -1142,10 +1367,16 @@ export default function SuperAdminConsole({
 
                 {/* BACKUP & SNAPSHOT TOOLS */}
                 <div className="db-tools-section">
-                  <h4>💾 Database Backup, Snapshots & Disaster Recovery</h4>
+                  <h4>Database Backup, Snapshots & Disaster Recovery</h4>
                   <div className="db-tools-grid">
                     <div className="db-tool-card">
-                      <div className="tool-icon">📥</div>
+                      <div className="tool-icon" style={{ background: '#eff6ff', color: '#2563eb' }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                          <polyline points="7 10 12 15 17 10"></polyline>
+                          <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                      </div>
                       <div>
                         <strong>Export Full Cloud Database Snapshot</strong>
                         <p>Download full structured JSON file containing all roster members, custom departments, and brandings.</p>
@@ -1156,7 +1387,12 @@ export default function SuperAdminConsole({
                     </div>
 
                     <div className="db-tool-card">
-                      <div className="tool-icon">🔄</div>
+                      <div className="tool-icon" style={{ background: '#fef2f2', color: '#ef4444' }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="1 4 1 10 7 10"></polyline>
+                          <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                        </svg>
+                      </div>
                       <div>
                         <strong>Reseed Default University Rosters</strong>
                         <p>Reset and reload the verified official roster for AWS SBG and Techno Lab.</p>
@@ -1171,40 +1407,49 @@ export default function SuperAdminConsole({
             )}
 
             {/* ======================================================== */}
-            {/* 4. TRIO-CLUB GLOBAL GOVERNANCE & VISIBILITY SWITCHES */}
+            {/* 4. THE CLUB QUERY GLOBAL GOVERNANCE & VISIBILITY SWITCHES */}
             {/* ======================================================== */}
             {activeTab === 'governance' && (
               <div className="super-tab-view">
                 <div className="tab-view-header">
                   <div>
-                    <h3>🏛️ Trio-Club Global Governance & Chapter Visibility</h3>
+                    <h3>The Club Query Global Governance & Chapter Visibility</h3>
                     <p>Enable/disable chapter visibility in navbar/login, configure academic tenure, and update reference numbering series.</p>
                   </div>
                   <button className="super-btn-primary" onClick={handleSaveGovernance}>
-                    💾 Save Governance Rules
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+                      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                      <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                      <polyline points="7 3 7 8 15 8"></polyline>
+                    </svg>
+                    Save Governance Rules
                   </button>
                 </div>
 
                 {/* CHAPTER VISIBILITY SWITCHES MATRIX */}
-                <div style={{ background: '#0a0f1d', border: '1px solid #1e293b', borderRadius: '12px', padding: '20px', marginBottom: '25px' }}>
+                <div style={{ background: '#ffffff', border: '1.5px solid #e2e8f0', borderRadius: '16px', padding: '20px', marginBottom: '20px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                     <div>
-                      <h4 style={{ margin: 0, color: '#f8fafc', fontSize: '15px' }}>🎛️ Official Chapter Visibility & Display Toggles</h4>
-                      <small style={{ color: '#94a3b8' }}>Turn ON/OFF visibility for portal navbar slider and student login. (Minimum 1 chapter must remain active).</small>
+                      <h4 style={{ margin: 0, color: '#0f172a', fontSize: '15px', fontWeight: 800 }}>Official Chapter Visibility & Display Toggles</h4>
+                      <small style={{ color: '#64748b' }}>Turn ON/OFF visibility for portal navbar slider and student login. (Minimum 1 chapter must remain active).</small>
                     </div>
-                    <span style={{ fontSize: '11px', background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', padding: '4px 10px', borderRadius: '12px', fontWeight: 600 }}>
-                      ⚡ Real-time Dynamic Filter
+                    <span style={{ fontSize: '11px', background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0', padding: '4px 10px', borderRadius: '12px', fontWeight: 700 }}>
+                      Live Realtime Filter
                     </span>
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px' }}>
                     {/* CHAPTER 1: AWS SBG */}
-                    <div style={{ background: '#131b2e', border: visibleChapters.AWS_SBG ? '1px solid #ff9900' : '1px solid #23314a', borderRadius: '10px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ background: '#f8fafc', border: visibleChapters.AWS_SBG ? '1.5px solid #ff9900' : '1.5px solid #e2e8f0', borderRadius: '12px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <span style={{ fontSize: '24px' }}>☁️</span>
+                        <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(255, 153, 0, 0.1)', color: '#ff9900', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+                          </svg>
+                        </div>
                         <div>
-                          <strong style={{ display: 'block', color: '#f8fafc', fontSize: '13.5px' }}>AWS SBG Chapter</strong>
-                          <span style={{ fontSize: '11px', color: visibleChapters.AWS_SBG ? '#ff9900' : '#64748b' }}>
+                          <strong style={{ display: 'block', color: '#0f172a', fontSize: '13.5px' }}>AWS SBG Chapter</strong>
+                          <span style={{ fontSize: '11px', color: visibleChapters.AWS_SBG ? '#d97706' : '#94a3b8', fontWeight: 700 }}>
                             {visibleChapters.AWS_SBG ? '● Visible in Portal' : '○ Hidden'}
                           </span>
                         </div>
@@ -1220,24 +1465,32 @@ export default function SuperAdminConsole({
                         />
                         <span style={{
                           position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-                          backgroundColor: visibleChapters.AWS_SBG !== false ? '#ff9900' : '#334155',
+                          backgroundColor: visibleChapters.AWS_SBG !== false ? '#ff9900' : '#cbd5e1',
                           borderRadius: '24px', transition: '0.3s'
                         }}>
                           <span style={{
                             position: 'absolute', content: '', height: '18px', width: '18px', left: visibleChapters.AWS_SBG !== false ? '24px' : '3px', bottom: '3px',
-                            backgroundColor: 'white', borderRadius: '50%', transition: '0.3s'
+                            backgroundColor: 'white', borderRadius: '50%', transition: '0.3s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
                           }}></span>
                         </span>
                       </label>
                     </div>
 
                     {/* CHAPTER 2: TECHNO LAB */}
-                    <div style={{ background: '#131b2e', border: visibleChapters.TECHNO_LAB ? '1px solid #00d2ff' : '1px solid #23314a', borderRadius: '10px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ background: '#f8fafc', border: visibleChapters.TECHNO_LAB ? '1.5px solid #0284c7' : '1.5px solid #e2e8f0', borderRadius: '12px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <span style={{ fontSize: '24px' }}>🔬</span>
+                        <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(2, 132, 199, 0.1)', color: '#0284c7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M10 2v7.31"></path>
+                            <path d="M14 9.3V1.99"></path>
+                            <path d="M8.5 2h7"></path>
+                            <path d="M14 9.3a6.5 6.5 0 1 1-4 0"></path>
+                            <path d="M5.52 16h12.96"></path>
+                          </svg>
+                        </div>
                         <div>
-                          <strong style={{ display: 'block', color: '#f8fafc', fontSize: '13.5px' }}>Techno Lab Club</strong>
-                          <span style={{ fontSize: '11px', color: visibleChapters.TECHNO_LAB ? '#00d2ff' : '#64748b' }}>
+                          <strong style={{ display: 'block', color: '#0f172a', fontSize: '13.5px' }}>Techno Lab Club</strong>
+                          <span style={{ fontSize: '11px', color: visibleChapters.TECHNO_LAB ? '#0284c7' : '#94a3b8', fontWeight: 700 }}>
                             {visibleChapters.TECHNO_LAB ? '● Visible in Portal' : '○ Hidden'}
                           </span>
                         </div>
@@ -1253,24 +1506,30 @@ export default function SuperAdminConsole({
                         />
                         <span style={{
                           position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-                          backgroundColor: visibleChapters.TECHNO_LAB !== false ? '#00d2ff' : '#334155',
+                          backgroundColor: visibleChapters.TECHNO_LAB !== false ? '#0284c7' : '#cbd5e1',
                           borderRadius: '24px', transition: '0.3s'
                         }}>
                           <span style={{
                             position: 'absolute', content: '', height: '18px', width: '18px', left: visibleChapters.TECHNO_LAB !== false ? '24px' : '3px', bottom: '3px',
-                            backgroundColor: 'white', borderRadius: '50%', transition: '0.3s'
+                            backgroundColor: 'white', borderRadius: '50%', transition: '0.3s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
                           }}></span>
                         </span>
                       </label>
                     </div>
 
                     {/* CHAPTER 3: GDGOC ITMBU */}
-                    <div style={{ background: '#131b2e', border: visibleChapters.GDGOC ? '1px solid #4285F4' : '1px solid #23314a', borderRadius: '10px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ background: '#f8fafc', border: visibleChapters.GDGOC ? '1.5px solid #4285f4' : '1.5px solid #e2e8f0', borderRadius: '12px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <span style={{ fontSize: '24px' }}>🌐</span>
+                        <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(66, 133, 244, 0.1)', color: '#4285f4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="2" y1="12" x2="22" y2="12"></line>
+                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                          </svg>
+                        </div>
                         <div>
-                          <strong style={{ display: 'block', color: '#f8fafc', fontSize: '13.5px' }}>GDGoC ITMBU</strong>
-                          <span style={{ fontSize: '11px', color: visibleChapters.GDGOC ? '#4285F4' : '#64748b' }}>
+                          <strong style={{ display: 'block', color: '#0f172a', fontSize: '13.5px' }}>GDGoC ITMBU</strong>
+                          <span style={{ fontSize: '11px', color: visibleChapters.GDGOC ? '#4285f4' : '#94a3b8', fontWeight: 700 }}>
                             {visibleChapters.GDGOC ? '● Visible in Portal' : '○ Hidden'}
                           </span>
                         </div>
@@ -1286,12 +1545,12 @@ export default function SuperAdminConsole({
                         />
                         <span style={{
                           position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-                          backgroundColor: visibleChapters.GDGOC !== false ? '#4285F4' : '#334155',
+                          backgroundColor: visibleChapters.GDGOC !== false ? '#4285f4' : '#cbd5e1',
                           borderRadius: '24px', transition: '0.3s'
                         }}>
                           <span style={{
                             position: 'absolute', content: '', height: '18px', width: '18px', left: visibleChapters.GDGOC !== false ? '24px' : '3px', bottom: '3px',
-                            backgroundColor: 'white', borderRadius: '50%', transition: '0.3s'
+                            backgroundColor: 'white', borderRadius: '50%', transition: '0.3s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)'
                           }}></span>
                         </span>
                       </label>
@@ -1302,7 +1561,7 @@ export default function SuperAdminConsole({
                 <div className="gov-form-grid">
                   
                   <div className="gov-field-group">
-                    <label>📅 Official Academic Appointment Tenure (Rendered in Letter Paragraph 2)</label>
+                    <label>Official Academic Appointment Tenure (Rendered in Letter Paragraph 2)</label>
                     <input
                       type="text"
                       className="super-input"
@@ -1314,7 +1573,7 @@ export default function SuperAdminConsole({
                   </div>
 
                   <div className="gov-field-group">
-                    <label>☁️ AWS SBG Reference Number Prefix Formula</label>
+                    <label>AWS SBG Reference Number Prefix Formula</label>
                     <input
                       type="text"
                       className="super-input"
@@ -1325,7 +1584,7 @@ export default function SuperAdminConsole({
                   </div>
 
                   <div className="gov-field-group">
-                    <label>🔬 Techno Lab Reference Number Prefix Formula</label>
+                    <label>Techno Lab Reference Number Prefix Formula</label>
                     <input
                       type="text"
                       className="super-input"
@@ -1336,7 +1595,7 @@ export default function SuperAdminConsole({
                   </div>
 
                   <div className="gov-field-group">
-                    <label>🌐 GDGoC ITMBU Reference Number Prefix Formula</label>
+                    <label>GDGoC ITMBU Reference Number Prefix Formula</label>
                     <input
                       type="text"
                       className="super-input"
@@ -1347,7 +1606,7 @@ export default function SuperAdminConsole({
                   </div>
 
                   <div className="gov-field-group">
-                    <label>🏫 University Institution Name (Header Title)</label>
+                    <label>University Institution Name (Header Title)</label>
                     <input
                       type="text"
                       className="super-input"
@@ -1355,7 +1614,7 @@ export default function SuperAdminConsole({
                       readOnly
                       disabled
                     />
-                    <small>Vadodara, Gujarat • CSE & IT Department</small>
+                    <small>Vadodara, Gujarat &bull; CSE & IT Department</small>
                   </div>
 
                 </div>
@@ -1369,11 +1628,16 @@ export default function SuperAdminConsole({
               <div className="super-tab-view">
                 <div className="tab-view-header">
                   <div>
-                    <h3>🛡️ Security, Access Keys & Session Protection</h3>
+                    <h3>Security, Access Keys & Session Protection</h3>
                     <p>Manage administrative session timeouts, Cloudflare proxy settings, and multi-device authentication policies.</p>
                   </div>
                   <button className="super-btn-secondary" onClick={handlePrintCertificate}>
-                    📜 Print Security Certificate
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+                      <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                      <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                      <rect x="6" y="14" width="12" height="8"></rect>
+                    </svg>
+                    Print Security Certificate
                   </button>
                 </div>
 
@@ -1381,7 +1645,12 @@ export default function SuperAdminConsole({
                   
                   <div className="sec-card">
                     <div className="sec-card-header">
-                      <span className="sec-icon">⏱️</span>
+                      <div className="sec-icon" style={{ background: '#f8fafc', color: '#0f172a' }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                      </div>
                       <div>
                         <strong>Automatic Session Idle Timeout</strong>
                         <p>Auto-lock administrative console when inactive to protect university credentials.</p>
@@ -1392,7 +1661,7 @@ export default function SuperAdminConsole({
                       value={sessionTimeout}
                       onChange={(e) => {
                         setSessionTimeout(e.target.value);
-                        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `Session timeout set to ${e.target.value}`, timer: 2000, background: '#101626', color: '#f8fafc', showConfirmButton: false });
+                        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `Session timeout set to ${e.target.value}`, timer: 2000, background: '#ffffff', color: '#0f172a', showConfirmButton: false });
                       }}
                     >
                       <option value="15m">15 Minutes (Strict Security)</option>
@@ -1405,7 +1674,12 @@ export default function SuperAdminConsole({
 
                   <div className="sec-card">
                     <div className="sec-card-header">
-                      <span className="sec-icon">🔒</span>
+                      <div className="sec-icon" style={{ background: '#f8fafc', color: '#0f172a' }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                          <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                      </div>
                       <div>
                         <strong>Emergency Portal Maintenance Lock</strong>
                         <p>Lock letter generation and restrict all logins exclusively to Super Administrators.</p>
@@ -1417,16 +1691,20 @@ export default function SuperAdminConsole({
                         checked={govMaintenanceMode}
                         onChange={(e) => {
                           setGovMaintenanceMode(e.target.checked);
-                          Swal.fire({ toast: true, position: 'top-end', icon: e.target.checked ? 'warning' : 'info', title: e.target.checked ? 'Maintenance Lock Activated' : 'Maintenance Lock Deactivated', timer: 2500, background: '#101626', color: '#f8fafc', showConfirmButton: false });
+                          Swal.fire({ toast: true, position: 'top-end', icon: e.target.checked ? 'warning' : 'info', title: e.target.checked ? 'Maintenance Lock Activated' : 'Maintenance Lock Deactivated', timer: 2500, background: '#ffffff', color: '#0f172a', showConfirmButton: false });
                         }}
                       />
-                      <span>{govMaintenanceMode ? '🔴 Active Lock (Super Admin Only)' : '🟢 Normal Operations'}</span>
+                      <span>{govMaintenanceMode ? 'Active Lock (Super Admin Only)' : 'Normal Operations'}</span>
                     </label>
                   </div>
 
                   <div className="sec-card full-sec-card">
                     <div className="sec-card-header">
-                      <span className="sec-icon">🔑</span>
+                      <div className="sec-icon" style={{ background: '#f8fafc', color: '#0f172a' }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 2l-2 2m-1.5 1.5L16 7l-1.5-1.5-1.5 1.5 1.5 1.5-7 7a2.5 2.5 0 0 0 0 3.5l1 1a2.5 2.5 0 0 0 3.5 0l7-7 1.5 1.5 1.5-1.5-1.5-1.5 1.5-1.5 2-2z"></path>
+                        </svg>
+                      </div>
                       <div>
                         <strong>Master Super Administrator Password</strong>
                         <p>Update universal root authentication credentials for dual-club administration.</p>
@@ -1459,21 +1737,35 @@ export default function SuperAdminConsole({
                         required
                       />
                       <button type="submit" className="super-btn-primary" style={{ alignSelf: 'center' }}>
-                        💾 Update Password
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+                          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                          <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                          <polyline points="7 3 7 8 15 8"></polyline>
+                        </svg>
+                        Update Password
                       </button>
                     </form>
                   </div>
 
                   <div className="sec-card full-sec-card">
                     <div className="sec-card-header">
-                      <span className="sec-icon">🚪</span>
+                      <div className="sec-icon" style={{ background: '#f8fafc', color: '#0f172a' }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+                          <line x1="12" y1="2" x2="12" y2="12"></line>
+                        </svg>
+                      </div>
                       <div>
                         <strong>Active Multi-Device Sessions</strong>
                         <p>Revoke and terminate all active login tokens across other workstations.</p>
                       </div>
                     </div>
                     <button className="super-btn-danger" onClick={handleTerminateSessions} style={{ marginTop: '10px' }}>
-                      🚫 Terminate All Other Sessions
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+                        <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
+                        <line x1="12" y1="2" x2="12" y2="12"></line>
+                      </svg>
+                      Terminate All Other Sessions
                     </button>
                   </div>
 
@@ -1485,32 +1777,59 @@ export default function SuperAdminConsole({
             {/* 6. UNIVERSAL EMAIL & SMTP ENGINE (SUPER ADMIN ONLY)      */}
             {/* ======================================================== */}
             {activeTab === 'email_smtp' && (
-              <div className="super-tab-content">
-                <div className="super-tab-header">
+              <div className="super-tab-view">
+                <div className="tab-view-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
                   <div>
-                    <h3>📧 Multi-Chapter Email & SMTP Configuration Vault</h3>
-                    <p>Har ek chapter (AWS SBG, Techno Lab, GDGoC ITMBU) ke liye unka apna dedicated Official Email Address aur unka alag 16-character Google App Password configure karein.</p>
+                    <h3>Multi-Chapter Email & SMTP Configuration Vault</h3>
+                    <p>Configure dedicated official email addresses and individual 16-character Google App Passwords for each chapter with Realtime Cloud Sync.</p>
                   </div>
-                  <span className="badge-master-level" style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#f87171', borderColor: 'rgba(239, 68, 68, 0.4)' }}>
-                    🔒 SUPER ADMIN CONFIDENTIAL
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="super-btn-secondary"
+                      style={{ fontSize: '12px', padding: '6px 12px', cursor: 'pointer' }}
+                      disabled={isSyncingSmtp}
+                      onClick={async () => {
+                        setIsSyncingSmtp(true);
+                        try {
+                          const cfg = await fetchMasterSmtpConfigFromSupabase();
+                          if (cfg) {
+                            setSmtpConfig(cfg);
+                            setIsSmtpCloudSynced(true);
+                            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Synced from Supabase Cloud!', timer: 2000, showConfirmButton: false, background: '#ffffff', color: '#0f172a' });
+                          }
+                        } finally {
+                          setIsSyncingSmtp(false);
+                        }
+                      }}
+                    >
+                      {isSyncingSmtp ? 'Fetching...' : 'Sync from Supabase'}
+                    </button>
+                    <span className="badge-master-level" style={{ background: isSmtpCloudSynced ? '#ecfdf5' : '#eff6ff', color: isSmtpCloudSynced ? '#059669' : '#2563eb', borderColor: isSmtpCloudSynced ? '#a7f3d0' : '#bfdbfe' }}>
+                      {isSmtpCloudSynced ? 'SUPABASE CLOUD SYNCED' : 'CLOUD SYNC READY'}
+                    </span>
+                  </div>
                 </div>
 
-                <div className="super-security-grid">
+                <div className="security-settings-grid">
                   
                   {/* CHAPTER 1: AWS STUDENT BUILDER GROUP (AWS SBG) */}
-                  <div className="sec-card full-sec-card" style={{ border: '1px solid rgba(255, 153, 0, 0.4)', background: 'rgba(255, 153, 0, 0.04)' }}>
+                  <div className="sec-card full-sec-card" style={{ border: '1.5px solid #ff9900', background: '#ffffff' }}>
                     <div className="sec-card-header">
-                      <span className="sec-icon" style={{ background: 'rgba(255, 153, 0, 0.15)', color: '#ff9900' }}>☁️</span>
+                      <div className="sec-icon" style={{ background: 'rgba(255, 153, 0, 0.1)', color: '#ff9900' }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+                        </svg>
+                      </div>
                       <div>
-                        <strong style={{ color: '#ff9900', fontSize: '15px' }}>1. AWS Student Builder Group (AWS SBG)</strong>
+                        <strong style={{ color: '#0f172a', fontSize: '15px' }}>1. AWS Student Builder Group (AWS SBG)</strong>
                         <p>Dedicated sender email and 16-character Google App Password for AWS SBG offer letters & certificates.</p>
                       </div>
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px', marginTop: '14px' }}>
-                      <div className="form-group">
-                        <label style={{ color: '#ff9900', fontWeight: 700, fontSize: '12.5px' }}>AWS SBG Official Email</label>
+                      <div className="gov-field-group" style={{ margin: 0 }}>
+                        <label style={{ color: '#0f172a', fontWeight: 700, fontSize: '12.5px' }}>AWS SBG Official Email</label>
                         <input
                           type="email"
                           className="super-input"
@@ -1520,8 +1839,8 @@ export default function SuperAdminConsole({
                         />
                       </div>
 
-                      <div className="form-group">
-                        <label style={{ color: '#ff9900', fontWeight: 700, fontSize: '12.5px' }}>AWS SBG 16-Char Google App Password</label>
+                      <div className="gov-field-group" style={{ margin: 0 }}>
+                        <label style={{ color: '#0f172a', fontWeight: 700, fontSize: '12.5px' }}>AWS SBG 16-Char Google App Password</label>
                         <div style={{ position: 'relative' }}>
                           <input
                             type={showAwsPass ? 'text' : 'password'}
@@ -1548,20 +1867,29 @@ export default function SuperAdminConsole({
                               background: 'none',
                               border: 'none',
                               cursor: 'pointer',
-                              color: '#94a3b8',
-                              fontSize: '15px'
+                              color: '#64748b'
                             }}
                             title={showAwsPass ? 'Hide' : 'Show'}
                           >
-                            {showAwsPass ? '👁️' : '🙈'}
+                            {showAwsPass ? (
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                <line x1="1" y1="1" x2="23" y2="23"></line>
+                              </svg>
+                            ) : (
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                              </svg>
+                            )}
                           </button>
                         </div>
                       </div>
                     </div>
 
-                    <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                      <span style={{ fontSize: '12px', color: '#94a3b8' }}>
-                        Status: <b style={{ color: smtpConfig.awsAppPassword ? '#34d399' : '#f59e0b' }}>{smtpConfig.awsAppPassword ? '✓ 16-Char Key Configured' : '⚠️ No Key Set'}</b>
+                    <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                      <span style={{ fontSize: '12px', color: '#64748b' }}>
+                        Status: <b style={{ color: smtpConfig.awsAppPassword ? '#059669' : '#d97706' }}>{smtpConfig.awsAppPassword ? '✓ 16-Char Key Configured' : '⚠️ No Key Set'}</b>
                       </span>
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button
@@ -1570,39 +1898,48 @@ export default function SuperAdminConsole({
                           onClick={() => {
                             if (smtpConfig.awsAppPassword) {
                               navigator.clipboard.writeText(smtpConfig.awsAppPassword);
-                              Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'AWS Passkey copied!', timer: 2000, background: '#101626', color: '#f8fafc', showConfirmButton: false });
+                              Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'AWS Passkey copied!', timer: 2000, background: '#ffffff', color: '#0f172a', showConfirmButton: false });
                             }
                           }}
                         >
-                          📋 Copy Key
+                          Copy Key
                         </button>
                         <button
                           type="button"
                           className="super-btn-primary"
-                          onClick={() => {
-                            saveMasterSmtpConfig(smtpConfig);
-                            Swal.fire({ icon: 'success', title: 'AWS SBG Credentials Saved!', text: 'AWS SBG Email & Passkey updated in vault.', background: '#101626', color: '#f8fafc', confirmButtonColor: '#ff9900' });
+                          onClick={async () => {
+                            await saveMasterSmtpConfig(smtpConfig);
+                            setIsSmtpCloudSynced(true);
+                            Swal.fire({ icon: 'success', title: 'AWS SBG Credentials Saved & Synced!', text: 'AWS SBG Email & Passkey updated and live synced to Supabase Cloud Database.', background: '#ffffff', color: '#0f172a', confirmButtonColor: '#0f172a' });
                           }}
                         >
-                          💾 Save AWS SBG Config
+                          Save AWS SBG Config
                         </button>
                       </div>
                     </div>
                   </div>
 
                   {/* CHAPTER 2: TECHNO LAB INNOVATION WING */}
-                  <div className="sec-card full-sec-card" style={{ border: '1px solid rgba(0, 210, 255, 0.4)', background: 'rgba(0, 210, 255, 0.04)' }}>
+                  <div className="sec-card full-sec-card" style={{ border: '1.5px solid #0284c7', background: '#ffffff' }}>
                     <div className="sec-card-header">
-                      <span className="sec-icon" style={{ background: 'rgba(0, 210, 255, 0.15)', color: '#00d2ff' }}>🔬</span>
+                      <div className="sec-icon" style={{ background: 'rgba(2, 132, 199, 0.1)', color: '#0284c7' }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M10 2v7.31"></path>
+                          <path d="M14 9.3V1.99"></path>
+                          <path d="M8.5 2h7"></path>
+                          <path d="M14 9.3a6.5 6.5 0 1 1-4 0"></path>
+                          <path d="M5.52 16h12.96"></path>
+                        </svg>
+                      </div>
                       <div>
-                        <strong style={{ color: '#00d2ff', fontSize: '15px' }}>2. Techno Lab (Techno+Techiz Community)</strong>
+                        <strong style={{ color: '#0f172a', fontSize: '15px' }}>2. Techno Lab (Techno+Techiz Community)</strong>
                         <p>Dedicated sender email and 16-character Google App Password for Techno Lab offer letters & certificates.</p>
                       </div>
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px', marginTop: '14px' }}>
-                      <div className="form-group">
-                        <label style={{ color: '#00d2ff', fontWeight: 700, fontSize: '12.5px' }}>Techno Lab Official Email</label>
+                      <div className="gov-field-group" style={{ margin: 0 }}>
+                        <label style={{ color: '#0f172a', fontWeight: 700, fontSize: '12.5px' }}>Techno Lab Official Email</label>
                         <input
                           type="email"
                           className="super-input"
@@ -1612,8 +1949,8 @@ export default function SuperAdminConsole({
                         />
                       </div>
 
-                      <div className="form-group">
-                        <label style={{ color: '#00d2ff', fontWeight: 700, fontSize: '12.5px' }}>Techno Lab 16-Char Google App Password</label>
+                      <div className="gov-field-group" style={{ margin: 0 }}>
+                        <label style={{ color: '#0f172a', fontWeight: 700, fontSize: '12.5px' }}>Techno Lab 16-Char Google App Password</label>
                         <div style={{ position: 'relative' }}>
                           <input
                             type={showTechnoPass ? 'text' : 'password'}
@@ -1640,20 +1977,29 @@ export default function SuperAdminConsole({
                               background: 'none',
                               border: 'none',
                               cursor: 'pointer',
-                              color: '#94a3b8',
-                              fontSize: '15px'
+                              color: '#64748b'
                             }}
                             title={showTechnoPass ? 'Hide' : 'Show'}
                           >
-                            {showTechnoPass ? '👁️' : '🙈'}
+                            {showTechnoPass ? (
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                <line x1="1" y1="1" x2="23" y2="23"></line>
+                              </svg>
+                            ) : (
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                              </svg>
+                            )}
                           </button>
                         </div>
                       </div>
                     </div>
 
-                    <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                      <span style={{ fontSize: '12px', color: '#94a3b8' }}>
-                        Status: <b style={{ color: smtpConfig.technoAppPassword ? '#34d399' : '#f59e0b' }}>{smtpConfig.technoAppPassword ? '✓ 16-Char Key Configured' : '⚠️ Fallback to Master Passkey'}</b>
+                    <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                      <span style={{ fontSize: '12px', color: '#64748b' }}>
+                        Status: <b style={{ color: smtpConfig.technoAppPassword ? '#059669' : '#d97706' }}>{smtpConfig.technoAppPassword ? '✓ 16-Char Key Configured' : '⚠️ Fallback to Master Passkey'}</b>
                       </span>
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button
@@ -1662,40 +2008,46 @@ export default function SuperAdminConsole({
                           onClick={() => {
                             if (smtpConfig.technoAppPassword) {
                               navigator.clipboard.writeText(smtpConfig.technoAppPassword);
-                              Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Techno Lab Passkey copied!', timer: 2000, background: '#101626', color: '#f8fafc', showConfirmButton: false });
+                              Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Techno Lab Passkey copied!', timer: 2000, background: '#ffffff', color: '#0f172a', showConfirmButton: false });
                             }
                           }}
                         >
-                          📋 Copy Key
+                          Copy Key
                         </button>
                         <button
                           type="button"
                           className="super-btn-primary"
-                          style={{ background: 'linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%)' }}
-                          onClick={() => {
-                            saveMasterSmtpConfig(smtpConfig);
-                            Swal.fire({ icon: 'success', title: 'Techno Lab Credentials Saved!', text: 'Techno Lab Email & Passkey updated in vault.', background: '#101626', color: '#f8fafc', confirmButtonColor: '#00d2ff' });
+                          onClick={async () => {
+                            await saveMasterSmtpConfig(smtpConfig);
+                            setIsSmtpCloudSynced(true);
+                            Swal.fire({ icon: 'success', title: 'Techno Lab Credentials Saved & Synced!', text: 'Techno Lab Email & Passkey updated and live synced to Supabase Cloud Database.', background: '#ffffff', color: '#0f172a', confirmButtonColor: '#0f172a' });
                           }}
                         >
-                          💾 Save Techno Lab Config
+                          Save Techno Lab Config
                         </button>
                       </div>
                     </div>
                   </div>
 
                   {/* CHAPTER 3: GOOGLE DEVELOPER GROUPS ON CAMPUS (GDGOC ITMBU) */}
-                  <div className="sec-card full-sec-card" style={{ border: '1px solid rgba(66, 133, 244, 0.4)', background: 'rgba(66, 133, 244, 0.04)' }}>
+                  <div className="sec-card full-sec-card" style={{ border: '1.5px solid #4285f4', background: '#ffffff' }}>
                     <div className="sec-card-header">
-                      <span className="sec-icon" style={{ background: 'rgba(66, 133, 244, 0.15)', color: '#4285F4' }}>🎯</span>
+                      <div className="sec-icon" style={{ background: 'rgba(66, 133, 244, 0.1)', color: '#4285f4' }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <line x1="2" y1="12" x2="22" y2="12"></line>
+                          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                        </svg>
+                      </div>
                       <div>
-                        <strong style={{ color: '#4285F4', fontSize: '15px' }}>3. Google Developer Groups on Campus (GDGoC ITMBU)</strong>
+                        <strong style={{ color: '#0f172a', fontSize: '15px' }}>3. Google Developer Groups on Campus (GDGoC ITMBU)</strong>
                         <p>Dedicated sender email and 16-character Google App Password for GDGoC offer letters & certificates.</p>
                       </div>
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px', marginTop: '14px' }}>
-                      <div className="form-group">
-                        <label style={{ color: '#4285F4', fontWeight: 700, fontSize: '12.5px' }}>GDGoC Official Email</label>
+                      <div className="gov-field-group" style={{ margin: 0 }}>
+                        <label style={{ color: '#0f172a', fontWeight: 700, fontSize: '12.5px' }}>GDGoC Official Email</label>
                         <input
                           type="email"
                           className="super-input"
@@ -1705,8 +2057,8 @@ export default function SuperAdminConsole({
                         />
                       </div>
 
-                      <div className="form-group">
-                        <label style={{ color: '#4285F4', fontWeight: 700, fontSize: '12.5px' }}>GDGoC 16-Char Google App Password</label>
+                      <div className="gov-field-group" style={{ margin: 0 }}>
+                        <label style={{ color: '#0f172a', fontWeight: 700, fontSize: '12.5px' }}>GDGoC 16-Char Google App Password</label>
                         <div style={{ position: 'relative' }}>
                           <input
                             type={showGdgocPass ? 'text' : 'password'}
@@ -1733,20 +2085,29 @@ export default function SuperAdminConsole({
                               background: 'none',
                               border: 'none',
                               cursor: 'pointer',
-                              color: '#94a3b8',
-                              fontSize: '15px'
+                              color: '#64748b'
                             }}
                             title={showGdgocPass ? 'Hide' : 'Show'}
                           >
-                            {showGdgocPass ? '👁️' : '🙈'}
+                            {showGdgocPass ? (
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                <line x1="1" y1="1" x2="23" y2="23"></line>
+                              </svg>
+                            ) : (
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                              </svg>
+                            )}
                           </button>
                         </div>
                       </div>
                     </div>
 
-                    <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                      <span style={{ fontSize: '12px', color: '#94a3b8' }}>
-                        Status: <b style={{ color: smtpConfig.gdgocAppPassword ? '#34d399' : '#f59e0b' }}>{smtpConfig.gdgocAppPassword ? '✓ 16-Char Key Configured' : '⚠️ Fallback to Master Passkey'}</b>
+                    <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                      <span style={{ fontSize: '12px', color: '#64748b' }}>
+                        Status: <b style={{ color: smtpConfig.gdgocAppPassword ? '#059669' : '#d97706' }}>{smtpConfig.gdgocAppPassword ? '✓ 16-Char Key Configured' : '⚠️ Fallback to Master Passkey'}</b>
                       </span>
                       <div style={{ display: 'flex', gap: '8px' }}>
                         <button
@@ -1755,40 +2116,46 @@ export default function SuperAdminConsole({
                           onClick={() => {
                             if (smtpConfig.gdgocAppPassword) {
                               navigator.clipboard.writeText(smtpConfig.gdgocAppPassword);
-                              Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'GDGoC Passkey copied!', timer: 2000, background: '#101626', color: '#f8fafc', showConfirmButton: false });
+                              Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'GDGoC Passkey copied!', timer: 2000, background: '#ffffff', color: '#0f172a', showConfirmButton: false });
                             }
                           }}
                         >
-                          📋 Copy Key
+                          Copy Key
                         </button>
                         <button
                           type="button"
                           className="super-btn-primary"
-                          style={{ background: 'linear-gradient(135deg, #4285F4 0%, #0F9D58 100%)' }}
-                          onClick={() => {
-                            saveMasterSmtpConfig(smtpConfig);
-                            Swal.fire({ icon: 'success', title: 'GDGoC Credentials Saved!', text: 'GDGoC Email & Passkey updated in vault.', background: '#101626', color: '#f8fafc', confirmButtonColor: '#4285F4' });
+                          onClick={async () => {
+                            await saveMasterSmtpConfig(smtpConfig);
+                            setIsSmtpCloudSynced(true);
+                            Swal.fire({ icon: 'success', title: 'GDGoC Credentials Saved & Synced!', text: 'GDGoC Email & Passkey updated and live synced to Supabase Cloud Database.', background: '#ffffff', color: '#0f172a', confirmButtonColor: '#0f172a' });
                           }}
                         >
-                          💾 Save GDGoC Config
+                          Save GDGoC Config
                         </button>
                       </div>
                     </div>
                   </div>
 
                   {/* GLOBAL MASTER / FALLBACK PASSKEY */}
-                  <div className="sec-card full-sec-card" style={{ border: '1px solid rgba(16, 185, 129, 0.4)', background: 'rgba(16, 185, 129, 0.04)' }}>
+                  <div className="sec-card full-sec-card" style={{ border: '1.5px solid #059669', background: '#ffffff' }}>
                     <div className="sec-card-header">
-                      <span className="sec-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981' }}>🌐</span>
+                      <div className="sec-icon" style={{ background: 'rgba(5, 150, 105, 0.1)', color: '#059669' }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <line x1="2" y1="12" x2="22" y2="12"></line>
+                          <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                        </svg>
+                      </div>
                       <div>
-                        <strong style={{ color: '#10b981', fontSize: '15px' }}>Universal Master Passkey & Fallback Email</strong>
+                        <strong style={{ color: '#0f172a', fontSize: '15px' }}>Universal Master Passkey & Fallback Email</strong>
                         <p>Used when a chapter has not set its own dedicated 16-character password or for universal system dispatches.</p>
                       </div>
                     </div>
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px', marginTop: '14px' }}>
-                      <div className="form-group">
-                        <label style={{ color: '#10b981', fontWeight: 700, fontSize: '12.5px' }}>Global Default Sender Email</label>
+                      <div className="gov-field-group" style={{ margin: 0 }}>
+                        <label style={{ color: '#0f172a', fontWeight: 700, fontSize: '12.5px' }}>Global Default Sender Email</label>
                         <input
                           type="email"
                           className="super-input"
@@ -1798,8 +2165,8 @@ export default function SuperAdminConsole({
                         />
                       </div>
 
-                      <div className="form-group">
-                        <label style={{ color: '#10b981', fontWeight: 700, fontSize: '12.5px' }}>Universal 16-Char Google App Password</label>
+                      <div className="gov-field-group" style={{ margin: 0 }}>
+                        <label style={{ color: '#0f172a', fontWeight: 700, fontSize: '12.5px' }}>Universal 16-Char Google App Password</label>
                         <div style={{ position: 'relative' }}>
                           <input
                             type={showMasterPass ? 'text' : 'password'}
@@ -1826,27 +2193,44 @@ export default function SuperAdminConsole({
                               background: 'none',
                               border: 'none',
                               cursor: 'pointer',
-                              color: '#94a3b8',
-                              fontSize: '15px'
+                              color: '#64748b'
                             }}
                             title={showMasterPass ? 'Hide' : 'Show'}
                           >
-                            {showMasterPass ? '👁️' : '🙈'}
+                            {showMasterPass ? (
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                                <line x1="1" y1="1" x2="23" y2="23"></line>
+                              </svg>
+                            ) : (
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8z"></path>
+                                <circle cx="12" cy="12" r="3"></circle>
+                              </svg>
+                            )}
                           </button>
                         </div>
                       </div>
                     </div>
 
-                    <div style={{ marginTop: '12px', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+                    <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
                       <button
                         type="button"
                         className="super-btn-primary"
-                        onClick={() => {
-                          saveMasterSmtpConfig(smtpConfig);
-                          Swal.fire({ icon: 'success', title: 'All Settings Saved!', text: 'All chapter emails and 16-character app passwords saved successfully.', background: '#101626', color: '#f8fafc', confirmButtonColor: '#10b981' });
+                        onClick={async () => {
+                          await saveMasterSmtpConfig(smtpConfig);
+                          setIsSmtpCloudSynced(true);
+                          Swal.fire({
+                            icon: 'success',
+                            title: 'All Credentials Saved & Synced!',
+                            text: 'All chapter emails and 16-character Google App Passwords synced to Supabase Cloud Database in real-time.',
+                            background: '#ffffff',
+                            color: '#0f172a',
+                            confirmButtonColor: '#0f172a'
+                          });
                         }}
                       >
-                        💾 Save All Chapter Settings
+                        Save All Chapter Settings
                       </button>
                     </div>
                   </div>
@@ -1854,7 +2238,11 @@ export default function SuperAdminConsole({
                   {/* DIAGNOSTIC TEST DISPATCHER */}
                   <div className="sec-card full-sec-card">
                     <div className="sec-card-header">
-                      <span className="sec-icon">🧪</span>
+                      <div className="sec-icon" style={{ background: '#f8fafc', color: '#0f172a' }}>
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                        </svg>
+                      </div>
                       <div>
                         <strong>Live Diagnostic Email Test per Chapter</strong>
                         <p>Select any chapter to verify that its individual sender email and dedicated 16-char password work properly.</p>
@@ -1868,9 +2256,9 @@ export default function SuperAdminConsole({
                         value={testEmailClub}
                         onChange={(e) => setTestEmailClub(e.target.value)}
                       >
-                        <option value="AWS_SBG">☁️ AWS SBG</option>
-                        <option value="TECHNO_LAB">🔬 Techno Lab</option>
-                        <option value="GDGOC">🎯 GDGoC ITMBU</option>
+                        <option value="AWS_SBG">AWS SBG</option>
+                        <option value="TECHNO_LAB">Techno Lab</option>
+                        <option value="GDGOC">GDGoC ITMBU</option>
                       </select>
 
                       <input
@@ -1885,11 +2273,10 @@ export default function SuperAdminConsole({
                       <button
                         type="button"
                         className="super-btn-primary"
-                        style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' }}
                         disabled={isSendingTest}
                         onClick={async () => {
                           if (!testEmailRecipient || !testEmailRecipient.includes('@')) {
-                            Swal.fire({ icon: 'warning', title: 'Invalid Email', text: 'Please enter a valid recipient email address.', background: '#101626', color: '#f8fafc', confirmButtonColor: '#f59e0b' });
+                            Swal.fire({ icon: 'warning', title: 'Invalid Email', text: 'Please enter a valid recipient email address.', background: '#ffffff', color: '#0f172a', confirmButtonColor: '#0f172a' });
                             return;
                           }
                           setIsSendingTest(true);
@@ -1918,20 +2305,20 @@ export default function SuperAdminConsole({
                             if (res.isDelivered) {
                               Swal.fire({
                                 icon: 'success',
-                                title: `✅ ${clubObj.shortName} Test Delivered!`,
+                                title: `${clubObj.shortName} Test Delivered!`,
                                 text: `Successfully sent test email from ${sender} to ${testEmailRecipient} via ${res.deliveryMethod}.`,
-                                background: '#101626',
-                                color: '#f8fafc',
-                                confirmButtonColor: '#10b981'
+                                background: '#ffffff',
+                                color: '#0f172a',
+                                confirmButtonColor: '#0f172a'
                               });
                             } else {
                               Swal.fire({
                                 icon: 'info',
                                 title: 'Test Email Logged',
                                 text: res.error || 'Email logged to audit database.',
-                                background: '#101626',
-                                color: '#f8fafc',
-                                confirmButtonColor: '#38bdf8'
+                                background: '#ffffff',
+                                color: '#0f172a',
+                                confirmButtonColor: '#0f172a'
                               });
                             }
                           } catch (err) {
@@ -1939,8 +2326,8 @@ export default function SuperAdminConsole({
                               icon: 'error',
                               title: 'Dispatch Test Failed',
                               text: err.message || 'Error communicating with SMTP server.',
-                              background: '#101626',
-                              color: '#f8fafc',
+                              background: '#ffffff',
+                              color: '#0f172a',
                               confirmButtonColor: '#ef4444'
                             });
                           } finally {
@@ -1948,11 +2335,150 @@ export default function SuperAdminConsole({
                           }
                         }}
                       >
-                        {isSendingTest ? '⏳ Sending Test...' : '🚀 Test Chapter Email'}
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+                          <line x1="22" y1="2" x2="11" y2="13"></line>
+                          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                        </svg>
+                        {isSendingTest ? 'Sending Test...' : 'Test Chapter Email'}
                       </button>
                     </div>
                   </div>
 
+                </div>
+              </div>
+            )}
+
+            {/* TAB 7: AI & OPEN API SETTINGS */}
+            {activeTab === 'api_settings' && (
+              <div className="super-tab-content-grid">
+                <div className="super-card super-card-full">
+                  <div className="super-card-header">
+                    <div className="super-card-title-group">
+                      <div className="super-badge-icon" style={{ background: '#fef3c7', color: '#d97706' }}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path>
+                        </svg>
+                      </div>
+                      <div>
+                        <h4>AI Engine & Open API Configuration</h4>
+                        <p>Configure OpenAI, Groq, OpenRouter, or Free News Feeds for AI event blueprint generation</p>
+                      </div>
+                    </div>
+                    <button
+                      className="super-btn-primary"
+                      onClick={handleSaveApiSettings}
+                    >
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                        <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                        <polyline points="7 3 7 8 15 8"></polyline>
+                      </svg>
+                      Save API Configuration
+                    </button>
+                  </div>
+
+                  <div className="super-card-body" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+                    {/* OpenAI / Compatible Key */}
+                    <div className="super-form-group">
+                      <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>OpenAI API Key (Optional)</span>
+                        <button
+                          type="button"
+                          onClick={() => setShowApiKey(!showApiKey)}
+                          style={{ background: 'none', border: 'none', color: '#64748b', fontSize: '12px', cursor: 'pointer' }}
+                        >
+                          {showApiKey ? 'Hide' : 'Show'}
+                        </button>
+                      </label>
+                      <input
+                        type={showApiKey ? 'text' : 'password'}
+                        className="super-input"
+                        placeholder="sk-proj-..."
+                        value={apiConfig.openaiApiKey || ''}
+                        onChange={(e) => setApiConfig({ ...apiConfig, openaiApiKey: e.target.value })}
+                      />
+                      <small style={{ color: '#64748b', fontSize: '11px', marginTop: '4px', display: 'block' }}>
+                        Leave empty to automatically use high-speed open-source fallback models.
+                      </small>
+                    </div>
+
+                    {/* AI Model Selection */}
+                    <div className="super-form-group">
+                      <label>AI Model Selector</label>
+                      <select
+                        className="super-select"
+                        value={apiConfig.aiModel || 'gpt-4o-mini'}
+                        onChange={(e) => setApiConfig({ ...apiConfig, aiModel: e.target.value })}
+                      >
+                        <option value="gpt-4o-mini">gpt-4o-mini (Fast & Recommended)</option>
+                        <option value="gpt-4o">gpt-4o (High Intelligence)</option>
+                        <option value="gpt-3.5-turbo">gpt-3.5-turbo (Standard)</option>
+                        <option value="llama-3.1-70b">Llama 3.1 70B (Groq / OpenRouter)</option>
+                        <option value="claude-3-haiku">Claude 3 Haiku</option>
+                      </select>
+                    </div>
+
+                    {/* Custom Base URL */}
+                    <div className="super-form-group">
+                      <label>Custom API Base URL (For Groq / OpenRouter / Local LLM)</label>
+                      <input
+                        type="text"
+                        className="super-input"
+                        placeholder="https://api.openai.com/v1"
+                        value={apiConfig.openaiBaseUrl || ''}
+                        onChange={(e) => setApiConfig({ ...apiConfig, openaiBaseUrl: e.target.value })}
+                      />
+                      <small style={{ color: '#64748b', fontSize: '11px', marginTop: '4px', display: 'block' }}>
+                        Default: https://api.openai.com/v1 (or https://api.groq.com/openai/v1)
+                      </small>
+                    </div>
+
+                    {/* News API Key */}
+                    <div className="super-form-group">
+                      <label>NewsData / HackerNews Feed Key (Optional)</label>
+                      <input
+                        type="text"
+                        className="super-input"
+                        placeholder="pub_..."
+                        value={apiConfig.newsApiKey || ''}
+                        onChange={(e) => setApiConfig({ ...apiConfig, newsApiKey: e.target.value })}
+                      />
+                      <small style={{ color: '#64748b', fontSize: '11px', marginTop: '4px', display: 'block' }}>
+                        For pulling real-time tech headlines for student workshops.
+                      </small>
+                    </div>
+                  </div>
+
+                  {/* Diagnostic & Connectivity Test */}
+                  <div style={{ marginTop: '20px', padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                      <div>
+                        <strong style={{ fontSize: '13px', color: '#0f172a' }}>AI Diagnostics & Health Verification</strong>
+                        <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#64748b' }}>Run a lightweight test ping to verify AI response generation.</p>
+                      </div>
+                      <button
+                        type="button"
+                        className="super-btn-secondary"
+                        onClick={handleTestAiConnection}
+                        disabled={isTestingAi}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                      >
+                        {isTestingAi ? 'Verifying...' : 'Run AI Diagnostic'}
+                      </button>
+                    </div>
+
+                    {aiTestOutput && (
+                      <div style={{ marginTop: '12px', padding: '12px', borderRadius: '6px', background: aiTestOutput.status === 'success' ? '#ecfdf5' : '#fef2f2', border: `1px solid ${aiTestOutput.status === 'success' ? '#a7f3d0' : '#fecaca'}` }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                          <span style={{ fontSize: '12px', fontWeight: 'bold', color: aiTestOutput.status === 'success' ? '#065f46' : '#991b1b' }}>
+                            Engine: {aiTestOutput.engine}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '12px', fontWeight: '600', color: '#0f172a' }}>{aiTestOutput.title}</div>
+                        <div style={{ fontSize: '12px', color: '#475569', marginTop: '2px' }}>{aiTestOutput.desc}</div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -1968,8 +2494,13 @@ export default function SuperAdminConsole({
         <div className="super-submodal-backdrop">
           <div className="super-submodal-box">
             <div className="submodal-header">
-              <h3>{editingUser ? '✏️ Edit Administrator' : '➕ Add System Administrator'}</h3>
-              <button onClick={() => setIsAddUserModalOpen(false)}>✕</button>
+              <h3>{editingUser ? 'Edit Administrator' : 'Add System Administrator'}</h3>
+              <button onClick={() => setIsAddUserModalOpen(false)}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
             </div>
 
             <form onSubmit={handleSaveUserForm} className="submodal-form">
@@ -2010,7 +2541,7 @@ export default function SuperAdminConsole({
               </div>
 
               <div className="form-group">
-                <label>Assign System Role (5 Tiers) *</label>
+                <label>Assign System Role *</label>
                 <select
                   className="super-select"
                   value={userFormData.role}
@@ -2030,8 +2561,9 @@ export default function SuperAdminConsole({
                     value={userFormData.organization}
                     onChange={(e) => setUserFormData({ ...userFormData, organization: e.target.value })}
                   >
-                    <option value="AWS_SBG">☁️ AWS Student Builder Group</option>
-                    <option value="TECHNO_LAB">🔬 Techno Lab Innovation Wing</option>
+                    <option value="AWS_SBG">AWS Student Builder Group</option>
+                    <option value="TECHNO_LAB">Techno Lab Innovation Wing</option>
+                    <option value="GDGOC">Google Developer Groups on Campus (GDGoC)</option>
                   </select>
                 </div>
               )}
@@ -2041,7 +2573,7 @@ export default function SuperAdminConsole({
                   Cancel
                 </button>
                 <button type="submit" className="super-btn-primary">
-                  💾 {editingUser ? 'Save Administrator' : 'Create Administrator'}
+                  {editingUser ? 'Save Administrator' : 'Create Administrator'}
                 </button>
               </div>
             </form>

@@ -118,6 +118,9 @@ export default function AuthScreen({
   onVerifyCertificate,
   visibleChapters = { AWS_SBG: true, TECHNO_LAB: true, GDGOC: true }
 }) {
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('itmbu_auth_theme') || 'dark';
+  });
   const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
   const [isSuperAdminMode, setIsSuperAdminMode] = useState(false);
   const [userRoleCategory, setUserRoleCategory] = useState('STAFF'); // 'STAFF' | 'STUDENT' | 'CERTIFIER' | 'SUPER_ADMIN'
@@ -129,7 +132,7 @@ export default function AuthScreen({
   const initialChapter = availableChapters[0] || 'AWS_SBG';
   const [selectedSection, setSelectedSection] = useState(initialChapter);
   
-  // Login State (NO AUTOFILL — zero security breach)
+  // Login State
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('ORGANIZER');
@@ -149,6 +152,12 @@ export default function AuthScreen({
   const [regBranch, setRegBranch] = useState('B.Tech CSE');
   const [regSemester, setRegSemester] = useState('3');
   const [isRegistering, setIsRegistering] = useState(false);
+
+  const toggleTheme = () => {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    localStorage.setItem('itmbu_auth_theme', nextTheme);
+  };
 
   const activeClub = CLUB_CONFIGS[selectedSection] || CLUB_CONFIGS.AWS_SBG;
   const currentShowcaseKey = isSuperAdminMode ? 'SUPER_ADMIN' : (userRoleCategory === 'CERTIFIER' ? 'CERTIFIER' : selectedSection);
@@ -185,20 +194,35 @@ export default function AuthScreen({
     const height = canvas.height;
 
     const bgGradient = ctx.createLinearGradient(0, 0, width, height);
-    if (isSuperAdminMode) {
-      bgGradient.addColorStop(0, '#1c1408');
-      bgGradient.addColorStop(1, '#2c1e05');
-    } else if (userRoleCategory === 'CERTIFIER') {
-      bgGradient.addColorStop(0, '#06281e');
-      bgGradient.addColorStop(1, '#093a2b');
+    if (theme === 'light') {
+      if (isSuperAdminMode) {
+        bgGradient.addColorStop(0, '#fef3c7');
+        bgGradient.addColorStop(1, '#fde68a');
+      } else if (userRoleCategory === 'CERTIFIER') {
+        bgGradient.addColorStop(0, '#d1fae5');
+        bgGradient.addColorStop(1, '#a7f3d0');
+      } else {
+        bgGradient.addColorStop(0, '#f1f5f9');
+        bgGradient.addColorStop(1, '#e2e8f0');
+      }
     } else {
-      bgGradient.addColorStop(0, '#0c1322');
-      bgGradient.addColorStop(1, '#131e36');
+      if (isSuperAdminMode) {
+        bgGradient.addColorStop(0, '#1c1408');
+        bgGradient.addColorStop(1, '#2c1e05');
+      } else if (userRoleCategory === 'CERTIFIER') {
+        bgGradient.addColorStop(0, '#06281e');
+        bgGradient.addColorStop(1, '#093a2b');
+      } else {
+        bgGradient.addColorStop(0, '#0c1322');
+        bgGradient.addColorStop(1, '#131e36');
+      }
     }
     ctx.fillStyle = bgGradient;
     ctx.fillRect(0, 0, width, height);
 
-    ctx.strokeStyle = isSuperAdminMode ? 'rgba(245, 158, 11, 0.15)' : (userRoleCategory === 'CERTIFIER' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(56, 189, 248, 0.15)');
+    ctx.strokeStyle = theme === 'light'
+      ? 'rgba(0, 0, 0, 0.08)'
+      : (isSuperAdminMode ? 'rgba(245, 158, 11, 0.15)' : (userRoleCategory === 'CERTIFIER' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(56, 189, 248, 0.15)'));
     ctx.lineWidth = 1;
     for (let x = 10; x < width; x += 18) {
       ctx.beginPath();
@@ -207,11 +231,17 @@ export default function AuthScreen({
       ctx.stroke();
     }
 
-    const colors = isSuperAdminMode
-      ? ['#fbbf24', '#f59e0b', '#fde047', '#d97706']
-      : (userRoleCategory === 'CERTIFIER'
-        ? ['#34d399', '#10b981', '#6ee7b7', '#059669']
-        : ['#38bdf8', '#818cf8', '#34d399', '#f472b6']);
+    const colors = theme === 'light'
+      ? (isSuperAdminMode
+        ? ['#b45309', '#d97706', '#92400e', '#78350f']
+        : (userRoleCategory === 'CERTIFIER'
+          ? ['#047857', '#059669', '#065f46', '#0f766e']
+          : ['#0284c7', '#4f46e5', '#059669', '#db2777']))
+      : (isSuperAdminMode
+        ? ['#fbbf24', '#f59e0b', '#fde047', '#d97706']
+        : (userRoleCategory === 'CERTIFIER'
+          ? ['#34d399', '#10b981', '#6ee7b7', '#059669']
+          : ['#38bdf8', '#818cf8', '#34d399', '#f472b6']));
 
     ctx.font = 'bold 22px "Consolas", "Courier New", monospace';
     ctx.textBaseline = 'middle';
@@ -227,13 +257,15 @@ export default function AuthScreen({
       ctx.save();
       ctx.translate(x, y);
       ctx.rotate(angle);
-      ctx.shadowColor = color;
-      ctx.shadowBlur = 8;
+      if (theme === 'dark') {
+        ctx.shadowColor = color;
+        ctx.shadowBlur = 8;
+      }
       ctx.fillStyle = color;
       ctx.fillText(char, -7, 1);
       ctx.restore();
     }
-  }, [isSuperAdminMode, userRoleCategory]);
+  }, [isSuperAdminMode, userRoleCategory, theme]);
 
   const refreshCaptcha = useCallback(() => {
     setIsRefreshingCaptcha(true);
@@ -248,25 +280,75 @@ export default function AuthScreen({
     refreshCaptcha();
   }, [refreshCaptcha]);
 
+  // Preload voices for SpeechSynthesis on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.getVoices();
+        if (window.speechSynthesis.onvoiceschanged !== undefined) {
+          window.speechSynthesis.onvoiceschanged = () => {
+            window.speechSynthesis.getVoices();
+          };
+        }
+      } catch (e) {}
+    }
+  }, []);
+
   const playCaptchaAudio = () => {
-    if ('speechSynthesis' in window && captchaCode) {
-      const spelledOut = captchaCode.split('').join(', ');
-      const utterance = new SpeechSynthesisUtterance(`Security code is: ${spelledOut}`);
-      utterance.rate = 0.85;
-      utterance.pitch = 1.0;
-      window.speechSynthesis.cancel();
-      window.speechSynthesis.speak(utterance);
-    } else {
-      Swal.fire({
-        toast: true,
-        position: 'top-end',
-        icon: 'info',
-        title: `Security Code: ${captchaCode.split('').join(' ')}`,
-        showConfirmButton: false,
-        timer: 3000,
-        background: '#101626',
-        color: '#f8fafc'
-      });
+    if (!captchaCode) return;
+
+    const letterList = captchaCode.split('');
+    const spokenText = letterList.map(ch => ch.toUpperCase()).join(' . . ');
+    const fullMessage = `Security code . . ${spokenText}`;
+
+    // 1. Direct Web Audio API Chime Confirmation (100% guaranteed sound on any machine)
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) {
+        const audioCtx = new AudioCtx();
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume();
+        }
+        letterList.forEach((char, i) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          const startTime = audioCtx.currentTime + i * 0.28;
+          const codeVal = char.charCodeAt(0);
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(320 + (codeVal % 30) * 18, startTime);
+          gain.gain.setValueAtTime(0.2, startTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.22);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(startTime);
+          osc.stop(startTime + 0.22);
+        });
+      }
+    } catch (audioErr) {
+      console.warn('AudioContext notice:', audioErr);
+    }
+
+    // 2. Primary SpeechSynthesis (Spoken Voice)
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+        if (window.speechSynthesis.paused) {
+          window.speechSynthesis.resume();
+        }
+
+        const utterance = new SpeechSynthesisUtterance(fullMessage);
+        utterance.rate = 0.55;
+        utterance.pitch = 1.0;
+        utterance.volume = 1.0;
+        utterance.lang = 'en-US';
+
+        // Chrome Garbage Collector prevention
+        window._activeCaptchaVoice = utterance;
+
+        window.speechSynthesis.speak(utterance);
+      } catch (err) {
+        console.error('SpeechSynthesis error:', err);
+      }
     }
   };
 
@@ -630,8 +712,8 @@ export default function AuthScreen({
           icon: 'success',
           title: 'Registration Successful!',
           text: `Welcome, ${regName}! Your account is registered for ${activeClub.name}. You can now sign in.`,
-          background: '#101626',
-          color: '#f8fafc',
+          background: theme === 'light' ? '#ffffff' : '#101626',
+          color: theme === 'light' ? '#0f172a' : '#f8fafc',
           confirmButtonColor: '#10b981'
         });
         setAuthMode('login');
@@ -658,9 +740,9 @@ export default function AuthScreen({
   };
 
   return (
-    <div className={`itmbu-auth-fullscreen ${isSuperAdminMode ? 'mode-superadmin' : `mode-${selectedSection.toLowerCase()}`}`}>
+    <div className={`itmbu-auth-fullscreen theme-${theme} ${isSuperAdminMode ? 'mode-superadmin' : `mode-${selectedSection.toLowerCase()}`}`}>
       
-      {/* Background Campus Image Layer */}
+      {/* Background Campus Image Layer - 40% Opacity */}
       <div 
         className="itmbu-campus-bg-layer"
         style={{
@@ -668,214 +750,238 @@ export default function AuthScreen({
         }}
       ></div>
 
-      {/* Cinematic Glassmorphism Dark Gradient Overlay */}
+      {/* Cinematic Frosted Gradient Overlay */}
       <div className="itmbu-campus-gradient-overlay"></div>
 
-      {/* Ambient Lighting Accents */}
+      {/* Dynamic Ambient Color Orbs */}
       <div 
         className="itmbu-ambient-glow glow-left" 
-        style={{ background: isSuperAdminMode ? 'rgba(245, 158, 11, 0.28)' : `${activeClub.primaryColor}35` }}
+        style={{ background: isSuperAdminMode ? 'rgba(245, 158, 11, 0.25)' : `${activeClub.primaryColor}30` }}
       ></div>
       <div 
         className="itmbu-ambient-glow glow-right" 
-        style={{ background: isSuperAdminMode ? 'rgba(217, 119, 6, 0.25)' : `${activeClub.accentColor || '#38bdf8'}35` }}
+        style={{ background: isSuperAdminMode ? 'rgba(217, 119, 6, 0.22)' : `${activeClub.accentColor || '#38bdf8'}30` }}
       ></div>
 
-      {/* Main Glassmorphic Split-Screen Portal Container */}
+      {/* Floating Theme Switcher at Top-Right of Viewport */}
+      <div className="itmbu-topbar-controls">
+        <button
+          type="button"
+          className="itmbu-floating-theme-toggle"
+          onClick={toggleTheme}
+          title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+        >
+          <span className="theme-toggle-icon">{theme === 'dark' ? '☀️' : '🌙'}</span>
+          <span className="theme-toggle-label">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+        </button>
+      </div>
+
+      {/* Main Glassmorphic Portal Container */}
       <div className="itmbu-glass-card-portal">
         
-        {/* LEFT COLUMN: HERO & SHOWCASE */}
+        {/* ========================================================= */}
+        {/* LEFT COLUMN: HERO SHOWCASE & CHAPTER IDENTITY             */}
+        {/* ========================================================= */}
         <div className="itmbu-left-hero-panel">
           
-          <div className="itmbu-floating-crest-bar">
+          {/* Top Crest */}
+          <div className="itmbu-hero-top-row">
             <div className="itmbu-crest-pill-glass">
               <span className="crest-star-gold">🏛️</span>
               <span className="crest-pill-text">ITM (SLS) BARODA UNIVERSITY</span>
             </div>
+            <div className="itmbu-live-pulse-badge">
+              <span className="live-dot-green"></span>
+              <span className="pulse-text">PORTAL LIVE</span>
+            </div>
           </div>
 
+          {/* Center Showcase Content */}
           <div className="itmbu-hero-center-box">
+            
             <div className="itmbu-badge-row">
-              <span className="itmbu-club-badge" style={{ borderColor: currentShowcase.color, color: currentShowcase.color }}>
+              <span className="itmbu-club-badge" style={{ borderColor: currentShowcase.color, color: currentShowcase.color, background: `${currentShowcase.color}15` }}>
                 {currentShowcase.badge}
               </span>
-              <span className="itmbu-live-pulse">
-                <span className="live-dot-green"></span>
-                <span>{currentShowcase.stat}</span>
+              <span className="itmbu-stat-badge">
+                ✨ {currentShowcase.stat}
               </span>
             </div>
 
             <h1 className="itmbu-hero-title">
               {currentShowcase.title}
             </h1>
+            
             <p className="itmbu-hero-sub">
               {currentShowcase.subtitle}
             </p>
+            
             <p className="itmbu-hero-tagline" style={{ color: currentShowcase.color }}>
-              {currentShowcase.tagline}
+              ⚡ {currentShowcase.tagline}
             </p>
 
+            {/* Feature Highlights Grid */}
+            <div className="itmbu-highlights-grid">
+              {(currentShowcase?.highlights || []).map((h, i) => (
+                <div key={i} className="itmbu-feature-card">
+                  <div className="feature-icon-wrapper" style={{ background: `${currentShowcase.color}20`, color: currentShowcase.color }}>
+                    {h.icon}
+                  </div>
+                  <div className="feature-info">
+                    <span className="feature-title">{h.title}</span>
+                    <span className="feature-desc">{h.desc}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Quote Card */}
             <div className="itmbu-quote-glass-card" style={{ borderLeftColor: currentShowcase.color }}>
               <p className="quote-text">{currentShowcase.quote}</p>
               <span className="quote-author">Department of Computer Science &amp; Engineering</span>
             </div>
 
-            <div className="itmbu-chapters-pill-grid">
-              {(currentShowcase?.highlights || []).map((h, i) => (
-                <div key={i} className="itmbu-mini-pill">
-                  <span className="mini-icon">{h.icon}</span>
-                  <span className="mini-text">{h.title}</span>
-                </div>
-              ))}
-            </div>
           </div>
 
+          {/* Footer of Left Panel */}
           <div className="itmbu-hero-footer">
-            <span>🏛️ "Think Big... Think Beyond" &bull; ITM (sls) Baroda University, Vadodara, Gujarat</span>
+            <span>🏛️ "Think Big... Think Beyond" &bull; Vadodara, Gujarat</span>
           </div>
 
         </div>
 
-        {/* RIGHT COLUMN: OFFICIAL ITMBU AUTH FORM PANEL */}
+        {/* ========================================================= */}
+        {/* RIGHT COLUMN: OFFICIAL AUTHENTICATION FORM                */}
+        {/* ========================================================= */}
         <div className="itmbu-right-form-panel">
           
           {/* Header Brand */}
-          <div className="itmbu-inst-brand-header">
-            <div className="itmbu-logo-badge-container">
-              {userRoleCategory === 'CERTIFIER' ? (
-                <div className="club-official-offer-brand" style={{ borderColor: '#10b981' }}>
-                  <div className="club-logo-pill-box" style={{ background: '#10b981', color: '#042f2e' }}>
-                    <span>📜</span>
-                    <span>CERTIFIER</span>
+          <div className="itmbu-form-brand-header">
+            {userRoleCategory === 'CERTIFIER' ? (
+              <div className="club-official-offer-brand certifier-brand-box">
+                <div className="club-logo-pill-box cert-pill-box">
+                  <span>📜</span>
+                  <span>CERTIFIER</span>
+                </div>
+                <div className="club-offer-brand-divider" style={{ background: '#10b981' }}></div>
+                <div className="club-offer-brand-details">
+                  <div className="club-offer-brand-title" style={{ color: '#10b981' }}>EVENT CERTIFICATE AUTHORITY</div>
+                  <div className="club-offer-brand-sub">Credential Issuance Engine &bull; ITMBU</div>
+                </div>
+              </div>
+            ) : isSuperAdminMode ? (
+              <div className="club-official-offer-brand superadmin-offer-brand">
+                <div className="club-logo-pill-box superadmin-pill-box">
+                  <span className="pill-crown">👑</span>
+                  <span className="pill-superadmin-text">MASTER</span>
+                </div>
+                <div className="club-offer-brand-divider gold-divider"></div>
+                <div className="club-offer-brand-details">
+                  <div className="club-offer-brand-title gold-title">COMMAND CONSOLE</div>
+                  <div className="club-offer-brand-sub">Multi-Chapter Governance Matrix</div>
+                </div>
+              </div>
+            ) : uploadedClubLogo ? (
+              <div className="club-official-offer-brand custom-image-brand">
+                <div className="custom-logo-img-wrapper">
+                  <img src={uploadedClubLogo} alt={`${activeClub.name} Logo`} className="club-offer-custom-logo-img" />
+                </div>
+                <div className="club-offer-brand-divider" style={{ background: activeClub.primaryColor }}></div>
+                <div className="club-offer-brand-details">
+                  <div className="club-offer-brand-title" style={{ color: activeClub.primaryColor }}>
+                    {activeClub.name.toUpperCase()}
                   </div>
-                  <div className="club-offer-brand-divider" style={{ background: '#10b981' }}></div>
-                  <div className="club-offer-brand-details">
-                    <div className="club-offer-brand-title" style={{ color: '#10b981' }}>EVENT CERTIFICATE AUTHORITY</div>
-                    <div className="club-offer-brand-sub">Official Credential Issuance Engine</div>
+                  <div className="club-offer-brand-sub">
+                    Official Offer Letter &amp; Chapter Portal
                   </div>
                 </div>
-              ) : isSuperAdminMode ? (
-                <div className="club-official-offer-brand superadmin-offer-brand">
-                  <div className="club-logo-pill-box superadmin-pill-box">
-                    <span className="pill-crown">👑</span>
-                    <span className="pill-superadmin-text">MASTER</span>
-                  </div>
-                  <div className="club-offer-brand-divider gold-divider"></div>
-                  <div className="club-offer-brand-details">
-                    <div className="club-offer-brand-title gold-title">UNIVERSAL COMMAND CONSOLE</div>
-                    <div className="club-offer-brand-sub">Multi-Chapter Governance Matrix &bull; ITMBU</div>
-                  </div>
+              </div>
+            ) : selectedSection === 'AWS_SBG' ? (
+              <div className="club-official-offer-brand aws-offer-brand">
+                <div className="club-logo-pill-box aws-pill-box">
+                  <span className="pill-aws-icon">☁️</span>
+                  <span className="pill-aws-text">AWS</span>
                 </div>
-              ) : uploadedClubLogo ? (
-                <div className="club-official-offer-brand custom-image-brand">
-                  <div className="custom-logo-img-wrapper">
-                    <img src={uploadedClubLogo} alt={`${activeClub.name} Official Logo`} className="club-offer-custom-logo-img" />
-                  </div>
-                  <div className="club-offer-brand-divider" style={{ background: activeClub.primaryColor }}></div>
-                  <div className="club-offer-brand-details">
-                    <div className="club-offer-brand-title" style={{ color: activeClub.primaryColor }}>
-                      {activeClub.name.toUpperCase()}
-                    </div>
-                    <div className="club-offer-brand-sub">
-                      Official Offer Letter &amp; Chapter Portal
-                    </div>
-                  </div>
+                <div className="club-offer-brand-divider aws-divider"></div>
+                <div className="club-offer-brand-details">
+                  <div className="club-offer-brand-title aws-title">STUDENT BUILDER GROUP</div>
+                  <div className="club-offer-brand-sub">Official AWS Community Chapter &bull; ITMBU</div>
                 </div>
-              ) : selectedSection === 'AWS_SBG' ? (
-                <div className="club-official-offer-brand aws-offer-brand">
-                  <div className="club-logo-pill-box aws-pill-box">
-                    <span className="pill-aws-icon">☁️</span>
-                    <span className="pill-aws-text">AWS</span>
-                  </div>
-                  <div className="club-offer-brand-divider aws-divider"></div>
-                  <div className="club-offer-brand-details">
-                    <div className="club-offer-brand-title aws-title">STUDENT BUILDER GROUP</div>
-                    <div className="club-offer-brand-sub">Official AWS Community Chapter &bull; ITMBU</div>
-                  </div>
+              </div>
+            ) : selectedSection === 'TECHNO_LAB' ? (
+              <div className="club-official-offer-brand techno-offer-brand">
+                <div className="club-logo-pill-box techno-pill-box">
+                  <span className="pill-techno-icon">🔬</span>
+                  <span className="pill-techno-text">TECHNO LAB</span>
                 </div>
-              ) : selectedSection === 'TECHNO_LAB' ? (
-                <div className="club-official-offer-brand techno-offer-brand">
-                  <div className="club-logo-pill-box techno-pill-box">
-                    <span className="pill-techno-icon">🔬</span>
-                    <span className="pill-techno-text">TECHNO LAB</span>
-                  </div>
-                  <div className="club-offer-brand-divider techno-divider"></div>
-                  <div className="club-offer-brand-details">
-                    <div className="club-offer-brand-title techno-title">INNOVATION &amp; ROBOTICS HUB</div>
-                    <div className="club-offer-brand-sub">Techno+Techies Community &bull; ITMBU</div>
-                  </div>
+                <div className="club-offer-brand-divider techno-divider"></div>
+                <div className="club-offer-brand-details">
+                  <div className="club-offer-brand-title techno-title">INNOVATION &amp; ROBOTICS HUB</div>
+                  <div className="club-offer-brand-sub">Techno+Techies Community &bull; ITMBU</div>
                 </div>
-              ) : (
-                <div className="club-official-offer-brand gdgoc-offer-brand">
-                  <div className="club-logo-pill-box gdgoc-pill-box">
-                    <GdgBracketsIcon width={24} height={15} />
-                    <span className="pill-gdg-text">GDG</span>
-                  </div>
-                  <div className="club-offer-brand-divider gdgoc-divider"></div>
-                  <div className="club-offer-brand-details">
-                    <div className="club-offer-brand-title gdgoc-title">
-                      <span style={{ color: '#4285F4' }}>G</span>
-                      <span style={{ color: '#EA4335' }}>o</span>
-                      <span style={{ color: '#FBBC04' }}>o</span>
-                      <span style={{ color: '#4285F4' }}>g</span>
-                      <span style={{ color: '#0F9D58' }}>l</span>
-                      <span style={{ color: '#EA4335' }}>e</span> DEVELOPER GROUPS
-                    </div>
-                    <div className="club-offer-brand-sub">On Campus Student Community &bull; ITMBU</div>
-                  </div>
+              </div>
+            ) : (
+              <div className="club-official-offer-brand gdgoc-offer-brand">
+                <div className="club-logo-pill-box gdgoc-pill-box">
+                  <GdgBracketsIcon width={24} height={15} />
+                  <span className="pill-gdg-text">GDG</span>
                 </div>
-              )}
-            </div>
+                <div className="club-offer-brand-divider gdgoc-divider"></div>
+                <div className="club-offer-brand-details">
+                  <div className="club-offer-brand-title gdgoc-title">
+                    <span style={{ color: '#4285F4' }}>G</span>
+                    <span style={{ color: '#EA4335' }}>o</span>
+                    <span style={{ color: '#FBBC04' }}>o</span>
+                    <span style={{ color: '#4285F4' }}>g</span>
+                    <span style={{ color: '#0F9D58' }}>l</span>
+                    <span style={{ color: '#EA4335' }}>e</span> DEVELOPER GROUPS
+                  </div>
+                  <div className="club-offer-brand-sub">On Campus Student Community &bull; ITMBU</div>
+                </div>
+              </div>
+            )}
           </div>
 
-          {/* Role Category Switcher */}
-          <div className="itmbu-role-radio-strip">
-            <label className={`role-radio-option ${userRoleCategory === 'STAFF' ? 'active-staff' : ''}`}>
-              <input
-                type="radio"
-                name="roleCategory"
-                checked={userRoleCategory === 'STAFF'}
-                onChange={() => handleRoleCategoryChange('STAFF')}
-              />
-              <span className="radio-custom-dot"></span>
-              <span className="role-label-text">Staff / Lead</span>
-            </label>
+          {/* Segmented Role Selector Switch */}
+          <div className="itmbu-segmented-role-bar">
+            <button
+              type="button"
+              className={`role-seg-btn ${userRoleCategory === 'STAFF' ? 'active-staff' : ''}`}
+              onClick={() => handleRoleCategoryChange('STAFF')}
+            >
+              <span className="seg-icon">👔</span>
+              <span>Staff / Lead</span>
+            </button>
 
-            <label className={`role-radio-option ${userRoleCategory === 'CERTIFIER' ? 'active-certifier' : ''}`}>
-              <input
-                type="radio"
-                name="roleCategory"
-                checked={userRoleCategory === 'CERTIFIER'}
-                onChange={() => handleRoleCategoryChange('CERTIFIER')}
-              />
-              <span className="radio-custom-dot"></span>
-              <span className="role-label-text">📜 Certifier</span>
-            </label>
+            <button
+              type="button"
+              className={`role-seg-btn ${userRoleCategory === 'CERTIFIER' ? 'active-certifier' : ''}`}
+              onClick={() => handleRoleCategoryChange('CERTIFIER')}
+            >
+              <span className="seg-icon">📜</span>
+              <span>Certifier</span>
+            </button>
 
-            <label className={`role-radio-option ${userRoleCategory === 'STUDENT' ? 'active-student' : ''}`}>
-              <input
-                type="radio"
-                name="roleCategory"
-                checked={userRoleCategory === 'STUDENT'}
-                onChange={() => handleRoleCategoryChange('STUDENT')}
-              />
-              <span className="radio-custom-dot"></span>
-              <span className="role-label-text">Student</span>
-            </label>
+            <button
+              type="button"
+              className={`role-seg-btn ${userRoleCategory === 'STUDENT' ? 'active-student' : ''}`}
+              onClick={() => handleRoleCategoryChange('STUDENT')}
+            >
+              <span className="seg-icon">🎓</span>
+              <span>Student</span>
+            </button>
 
-            <label className={`role-radio-option ${userRoleCategory === 'SUPER_ADMIN' ? 'active-super' : ''}`}>
-              <input
-                type="radio"
-                name="roleCategory"
-                checked={userRoleCategory === 'SUPER_ADMIN'}
-                onChange={() => handleRoleCategoryChange('SUPER_ADMIN')}
-              />
-              <span className="radio-custom-dot"></span>
-              <span className="role-label-text">👑 Master</span>
-            </label>
+            <button
+              type="button"
+              className={`role-seg-btn ${userRoleCategory === 'SUPER_ADMIN' ? 'active-super' : ''}`}
+              onClick={() => handleRoleCategoryChange('SUPER_ADMIN')}
+            >
+              <span className="seg-icon">👑</span>
+              <span>Master</span>
+            </button>
           </div>
 
-          {/* Chapter Selector */}
+          {/* Chapter Selector Tabs (Only when in Staff / Student mode) */}
           {!isSuperAdminMode && userRoleCategory !== 'CERTIFIER' && (
             <div className="itmbu-chapter-selector-strip">
               <div className="chapter-buttons-row">
@@ -892,9 +998,17 @@ export default function AuthScreen({
                         setErrorMsg('');
                       }}
                       style={{
-                        borderColor: isSelected ? (orgKey === 'GDGOC' ? '#4285F4' : club.primaryColor) : 'rgba(255,255,255,0.1)',
-                        background: isSelected ? (orgKey === 'GDGOC' ? 'rgba(66, 133, 244, 0.22)' : `${club.primaryColor}22`) : 'rgba(15, 23, 42, 0.6)',
-                        color: isSelected ? '#ffffff' : '#94a3b8'
+                        borderColor: isSelected 
+                          ? (orgKey === 'GDGOC' ? '#4285F4' : club.primaryColor) 
+                          : undefined,
+                        background: isSelected 
+                          ? (theme === 'light'
+                              ? (orgKey === 'GDGOC' ? 'rgba(66, 133, 244, 0.12)' : `${club.primaryColor}18`)
+                              : (orgKey === 'GDGOC' ? 'rgba(66, 133, 244, 0.22)' : `${club.primaryColor}22`))
+                          : undefined,
+                        color: isSelected 
+                          ? (theme === 'light' ? (orgKey === 'GDGOC' ? '#1d4ed8' : club.primaryColor) : '#ffffff') 
+                          : undefined
                       }}
                     >
                       <span className="btn-icon">
@@ -920,14 +1034,14 @@ export default function AuthScreen({
               
               <div className="itmbu-field-group">
                 <label className="itmbu-form-label">
-                  <span className="req-star">*</span> Username
+                  <span className="req-star">*</span> Username / Registered Email
                 </label>
                 <div className="itmbu-input-wrapper">
                   <span className="input-glyph">👤</span>
                   <input
                     type="text"
                     className="itmbu-glass-input"
-                    placeholder="Enter username / email"
+                    placeholder="Enter your username or email"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     required
@@ -941,14 +1055,21 @@ export default function AuthScreen({
                   <label className="itmbu-form-label">
                     <span className="req-star">*</span> Password
                   </label>
-                  <span className="info-tooltip-badge" title="Enter password">ℹ️</span>
+                  <label className="checkbox-show-pwd">
+                    <input
+                      type="checkbox"
+                      checked={showPassword}
+                      onChange={(e) => setShowPassword(e.target.checked)}
+                    />
+                    <span>Show Password</span>
+                  </label>
                 </div>
                 <div className="itmbu-input-wrapper">
                   <span className="input-glyph">🔒</span>
                   <input
                     type={showPassword ? 'text' : 'password'}
                     className="itmbu-glass-input"
-                    placeholder="Enter password"
+                    placeholder="Enter your secure password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
@@ -964,40 +1085,31 @@ export default function AuthScreen({
                     {showPassword ? '🙈' : '👁️'}
                   </button>
                 </div>
-
-                <div className="pwd-sub-options-row">
-                  <label className="checkbox-show-pwd">
-                    <input
-                      type="checkbox"
-                      checked={showPassword}
-                      onChange={(e) => setShowPassword(e.target.checked)}
-                    />
-                    <span>Show Password</span>
-                  </label>
-                </div>
               </div>
 
               <div className="itmbu-field-group itmbu-captcha-container">
                 <div className="captcha-top-row">
                   <label className="itmbu-form-label">
-                    <span className="req-star">*</span> Security Captcha <span className="captcha-count-pill">(4 Chars)</span>
+                    <span className="req-star">*</span> Security Captcha <span className="captcha-count-pill">(4 Characters)</span>
                   </label>
                   <div className="captcha-mini-actions">
                     <button
                       type="button"
-                      className={`btn-captcha-mini ${isRefreshingCaptcha ? 'spin-anim' : ''}`}
+                      className="btn-captcha-mini"
                       onClick={refreshCaptcha}
                       title="Refresh Captcha Code"
                     >
-                      🔄
+                      <span className={`captcha-mini-icon ${isRefreshingCaptcha ? 'spin-anim' : ''}`}>🔄</span>
+                      <span>Refresh</span>
                     </button>
                     <button
                       type="button"
                       className="btn-captcha-mini"
                       onClick={playCaptchaAudio}
-                      title="Audio voice assistance"
+                      title="Listen to Audio Code"
                     >
-                      🔊
+                      <span className="captcha-mini-icon">🔊</span>
+                      <span>Voice</span>
                     </button>
                   </div>
                 </div>
@@ -1007,7 +1119,7 @@ export default function AuthScreen({
                     <canvas
                       ref={canvasRef}
                       width={130}
-                      height={40}
+                      height={38}
                       className="captcha-canvas-elem"
                     />
                   </div>
@@ -1015,7 +1127,7 @@ export default function AuthScreen({
                     <input
                       type="text"
                       className="itmbu-glass-input captcha-entry-input"
-                      placeholder="Type 4 chars"
+                      placeholder="ENTER CODE"
                       maxLength={4}
                       value={userCaptchaInput}
                       onChange={(e) => setUserCaptchaInput(e.target.value.toUpperCase())}
@@ -1034,7 +1146,13 @@ export default function AuthScreen({
                   style={{
                     background: userRoleCategory === 'CERTIFIER'
                       ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
-                      : (isSuperAdminMode ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' : undefined)
+                      : (isSuperAdminMode 
+                          ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' 
+                          : (selectedSection === 'TECHNO_LAB'
+                              ? 'linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%)'
+                              : (selectedSection === 'GDGOC'
+                                  ? 'linear-gradient(135deg, #4285f4 0%, #1d4ed8 100%)'
+                                  : 'linear-gradient(135deg, #ff9900 0%, #ff6b00 100%)')))
                   }}
                 >
                   {isSubmitting ? 'Authenticating...' : (userRoleCategory === 'CERTIFIER' ? 'Launch Certificate Studio 📜' : (isSuperAdminMode ? 'Unlock Master Console 👑' : 'Sign In 🚀'))}
@@ -1045,7 +1163,7 @@ export default function AuthScreen({
                 <div className="student-reg-prompt-row">
                   <span>New ITMBU CSE Student?</span>
                   <button type="button" className="btn-inline-reg-link" onClick={toggleAuthMode}>
-                    Create Member Account
+                    Create Member Account &rarr;
                   </button>
                 </div>
               )}
@@ -1155,18 +1273,14 @@ export default function AuthScreen({
           )}
 
           {/* PUBLIC CERTIFICATE LOOKUP WIDGET */}
-          <div style={{
-            background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(15, 23, 42, 0.6) 100%)',
-            border: '1px solid rgba(16, 185, 129, 0.25)',
-            borderRadius: '10px',
-            padding: '8px 12px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-              <span style={{ fontSize: '11px', fontWeight: 800, color: '#34d399', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <span>🔍</span> <span>Verify Student Certificate (Public Lookup)</span>
+          <div className="itmbu-cert-verify-box">
+            <div className="cert-verify-header">
+              <span className="cert-verify-title">
+                <span className="cert-shield-icon">🛡️</span> 
+                <span>Verify Student Certificate</span>
               </span>
-              <span style={{ fontSize: '9px', color: '#10b981', fontWeight: 800, background: 'rgba(16, 185, 129, 0.15)', padding: '2px 5px', borderRadius: '4px' }}>
-                PUBLIC
+              <span className="cert-verify-badge">
+                PUBLIC LOOKUP
               </span>
             </div>
             <form
@@ -1179,45 +1293,26 @@ export default function AuthScreen({
                   onVerifyCertificate('CERT-2026-HACK-001');
                 }
               }}
-              style={{ display: 'flex', gap: '6px' }}
+              className="cert-verify-form"
             >
               <input
                 type="text"
                 value={lookupCertId}
                 onChange={(e) => setLookupCertId(e.target.value)}
-                placeholder="Enter ID (e.g. CERT-2026-HACK-001)..."
-                style={{
-                  flex: 1,
-                  background: '#090e1a',
-                  border: '1px solid #334155',
-                  borderRadius: '6px',
-                  padding: '5px 8px',
-                  color: '#fff',
-                  fontSize: '11.5px',
-                  outline: 'none'
-                }}
+                placeholder="Enter Certificate ID (e.g. CERT-2026-HACK-001)..."
+                className="cert-verify-input"
               />
               <button
                 type="submit"
-                style={{
-                  background: 'linear-gradient(135deg, #10b981, #059669)',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '6px',
-                  padding: '5px 12px',
-                  fontSize: '11.5px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap'
-                }}
+                className="cert-verify-btn"
               >
-                Verify 🛡️
+                Verify ⚡
               </button>
             </form>
           </div>
 
           <div className="itmbu-portal-auth-footer">
-            <span className="foot-text">ITM (sls) Baroda University &bull; Joining Letter Studio &amp; Certificate Authority</span>
+            <span>ITM (sls) Baroda University &bull; Joining Letter Studio &amp; Certificate Authority</span>
           </div>
 
         </div>

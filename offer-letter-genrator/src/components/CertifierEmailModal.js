@@ -158,13 +158,13 @@ export default function CertifierEmailModal({
             </td>
           </tr>
 
-          <!-- Primary Call to Action Button (Certifier.io Standard) -->
+          <!-- Primary Call to Action Button (Direct Offer Letter Verification Link) -->
           <tr>
             <td style="padding: 0 32px 28px 32px; text-align: center;">
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin: 0 auto;">
                 <tr>
                   <td align="center" style="border-radius: 8px; background: linear-gradient(135deg, ${activeClub.primaryColor || '#0284c7'} 0%, #0f172a 100%);">
-                    <a href="mailto:${officialSenderEmail}?subject=Offer%20Letter%20Verification%20Ref%20${encodeURIComponent(refId)}" 
+                    <a href="${typeof window !== 'undefined' ? window.location.origin : ''}/?letter=${encodeURIComponent(refId)}" 
                        target="_blank" 
                        style="display: inline-block; padding: 14px 34px; font-size: 15px; font-weight: 800; color: #ffffff; text-decoration: none; border-radius: 8px; letter-spacing: 0.3px;">
                       📄 View &amp; Confirm Appointment
@@ -206,7 +206,7 @@ export default function CertifierEmailModal({
                 <em>“Think Big... Think Beyond”</em>
               </p>
               <div style="margin-top: 12px; font-size: 10.5px; color: #cbd5e1;">
-                Trio Club Portal • Credential Verification &amp; Appointment Dispatch System
+                The Club Query • Credential Verification &amp; Appointment Dispatch System
               </div>
             </td>
           </tr>

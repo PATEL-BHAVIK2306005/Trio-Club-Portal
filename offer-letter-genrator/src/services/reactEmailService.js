@@ -40,8 +40,75 @@ export function getMasterSmtpConfig() {
   };
 }
 
-export function saveMasterSmtpConfig(cfg) {
-  localStorage.setItem(SMTP_MASTER_CONFIG_KEY, JSON.stringify(cfg));
+export async function saveMasterSmtpConfig(cfg) {
+  try {
+    localStorage.setItem(SMTP_MASTER_CONFIG_KEY, JSON.stringify(cfg));
+  } catch (e) {}
+
+  // Real-time Cloud Synchronization to Supabase
+  try {
+    if (supabase) {
+      await supabase
+        .from('brandings')
+        .upsert({
+          organization: 'GLOBAL_SMTP',
+          config: cfg,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'organization' });
+    }
+  } catch (err) {
+    console.warn('[Supabase SMTP Sync Notice]:', err?.message || err);
+  }
+}
+
+export async function fetchMasterSmtpConfigFromSupabase() {
+  try {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('brandings')
+        .select('*')
+        .eq('organization', 'GLOBAL_SMTP')
+        .single();
+
+      if (!error && data?.config) {
+        const cloudCfg = data.config;
+        const current = getMasterSmtpConfig();
+        const merged = { ...current, ...cloudCfg };
+        localStorage.setItem(SMTP_MASTER_CONFIG_KEY, JSON.stringify(merged));
+        return merged;
+      }
+    }
+  } catch (err) {
+    console.warn('[Supabase SMTP Fetch Notice]:', err?.message || err);
+  }
+  return getMasterSmtpConfig();
+}
+
+export function subscribeToSmtpConfigRealtime(callback) {
+  try {
+    if (!supabase) return null;
+    const channelName = `realtime_smtp_${Date.now()}`;
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'brandings' },
+        (payload) => {
+          if (payload.new && payload.new.organization === 'GLOBAL_SMTP' && payload.new.config) {
+            const newCfg = payload.new.config;
+            const current = getMasterSmtpConfig();
+            const merged = { ...current, ...newCfg };
+            localStorage.setItem(SMTP_MASTER_CONFIG_KEY, JSON.stringify(merged));
+            if (callback) callback(merged);
+          }
+        }
+      )
+      .subscribe();
+    return channel;
+  } catch (err) {
+    console.warn('[Supabase SMTP Realtime Notice]:', err?.message || err);
+    return null;
+  }
 }
 
 export function getEmailConfig() {
@@ -53,9 +120,9 @@ export function getEmailConfig() {
   return master;
 }
 
-export function saveEmailConfig(cfg) {
+export async function saveEmailConfig(cfg) {
   localStorage.setItem(EMAILJS_CONFIG_KEY, JSON.stringify(cfg));
-  saveMasterSmtpConfig({ ...getMasterSmtpConfig(), ...cfg });
+  await saveMasterSmtpConfig({ ...getMasterSmtpConfig(), ...cfg });
 }
 
 /**

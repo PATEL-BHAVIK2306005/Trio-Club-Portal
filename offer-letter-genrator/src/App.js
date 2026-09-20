@@ -16,7 +16,34 @@ import SuperAdminConsole from './components/SuperAdminConsole';
 import CertifierEmailModal from './components/CertifierEmailModal';
 import CertificateStudio from './components/certificates/CertificateStudio';
 import PublicCertificateVerification from './components/certificates/PublicCertificateVerification';
+import PublicOfferLetterVerification from './components/PublicOfferLetterVerification';
 import { INITIAL_EVENT_CERTIFICATES } from './data/certificateData';
+import ExecutiveDashboard from './components/ExecutiveDashboard';
+import QueryManagementModal from './components/QueryManagementModal';
+import UserProfileModal from './components/UserProfileModal';
+import awsChipLogo from './assets/aws_chip_logo.png';
+import {
+  LayoutDashboard,
+  FileText,
+  Award,
+  Users,
+  Palette,
+  Settings,
+  LogOut,
+  Search,
+  Mail,
+  ChevronRight,
+  ChevronDown,
+  RefreshCw,
+  Sun,
+  Moon,
+  Shield,
+  QrCode,
+  MessageSquare,
+  Cloud,
+  Cpu,
+  Globe
+} from 'lucide-react';
 import Swal from 'sweetalert2';
 import {
   fetchSupabaseMembers,
@@ -31,18 +58,91 @@ import {
   subscribeToSupabaseMembers,
   subscribeToSupabaseBranding
 } from './services/supabaseService';
+import {
+  fetchMasterSmtpConfigFromSupabase,
+  subscribeToSmtpConfigRealtime
+} from './services/reactEmailService';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || (window.location.hostname === 'localhost' ? 'http://localhost:5000/api' : '/api');
 
+// Resilient localStorage helper to prevent QuotaExceededError crashes
+const safeLocalStorageSet = (key, value) => {
+  try {
+    localStorage.setItem(key, value);
+  } catch (err) {
+    console.warn(`[Storage Auto-Protect] Quota exceeded on setting ${key}. Auto-healing cache...`, err);
+    try {
+      // Purge any temporary big blobs
+      localStorage.removeItem('user_profile_avatar_raw');
+      localStorage.removeItem('temp_image_cache');
+      
+      // If saving user session, strip oversized avatar string to avoid exceeding quota
+      if (key === 'offer_gen_user') {
+        const parsed = JSON.parse(value);
+        if (parsed && parsed.avatar && parsed.avatar.length > 20000) {
+          delete parsed.avatar;
+        }
+        localStorage.setItem(key, JSON.stringify(parsed));
+        return;
+      }
+      localStorage.setItem(key, value);
+    } catch (finalErr) {
+      console.error('[Storage Error] LocalStorage full. Data state held in memory.', finalErr);
+    }
+  }
+};
+
 function App() {
-  // Navigation View State: 'letter_studio' | 'certificate_studio' | 'team_management' | 'branding'
-  const [currentView, setCurrentView] = useState('letter_studio');
+  // Navigation View State: 'dashboard' | 'letter_studio' | 'certificate_studio' | 'team_management' | 'branding'
+  const [currentView, setCurrentView] = useState('dashboard');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   // Auth state
   const [currentUser, setCurrentUser] = useState(() => {
-    const saved = localStorage.getItem('offer_gen_user');
-    return saved ? JSON.parse(saved) : null;
+    try {
+      const saved = localStorage.getItem('offer_gen_user');
+      const user = saved ? JSON.parse(saved) : null;
+      const customAvatar = localStorage.getItem('user_profile_avatar');
+      if (user && customAvatar) {
+        user.avatar = customAvatar;
+      }
+      return user;
+    } catch (e) {
+      return null;
+    }
   });
+
+  // Profile Modal State & Avatar Handler
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+
+  const handleUpdateAvatar = (newAvatarUrl) => {
+    setCurrentUser(prev => {
+      const updated = { ...(prev || {}), avatar: newAvatarUrl };
+      safeLocalStorageSet('user_profile_avatar', newAvatarUrl || '');
+      try {
+        const saved = localStorage.getItem('offer_gen_user');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          parsed.avatar = newAvatarUrl;
+          safeLocalStorageSet('offer_gen_user', JSON.stringify(parsed));
+        }
+      } catch (err) {}
+      return updated;
+    });
+  };
+
+  // App Theme State (Dark / Light)
+  const [appTheme, setAppTheme] = useState(() => {
+    return localStorage.getItem('itmbu_portal_theme') || localStorage.getItem('itmbu_auth_theme') || 'light';
+  });
+
+  const toggleAppTheme = () => {
+    const nextTheme = appTheme === 'dark' ? 'light' : 'dark';
+    setAppTheme(nextTheme);
+    localStorage.setItem('itmbu_portal_theme', nextTheme);
+    localStorage.setItem('itmbu_auth_theme', nextTheme);
+  };
 
   // Public Certificate Verification State (Triggered by QR Code Scan or Direct Link ?verify=ID)
   const [publicVerifyId, setPublicVerifyId] = useState(() => {
@@ -52,6 +152,19 @@ function App() {
       if (verifyQ) return verifyQ;
       if (window.location.hash.startsWith('#verify/')) {
         return window.location.hash.replace('#verify/', '');
+      }
+    }
+    return null;
+  });
+
+  // Public Offer Letter Verification State (Triggered by email button click or ?letter=REF_ID)
+  const [publicLetterRefId, setPublicLetterRefId] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const letterQ = params.get('letter') || params.get('offer_letter') || params.get('verify_letter');
+      if (letterQ) return letterQ;
+      if (window.location.hash.startsWith('#letter/')) {
+        return window.location.hash.replace('#letter/', '');
       }
     }
     return null;
@@ -229,6 +342,7 @@ function App() {
   const [isCertifierEmailModalOpen, setIsCertifierEmailModalOpen] = useState(false);
   const [promotingMember, setPromotingMember] = useState(null);
   const [isSuperAdminConsoleOpen, setIsSuperAdminConsoleOpen] = useState(false);
+  const [isQueryModalOpen, setIsQueryModalOpen] = useState(false);
   const [batchPrintList, setBatchPrintList] = useState(null);
   const [dbConnected, setDbConnected] = useState(false);
   const [dbProvider, setDbProvider] = useState('Supabase Cloud');
@@ -501,10 +615,16 @@ function App() {
   useEffect(() => {
     let memberSubChannel = null;
     let brandingSubChannel = null;
+    let smtpSubChannel = null;
     let autoSyncInterval = null;
 
     const initData = async () => {
       let loadedFromSupabase = false;
+
+      // Realtime Cloud SMTP Fetch
+      try {
+        await fetchMasterSmtpConfigFromSupabase();
+      } catch (e) {}
 
       // 1. Try Supabase Cloud primary
       try {
@@ -626,6 +746,9 @@ function App() {
       } catch (e) {}
     });
 
+    // SMTP Realtime Channel
+    smtpSubChannel = subscribeToSmtpConfigRealtime();
+
     // 3. Fallback Auto-Sync Poller (every 15s) with Smart Merge
     autoSyncInterval = setInterval(async () => {
       try {
@@ -648,6 +771,9 @@ function App() {
       }
       if (brandingSubChannel && typeof brandingSubChannel.unsubscribe === 'function') {
         brandingSubChannel.unsubscribe();
+      }
+      if (smtpSubChannel && typeof smtpSubChannel.unsubscribe === 'function') {
+        smtpSubChannel.unsubscribe();
       }
       if (autoSyncInterval) {
         clearInterval(autoSyncInterval);
@@ -690,12 +816,14 @@ function App() {
   const handleLogin = (userSession) => {
     setCurrentUser(userSession);
     setActiveOrg(userSession.organization || 'AWS_SBG');
-    localStorage.setItem('offer_gen_user', JSON.stringify(userSession));
+    safeLocalStorageSet('offer_gen_user', JSON.stringify(userSession));
   };
 
   const handleLogout = () => {
     setCurrentUser(null);
-    localStorage.removeItem('offer_gen_user');
+    try {
+      localStorage.removeItem('offer_gen_user');
+    } catch (e) {}
   };
 
   const handleSwitchOrg = (newOrg) => {
@@ -703,14 +831,14 @@ function App() {
     if (currentUser) {
       const updatedUser = { ...currentUser, organization: newOrg };
       setCurrentUser(updatedUser);
-      localStorage.setItem('offer_gen_user', JSON.stringify(updatedUser));
+      safeLocalStorageSet('offer_gen_user', JSON.stringify(updatedUser));
     }
   };
 
   // Save Letterhead Config handler
   const handleSaveLetterConfig = (orgKey = activeOrg) => {
     const configToSave = orgKey === 'AWS_SBG' ? awsLetterConfig : (orgKey === 'TECHNO_LAB' ? technoLetterConfig : gdgocLetterConfig);
-    localStorage.setItem(`letter_config_${orgKey.toLowerCase()}`, JSON.stringify(configToSave));
+    safeLocalStorageSet(`letter_config_${orgKey.toLowerCase()}`, JSON.stringify(configToSave));
     handleSaveBrandingToDatabase(orgKey);
     Swal.fire({
       toast: true,
@@ -862,9 +990,12 @@ function App() {
           title: '100% Synced with Cloud Database!',
           text: `All ${memberCount} roster members and letter configurations are up-to-date.`,
           icon: 'success',
-          background: '#101626',
-          color: '#f8fafc',
-          confirmButtonColor: '#10b981'
+          background: '#ffffff',
+          color: '#0f172a',
+          confirmButtonColor: '#0f172a',
+          customClass: {
+            popup: 'donezo-swal-popup'
+          }
         });
       }
     } catch (err) {
@@ -1348,6 +1479,26 @@ function App() {
     );
   }
 
+  // If Public Offer Letter Verification is requested (via email button click or ?letter=REF_ID)
+  if (publicLetterRefId) {
+    return (
+      <PublicOfferLetterVerification
+        letterRefId={publicLetterRefId}
+        members={members}
+        itmbuLogo={itmbuLogo}
+        awsClubLogo={awsClubLogo}
+        technoClubLogo={technoClubLogo}
+        gdgocClubLogo={gdgocClubLogo}
+        onNavigateHome={() => {
+          setPublicLetterRefId(null);
+          if (typeof window !== 'undefined') {
+            window.history.replaceState(null, '', window.location.pathname);
+          }
+        }}
+      />
+    );
+  }
+
   // If user is not authenticated, show AuthScreen
   if (!currentUser) {
     return (
@@ -1364,138 +1515,497 @@ function App() {
     );
   }
 
-  const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN';
+  const userRole = currentUser?.role || 'ORGANIZER';
+  const isSuperAdmin = userRole === 'SUPER_ADMIN';
+  const isCertifier = userRole === 'CERTIFIER';
+  const isStudent = userRole === 'MEMBER' || userRole === 'STUDENT';
+  const isOrganizer = !isSuperAdmin && !isCertifier && !isStudent;
+
+  const rolePerspectiveBadge = isSuperAdmin 
+    ? { title: 'Super Administrator', icon: null, color: '#f59e0b', tag: 'UNIVERSAL ROOT' }
+    : isCertifier
+    ? { title: 'Certificate Authority', icon: null, color: '#10b981', tag: 'CERTIFIER DESK' }
+    : isStudent
+    ? { title: 'Student Member', icon: null, color: '#38bdf8', tag: 'STUDENT PORTAL' }
+    : { title: 'Chapter Organizer', icon: null, color: '#6366f1', tag: 'CHAPTER LEAD' };
+
   const availableChaptersList = Object.keys(CLUB_CONFIGS).filter(key => visibleChapters[key] !== false);
+  const activeOrgMembersCount = members.filter(m => (m.organization || 'AWS_SBG') === activeOrg).length;
+
+  const filteredSearchMembers = searchQuery.trim()
+    ? members.filter(m => 
+        (m.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (m.role || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (m.position || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (m.department || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (m.letterRefId || '').toLowerCase().includes(searchQuery.toLowerCase())
+      ).slice(0, 6)
+    : [];
 
   return (
-    <div className={`app-root theme-${activeOrg.toLowerCase().replace('_', '-')}`}>
-      
-      {/* Universal Top Header */}
-      <header className={`app-navbar ${isAWS ? 'navbar-aws' : (isTechno ? 'navbar-techno' : 'navbar-gdgoc')} no-print`}>
+    <div className={`app-root theme-${activeOrg.toLowerCase().replace('_', '-')} donezo-theme-root app-theme-${appTheme} role-view-${userRole.toLowerCase()}`} data-theme={appTheme}>
+      <div className="donezo-app-layout">
         
-        {/* Left: Brand Identity */}
-        <div className="nav-brand-section">
-          <div className={`nav-logo-badge ${isAWS ? 'badge-aws-brand' : (isTechno ? 'badge-techno-brand' : 'badge-gdgoc-brand')}`}>
-            {activeClub.shortName || (isAWS ? 'AWS SBG' : (isTechno ? 'Techno Lab' : 'GDGoC'))}
-          </div>
-          <div className="brand-text-col">
-            <h1 className="nav-main-title">
-              {activeClub.name}
-            </h1>
-            <span className="nav-sub-title">
-              ITM (sls) BARODA UNIVERSITY &bull; Joining Letter &amp; Certificate Authority
-            </span>
-          </div>
-        </div>
-
-        {/* Center: Main View Navigation */}
-        <div className="nav-view-switcher">
-          <button
-            className={`btn-view-tab ${currentView === 'letter_studio' ? 'active' : ''}`}
-            onClick={() => setCurrentView('letter_studio')}
-          >
-            <span className="tab-icon">📄</span>
-            <span className="tab-text">Letter Studio</span>
-          </button>
-
-          <button
-            className={`btn-view-tab ${currentView === 'certificate_studio' ? 'active' : ''}`}
-            onClick={() => setCurrentView('certificate_studio')}
-          >
-            <span className="tab-icon">📜</span>
-            <span className="tab-text">Certificate Studio</span>
-          </button>
-
-          <button
-            className={`btn-view-tab ${currentView === 'team_management' ? 'active' : ''}`}
-            onClick={() => setCurrentView('team_management')}
-          >
-            <span className="tab-icon">👥</span>
-            <span className="tab-text">Team Management</span>
-          </button>
-
-          <button
-            className={`btn-view-tab ${currentView === 'branding' ? 'active' : ''}`}
-            onClick={() => setCurrentView('branding')}
-          >
-            <span className="tab-icon">🎨</span>
-            <span className="tab-text">Logos &amp; University Branding</span>
-          </button>
-        </div>
-
-        {/* Right: Chapter Switcher + User Chip + Logout */}
-        <div className="nav-right-controls">
+        {/* LEFT SIDEBAR NAVIGATION */}
+        <aside className="donezo-sidebar no-print">
           
-          {/* Trio Club Switcher for Super Admin */}
-          {isSuperAdmin ? (
-            <div className="top-org-slider-pill" style={{ display: 'flex', gap: '4px', background: '#0a0f1d', padding: '4px', borderRadius: '12px', border: '1px solid #1e293b' }}>
-              {availableChaptersList.map(orgKey => {
-                const club = CLUB_CONFIGS[orgKey];
-                const isActive = activeOrg === orgKey;
-                return (
-                  <button
-                    key={orgKey}
-                    className={`top-slider-btn ${isActive ? 'active-' + orgKey.toLowerCase().replace('_', '-') : ''}`}
-                    onClick={() => handleSwitchOrg(orgKey)}
-                    title={`Switch to ${club.name}`}
-                    style={{
-                      padding: '6px 12px',
-                      borderRadius: '8px',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      border: isActive ? `1px solid ${club.primaryColor}` : '1px solid transparent',
-                      background: isActive ? 'rgba(255,255,255,0.1)' : 'transparent',
-                      color: isActive ? '#ffffff' : '#94a3b8'
-                    }}
-                  >
-                    {orgKey === 'AWS_SBG' ? '☁️ AWS SBG' : (orgKey === 'TECHNO_LAB' ? '🔬 Techno Lab' : '🌐 GDGoC')}
-                  </button>
-                );
-              })}
+          {/* Logo Brand Header */}
+          <div className="donezo-sidebar-brand" onClick={() => setCurrentView('dashboard')}>
+            <div className="donezo-brand-icon">
+              {activeOrg === 'AWS_SBG' ? (
+                <img src={awsChipLogo} alt="AWS Builder Official" className="brand-official-logo-img" />
+              ) : activeClubLogo ? (
+                <img src={activeClubLogo} alt={activeClub.name} className="brand-official-logo-img" />
+              ) : itmbuLogo ? (
+                <img src={itmbuLogo} alt="ITMBU Logo" className="brand-official-logo-img" />
+              ) : (
+                <div className="brand-leaf-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {activeOrg === 'TECHNO_LAB' ? <Cpu size={18} /> : <Globe size={18} />}
+                </div>
+              )}
             </div>
-          ) : (
-            <div className={`admin-org-indicator ${isAWS ? 'chip-aws' : (isTechno ? 'chip-techno' : 'chip-gdgoc')}`}>
-              {activeClub.shortName} Portal
+            <div className="donezo-brand-text-block">
+              <span className="donezo-brand-name">Campus Core Link Club</span>
+              <span className="donezo-brand-sub" style={{ color: activeOrg === 'AWS_SBG' ? '#f59e0b' : (activeOrg === 'TECHNO_LAB' ? '#6366f1' : '#4285f4') }}>
+                ITM (sls) BARODA UNIVERSITY
+              </span>
             </div>
-          )}
-
-          {/* Database Live Realtime Status Indicator */}
-          <div
-            className={`db-status-badge ${dbConnected ? 'connected' : 'offline'}`}
-            onClick={() => handleSyncDatabase(false)}
-            style={{ cursor: 'pointer' }}
-            title={dbConnected 
-              ? `⚡ Realtime Live Sync Active (${dbProvider}) - Click to refresh` 
-              : 'Offline Cache Mode - Click to connect to Cloud Database'}
-          >
-            <span className="status-dot"></span>
-            <span>{isSavingToDb ? '⏳ Syncing...' : (dbConnected ? `⚡ ${dbProvider} (Live)` : 'Sync Offline')}</span>
           </div>
 
-          {/* User Profile Badge */}
+          {/* Single Active Chapter Display (Only 1 active chapter shown) */}
+          <div className="sidebar-chapter-switcher-box">
+            <div className="sidebar-switcher-header-row">
+              <span className="sidebar-switcher-label">ACTIVE CHAPTER</span>
+              <span className="sidebar-role-tag-pill" style={{ color: rolePerspectiveBadge.color, borderColor: rolePerspectiveBadge.color }}>
+                {rolePerspectiveBadge.tag}
+              </span>
+            </div>
+            <div className="sidebar-single-active-chapter-row">
+              <div className={`sidebar-chapter-chip active-single active-${activeOrg.toLowerCase().replace('_', '-')}`}>
+                <span className="chip-icon" style={{ display: 'inline-flex', alignItems: 'center' }}>
+                  {activeOrg === 'AWS_SBG' ? (
+                    <img src={awsChipLogo} alt="AWS" style={{ width: '18px', height: '18px', objectFit: 'contain', borderRadius: '4px' }} />
+                  ) : (activeOrg === 'TECHNO_LAB' ? <Cpu size={16} /> : <Globe size={16} />)}
+                </span>
+                <span className="chip-name">{activeClub.shortName}</span>
+                <span className="active-dot"></span>
+              </div>
+              {availableChaptersList.length > 1 && (
+                <button
+                  type="button"
+                  className="sidebar-chapter-switch-trigger"
+                  onClick={() => {
+                    const currentIndex = availableChaptersList.indexOf(activeOrg);
+                    const nextIndex = (currentIndex + 1) % availableChaptersList.length;
+                    handleSwitchOrg(availableChaptersList[nextIndex]);
+                  }}
+                  title="Switch to next active chapter"
+                >
+                  <span className="switch-icon">⇄</span>
+                  <span className="switch-label">Switch</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Nav Section: MAIN MENU */}
+          <div className="sidebar-section-group">
+            <span className="sidebar-group-title">
+              {isStudent ? 'STUDENT SERVICES' : (isCertifier ? 'CERTIFICATION DESK' : 'MAIN MENU')}
+            </span>
+            
+            <nav className="sidebar-nav-list">
+              {/* Dashboard */}
+              <button
+                className={`sidebar-nav-item ${currentView === 'dashboard' ? 'active' : ''}`}
+                onClick={() => setCurrentView('dashboard')}
+              >
+                <div className="nav-item-content">
+                  <LayoutDashboard size={18} className="nav-icon" />
+                  <span className="nav-label">{isStudent ? 'My Overview' : 'Dashboard'}</span>
+                </div>
+              </button>
+
+              {/* Tasks / Letter Studio / My Letter */}
+              <button
+                className={`sidebar-nav-item ${currentView === 'letter_studio' ? 'active' : ''}`}
+                onClick={() => setCurrentView('letter_studio')}
+              >
+                <div className="nav-item-content">
+                  <FileText size={18} className="nav-icon" />
+                  <span className="nav-label">{isStudent ? 'My Offer Letter' : (isCertifier ? 'Letters Registry' : 'Letter Studio')}</span>
+                </div>
+                <span className="nav-counter-badge">{isStudent ? 'Official' : `${activeOrgMembersCount || 12}+`}</span>
+              </button>
+
+              {/* Certificate Studio / My Certificates */}
+              <button
+                className={`sidebar-nav-item ${currentView === 'certificate_studio' ? 'active' : ''}`}
+                onClick={() => setCurrentView('certificate_studio')}
+              >
+                <div className="nav-item-content">
+                  <Award size={18} className="nav-icon" />
+                  <span className="nav-label">{isStudent ? 'My Certificates' : (isCertifier ? 'Issue & Verify' : 'Certificates')}</span>
+                </div>
+                <span className="nav-counter-badge badge-soft">{certificates.length || 6}</span>
+              </button>
+
+              {/* Team Management / Directory */}
+              <button
+                className={`sidebar-nav-item ${currentView === 'team_management' ? 'active' : ''}`}
+                onClick={() => setCurrentView('team_management')}
+              >
+                <div className="nav-item-content">
+                  <Users size={18} className="nav-icon" />
+                  <span className="nav-label">{isStudent ? 'Campus Directory' : 'Team Roster'}</span>
+                </div>
+              </button>
+
+              {/* Branding Settings (Admin & Organizer only) */}
+              {(isSuperAdmin || isOrganizer) && (
+                <button
+                  className={`sidebar-nav-item ${currentView === 'branding' ? 'active' : ''}`}
+                  onClick={() => setCurrentView('branding')}
+                >
+                  <div className="nav-item-content">
+                    <Palette size={18} className="nav-icon" />
+                    <span className="nav-label">Branding</span>
+                  </div>
+                </button>
+              )}
+
+              {/* Club Queries & Live Discussion Hub */}
+              <button
+                className="sidebar-nav-item"
+                onClick={() => setIsQueryModalOpen(true)}
+                title="Open Club Queries & Helpdesk Discussions"
+                id="sidebar-project-queries-btn"
+              >
+                <div className="nav-item-content">
+                  <MessageSquare size={18} className="nav-icon" style={{ color: '#ff9900' }} />
+                  <span className="nav-label" style={{ fontWeight: 600 }}>Club Queries</span>
+                </div>
+                <span className="nav-counter-badge" style={{ background: '#f59e0b', color: '#ffffff', fontWeight: 700, fontSize: '10.5px' }}>
+                  On Discuss
+                </span>
+              </button>
+            </nav>
+          </div>
+
+          {/* Nav Section: GENERAL / ROLE CONTROLS */}
+          <div className="sidebar-section-group">
+            <span className="sidebar-group-title">
+              {isSuperAdmin ? 'ADMINISTRATION' : (isCertifier ? 'DISPATCH TOOLS' : (isStudent ? 'VERIFICATION' : 'GENERAL'))}
+            </span>
+            
+            <nav className="sidebar-nav-list">
+              {/* Settings / Super Admin Console / Certifier Hub / Verify QR */}
+              {isSuperAdmin ? (
+                <button
+                  className="sidebar-nav-item"
+                  onClick={() => setIsSuperAdminConsoleOpen(true)}
+                  title="Open Universal Super Admin Console"
+                >
+                  <div className="nav-item-content">
+                    <Shield size={18} className="nav-icon" style={{ color: '#f59e0b' }} />
+                    <span className="nav-label" style={{ fontWeight: 700, color: '#f59e0b' }}>Super Admin</span>
+                  </div>
+                  <span className="nav-counter-badge" style={{ background: '#f59e0b', color: '#ffffff' }}>Root</span>
+                </button>
+              ) : isCertifier ? (
+                <button
+                  className="sidebar-nav-item"
+                  onClick={() => setIsCertifierEmailModalOpen(true)}
+                  title="Open Email Dispatch & Certifier Verification Modal"
+                >
+                  <div className="nav-item-content">
+                    <Mail size={18} className="nav-icon" style={{ color: '#10b981' }} />
+                    <span className="nav-label" style={{ fontWeight: 700, color: '#10b981' }}>Email Dispatch</span>
+                  </div>
+                </button>
+              ) : isStudent ? (
+                <button
+                  className="sidebar-nav-item"
+                  onClick={() => {
+                    setPublicVerifyId('DEMO-VERIFY');
+                    if (typeof window !== 'undefined') window.history.pushState(null, '', `?verify=DEMO-VERIFY`);
+                  }}
+                  title="Public Certificate Verification Hub"
+                >
+                  <div className="nav-item-content">
+                    <QrCode size={18} className="nav-icon" style={{ color: '#38bdf8' }} />
+                    <span className="nav-label">Verify QR Credential</span>
+                  </div>
+                </button>
+              ) : (
+                <button
+                  className="sidebar-nav-item"
+                  onClick={() => setCurrentView('branding')}
+                  title="Chapter Settings & Signatures"
+                >
+                  <div className="nav-item-content">
+                    <Settings size={18} className="nav-icon" />
+                    <span className="nav-label">Chapter Settings</span>
+                  </div>
+                </button>
+              )}
+
+              {/* Realtime DB Sync (For Admins and Organizers) */}
+              {!isStudent && (
+                <button
+                  className="sidebar-nav-item"
+                  onClick={() => handleSyncDatabase(false)}
+                  title="Sync database realtime"
+                >
+                  <div className="nav-item-content">
+                    <RefreshCw size={18} className={`nav-icon ${isSavingToDb ? 'spin-anim' : ''}`} />
+                    <span className="nav-label">Sync Cloud DB</span>
+                  </div>
+                  <span className={`status-dot-mini ${dbConnected ? 'dot-green' : 'dot-red'}`}></span>
+                </button>
+              )}
+
+              {/* Logout */}
+              <button
+                className="sidebar-nav-item item-logout"
+                onClick={handleLogout}
+              >
+                <div className="nav-item-content">
+                  <LogOut size={18} className="nav-icon" />
+                  <span className="nav-label">Logout</span>
+                </div>
+              </button>
+            </nav>
+          </div>
+
+          {/* User Profile Card (Clickable & Role Perspective Adapted) */}
           <div 
-            className={`user-badge-chip ${isSuperAdmin ? 'chip-super' : 'chip-admin'}`}
-            onClick={() => isSuperAdmin && setIsSuperAdminConsoleOpen(true)}
-            style={{ cursor: isSuperAdmin ? 'pointer' : 'default' }}
-            title={isSuperAdmin ? 'Click to open Super Administrator Universal Control Center' : 'Current User Profile'}
+            className="donezo-sidebar-user-card clickable-admin-card" 
+            onClick={() => {
+              if (isSuperAdmin) setIsSuperAdminConsoleOpen(true);
+              else if (isCertifier) setIsCertifierEmailModalOpen(true);
+              else if (isStudent) setCurrentView('letter_studio');
+              else setCurrentView('branding');
+            }}
+            title={`Active Role: ${rolePerspectiveBadge.title} • Click to open role dashboard`}
+            id="sidebar-user-admin-card"
           >
-            <span className="chip-avatar">{isSuperAdmin ? '👑' : '🛡️'}</span>
-            <span className="chip-name">{currentUser.displayName || currentUser.username}</span>
-            {isSuperAdmin && <span className="chip-settings-indicator">⚙️</span>}
+            <div className="sidebar-user-avatar">
+              <img 
+                src={currentUser?.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(currentUser?.displayName || currentUser?.username || 'User')}`} 
+                alt="User" 
+              />
+              <span className="sidebar-avatar-admin-badge" style={{ background: rolePerspectiveBadge.color }}>
+                {rolePerspectiveBadge.icon}
+              </span>
+            </div>
+            <div className="sidebar-user-info">
+              <span className="sidebar-user-name">
+                {currentUser?.displayName || currentUser?.username || 'Bhavikkumar Patel'}
+              </span>
+              <span className="sidebar-user-role" style={{ color: rolePerspectiveBadge.color }}>
+                {rolePerspectiveBadge.title}
+              </span>
+            </div>
+            <div className="sidebar-user-card-action" title="Open Role Hub">
+              {isSuperAdmin ? <Shield size={16} className="sidebar-admin-icon" /> : <ChevronRight size={16} />}
+            </div>
           </div>
 
-          {/* Logout Button */}
-          <button className="btn-logout" onClick={handleLogout} title="Sign Out">
-            🚪 Logout
-          </button>
-        </div>
+        </aside>
 
-      </header>
+        {/* RIGHT MAIN CONTENT CONTAINER */}
+        <div className="donezo-main-column">
+          
+          {/* TOP ULTRA-CLEAN GLASS HEADER */}
+          <header className="donezo-top-header no-print">
+            
+            {/* Search Bar with Shortcut ⌘F */}
+            <div className="donezo-header-search-wrapper">
+              <Search size={17} className="header-search-icon" />
+              <input
+                type="text"
+                className="donezo-header-search-input"
+                placeholder="Search task, member, or letter..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => setIsSearchFocused(true)}
+                onBlur={() => setTimeout(() => setIsSearchFocused(false), 250)}
+              />
+              <span className="header-search-badge">⌘F</span>
 
-      {/* VIEW 1: LETTER STUDIO VIEW */}
-      {currentView === 'letter_studio' && (
-        <main className="main-content-layout no-print">
+              {/* Quick Search Results Dropdown */}
+              {isSearchFocused && searchQuery.trim() && (
+                <div className="search-results-floating-dropdown">
+                  <div className="search-dropdown-header">
+                    <span>Search Results ({filteredSearchMembers.length})</span>
+                  </div>
+                  {filteredSearchMembers.length > 0 ? (
+                    filteredSearchMembers.map((m) => (
+                      <div
+                        key={m._id || m.id || m.name}
+                        className="search-result-item"
+                        onMouseDown={() => {
+                          setSelectedMember(m);
+                          if (m.organization) setActiveOrg(m.organization);
+                          setCurrentView('letter_studio');
+                        }}
+                      >
+                        <div className="search-item-avatar">
+                          {m.name.charAt(0)}
+                        </div>
+                        <div className="search-item-info">
+                          <span className="search-name">{m.name}</span>
+                          <span className="search-sub">{m.position} • {m.department} ({m.organization || activeOrg})</span>
+                        </div>
+                        <ChevronRight size={14} className="search-arrow" />
+                      </div>
+                    ))
+                  ) : (
+                    <div className="search-empty-state">No members or tasks found</div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Header Right Actions */}
+            <div className="donezo-header-actions">
+              
+              {/* Dark / Light Theme Toggle Button */}
+              <button
+                className="header-circle-action-btn theme-toggle-btn"
+                onClick={toggleAppTheme}
+                title={`Switch to ${appTheme === 'dark' ? 'Light' : 'Dark'} Mode`}
+                id="header-theme-toggle-btn"
+              >
+                {appTheme === 'dark' ? (
+                  <Sun size={18} className="theme-icon-sun" />
+                ) : (
+                  <Moon size={18} className="theme-icon-moon" />
+                )}
+              </button>
+
+              {/* Role-Specific Hub / Action Button */}
+              {isSuperAdmin ? (
+                <button
+                  className="header-circle-action-btn header-admin-action-btn"
+                  onClick={() => setIsSuperAdminConsoleOpen(true)}
+                  title="Super Admin Universal Control Center & Settings"
+                  id="header-admin-console-btn"
+                >
+                  <Shield size={18} className="header-admin-shield-icon" />
+                  <span className="admin-status-dot"></span>
+                </button>
+              ) : isCertifier ? (
+                <button
+                  className="header-circle-action-btn header-certifier-action-btn"
+                  onClick={() => setIsCertifierEmailModalOpen(true)}
+                  title="Certificate Dispatch & Verification Desk"
+                  id="header-certifier-hub-btn"
+                >
+                  <Award size={18} style={{ color: '#10b981' }} />
+                </button>
+              ) : isStudent ? (
+                <button
+                  className="header-circle-action-btn header-student-action-btn"
+                  onClick={() => setCurrentView('letter_studio')}
+                  title="View & Download My Offer Letter"
+                  id="header-student-letter-btn"
+                >
+                  <FileText size={18} style={{ color: '#38bdf8' }} />
+                </button>
+              ) : (
+                <button
+                  className="header-circle-action-btn"
+                  onClick={() => setCurrentView('branding')}
+                  title="Chapter Configuration & Branding"
+                  id="header-chapter-config-btn"
+                >
+                  <Settings size={18} style={{ color: '#6366f1' }} />
+                </button>
+              )}
+
+              {/* Mail / Email Logs Action (Admin / Certifier / Staff) or QR Verify (Student) */}
+              {isStudent ? (
+                <button
+                  className="header-circle-action-btn"
+                  onClick={() => {
+                    setPublicVerifyId('DEMO-VERIFY');
+                    if (typeof window !== 'undefined') window.history.pushState(null, '', `?verify=DEMO-VERIFY`);
+                  }}
+                  title="Verify Certificate Credential"
+                >
+                  <QrCode size={17} />
+                </button>
+              ) : (
+                <button
+                  className="header-circle-action-btn"
+                  onClick={() => setIsCertifierEmailModalOpen(true)}
+                  title="Email Dispatch & Verification Modal"
+                >
+                  <Mail size={17} />
+                </button>
+              )}
+
+              {/* Compact User Profile Trigger: ONLY Icon and Drop Down arrow */}
+              <button 
+                type="button"
+                className="header-user-profile-trigger" 
+                onClick={() => setIsProfileModalOpen(true)}
+                title={`Executive Profile & Account (${rolePerspectiveBadge.title})`}
+                id="header-user-profile-btn"
+              >
+                <div className="header-avatar-circle" style={{ borderColor: rolePerspectiveBadge.color }}>
+                  {currentUser?.avatar ? (
+                    <img 
+                      src={currentUser.avatar} 
+                      alt="User" 
+                      className="header-avatar-img"
+                    />
+                  ) : (
+                    <img 
+                      src={`https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(currentUser?.displayName || currentUser?.username || 'User')}`} 
+                      alt="User" 
+                      className="header-avatar-img"
+                    />
+                  )}
+                  <span className="header-avatar-online-dot" style={{ background: rolePerspectiveBadge.color }} />
+                </div>
+                <ChevronDown size={14} className="header-profile-chevron" />
+              </button>
+
+            </div>
+
+          </header>
+
+          {/* VIEW RENDERERS CONTAINER */}
+          <div className="donezo-view-content-area">
+
+            {/* VIEW 0: DONEZO EXECUTIVE DASHBOARD */}
+            {currentView === 'dashboard' && (
+              <ExecutiveDashboard
+                members={members}
+                activeOrg={activeOrg}
+                clubConfig={activeClub}
+                certificates={certificates}
+                currentUser={currentUser}
+                onNavigateView={setCurrentView}
+                onSelectMemberForLetter={(member) => {
+                  setSelectedMember(member);
+                  setCurrentView('letter_studio');
+                }}
+                onOpenAddMember={() => setIsAddModalOpen(true)}
+                onOpenBatchModal={() => setIsBatchModalOpen(true)}
+                onOpenEmailModal={() => setIsCertifierEmailModalOpen(true)}
+                onOpenQueryModal={() => setIsQueryModalOpen(true)}
+                dbConnected={dbConnected}
+                lastSyncTime={lastSyncTime}
+              />
+            )}
+
+            {/* VIEW 1: LETTER STUDIO VIEW */}
+            {currentView === 'letter_studio' && (
+              <main className="main-content-layout no-print">
           
           {/* Left Column: Team Roster Selector */}
           <aside className="roster-column">
@@ -1705,6 +2215,10 @@ function App() {
         </main>
       )}
 
+          </div>
+        </div>
+      </div>
+
       {/* MODALS */}
       <AddMemberModal
         isOpen={isAddModalOpen}
@@ -1802,6 +2316,33 @@ function App() {
           if (isAWS) setAwsLetterConfig(prev => ({ ...prev, memberEmail: newEmail }));
           else if (isTechno) setTechnoLetterConfig(prev => ({ ...prev, memberEmail: newEmail }));
           else setGdgocLetterConfig(prev => ({ ...prev, memberEmail: newEmail }));
+        }}
+      />
+
+      {/* REALTIME SUPABASE QUERY & PROJECT DISCUSSION MODAL */}
+      <QueryManagementModal
+        isOpen={isQueryModalOpen}
+        onClose={() => setIsQueryModalOpen(false)}
+        currentUser={currentUser}
+        activeOrg={activeOrg}
+        theme={appTheme}
+      />
+
+      {/* EXECUTIVE USER PROFILE & PHOTO UPLOAD MODAL */}
+      <UserProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        currentUser={currentUser}
+        onUpdateAvatar={handleUpdateAvatar}
+        userRole={userRole}
+        activeOrg={activeOrg}
+        clubConfig={activeClub}
+        appTheme={appTheme}
+        onToggleTheme={toggleAppTheme}
+        onLogout={handleLogout}
+        onNavigateView={(view) => {
+          setCurrentView(view);
+          setIsProfileModalOpen(false);
         }}
       />
 

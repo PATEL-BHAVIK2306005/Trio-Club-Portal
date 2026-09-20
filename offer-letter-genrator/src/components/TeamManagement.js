@@ -1,6 +1,25 @@
 import React, { useState } from 'react';
 import { CLUB_CONFIGS } from '../data/teamData';
 import ManageDepartmentsModal from './ManageDepartmentsModal';
+import {
+  Search,
+  Plus,
+  Download,
+  RefreshCw,
+  Trash2,
+  Edit,
+  Star,
+  FileText,
+  LayoutGrid,
+  Table as TableIcon,
+  Building,
+  Users,
+  Layers,
+  Sparkles,
+  UploadCloud,
+  CheckSquare
+} from 'lucide-react';
+import Swal from 'sweetalert2';
 
 export const OFFICIAL_ROLES = [
   'Organizer',
@@ -100,83 +119,160 @@ export default function TeamManagement({
     });
   };
 
-  // Select / Deselect All Filtered Members
+  // Toggle Select All Visible Members
   const handleSelectAll = () => {
-    const allFilteredIds = filteredMembers.map(m => m._id || m.name);
-    const isAllSelected = allFilteredIds.length > 0 && allFilteredIds.every(id => selectedIds.includes(id));
-    if (isAllSelected) {
-      setSelectedIds(prev => prev.filter(id => !allFilteredIds.includes(id)));
+    if (selectedIds.length === filteredMembers.length) {
+      setSelectedIds([]);
     } else {
-      setSelectedIds(prev => Array.from(new Set([...prev, ...allFilteredIds])));
+      setSelectedIds(filteredMembers.map(m => m._id || m.name));
     }
   };
 
-  // Smart Find & Select Duplicate Records
+  // Export Selected or All Members to CSV
+  const handleExportCSV = () => {
+    const dataToExport = selectedIds.length > 0
+      ? orgMembers.filter(m => selectedIds.includes(m._id || m.name))
+      : filteredMembers;
+
+    if (dataToExport.length === 0) {
+      Swal.fire({
+        icon: 'info',
+        title: 'No Members to Export',
+        text: 'Select members or filter to export data.',
+        confirmButtonColor: '#ff9900'
+      });
+      return;
+    }
+
+    const headers = ['Name', 'Role / Position', 'Department', 'Branch', 'Semester', 'Letter Ref ID', 'Email', 'Role Type'];
+    const csvRows = [
+      headers.join(','),
+      ...dataToExport.map(m => [
+        `"${m.name || ''}"`,
+        `"${m.designation || ''}"`,
+        `"${m.department || ''}"`,
+        `"${m.branch || ''}"`,
+        `"${m.semester || ''}"`,
+        `"${m.letterRefId || ''}"`,
+        `"${m.email || ''}"`,
+        `"${m.roleType || 'Core Team Member'}"`
+      ].join(','))
+    ];
+
+    const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `${activeOrg}_Team_Roster_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    Swal.fire({
+      icon: 'success',
+      title: 'CSV Exported Successfully!',
+      text: `Exported ${dataToExport.length} members to CSV.`,
+      timer: 2000,
+      showConfirmButton: false
+    });
+  };
+
+  // Bulk Delete Selected Members
+  const handleBulkDelete = () => {
+    if (selectedIds.length === 0) return;
+
+    Swal.fire({
+      title: `Delete ${selectedIds.length} Members?`,
+      text: "This action cannot be undone. Selected members will be removed from this chapter's database.",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: `Yes, Delete ${selectedIds.length} Members`,
+      cancelButtonText: 'Cancel'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        if (onBulkDeleteMembers) {
+          onBulkDeleteMembers(selectedIds);
+        } else {
+          selectedIds.forEach(id => onDeleteMember(id));
+        }
+        setSelectedIds([]);
+        Swal.fire({
+          icon: 'success',
+          title: 'Deleted!',
+          text: `Successfully deleted ${selectedIds.length} members.`,
+          timer: 2000,
+          showConfirmButton: false
+        });
+      }
+    });
+  };
+
+  // Bulk Letter Generation
+  const handleBulkGenerateLetters = () => {
+    const selectedMembersList = orgMembers.filter(m => selectedIds.includes(m._id || m.name));
+    if (selectedMembersList.length === 0) {
+      Swal.fire({
+        icon: 'info',
+        title: 'No Members Selected',
+        text: 'Please select members to generate offer letters in batch.',
+        confirmButtonColor: '#ff9900'
+      });
+      return;
+    }
+    if (onOpenBatchModal) {
+      onOpenBatchModal(selectedMembersList);
+    }
+  };
+
+  // Duplicate Cleaner & Auto Detector
   const handleSelectDuplicates = () => {
     const nameCounts = {};
     orgMembers.forEach(m => {
-      nameCounts[m.name] = (nameCounts[m.name] || 0) + 1;
+      const clean = m.name.toLowerCase().trim();
+      nameCounts[clean] = (nameCounts[clean] || 0) + 1;
     });
 
     const duplicateIds = [];
-    const seenNames = new Set();
-
+    const seen = new Set();
     orgMembers.forEach(m => {
-      if (nameCounts[m.name] > 1) {
-        if (seenNames.has(m.name)) {
-          // It's a duplicate instance -> mark for deletion
+      const clean = m.name.toLowerCase().trim();
+      if (nameCounts[clean] > 1) {
+        if (seen.has(clean)) {
           duplicateIds.push(m._id || m.name);
         } else {
-          seenNames.add(m.name);
+          seen.add(clean);
         }
       }
     });
 
-    if (duplicateIds.length > 0) {
-      setSelectedIds(duplicateIds);
+    if (duplicateIds.length === 0) {
+      Swal.fire({
+        icon: 'success',
+        title: 'Clean Roster!',
+        text: 'No duplicate member entries found in this chapter.',
+        timer: 2200,
+        showConfirmButton: false
+      });
     } else {
-      alert('No duplicate members found in current club roster!');
+      setSelectedIds(duplicateIds);
+      Swal.fire({
+        icon: 'warning',
+        title: `${duplicateIds.length} Duplicates Selected`,
+        text: 'Duplicate member entries have been auto-checked for quick review or deletion.',
+        confirmButtonColor: '#ef4444',
+        confirmButtonText: 'Review Selection'
+      });
     }
   };
 
-  // Trigger Bulk Delete
-  const handleExecuteBulkDelete = () => {
-    if (selectedIds.length === 0) return;
-    if (onBulkDeleteMembers) {
-      onBulkDeleteMembers(selectedIds);
-      setSelectedIds([]);
-    }
-  };
-
-  // Export Roster to CSV
-  const handleExportCSV = () => {
-    const headers = ['Ref ID', 'Name', 'Department', 'Role Type', 'Designation', 'Co-Lead', 'Semester', 'Branch', 'Status'];
-    const rows = filteredMembers.map(m => [
-      `"${m.letterRefId || ''}"`,
-      `"${m.name || ''}"`,
-      `"${m.department || ''}"`,
-      `"${m.roleType || ''}"`,
-      `"${m.designation || ''}"`,
-      `"${m.isCoLead ? 'Yes' : 'No'}"`,
-      `"${m.semester || ''}"`,
-      `"${m.branch || ''}"`,
-      `"${m.status || 'Active'}"`
-    ]);
-
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `${activeClub.shortName}_Roster_Export_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
+  // Department color palette generator
   const getDeptColor = (dept) => {
     switch (dept) {
-      case 'Executive Leadership':
-      case 'Core Leadership': return isAWS ? '#ff9900' : '#00d2ff';
+      case 'Core Leadership':
+      case 'Executive Board':
+      case 'Executive Leadership': return '#ff9900';
       case 'Event Management':
       case 'Outreach & Event Operations': return '#10b981';
       case 'Technical Team':
@@ -204,8 +300,10 @@ export default function TeamManagement({
       {/* 1. TOP HEADER & METRIC KPI CARDS */}
       <div className="mgmt-kpi-grid">
         
-        <div className="mgmt-kpi-card">
-          <div className="kpi-icon-box kpi-icon-aws">👥</div>
+        <div className="mgmt-kpi-card card-kpi-primary">
+          <div className="kpi-icon-box" style={{ background: 'rgba(255, 153, 0, 0.15)', color: '#ff9900' }}>
+            <Users size={22} />
+          </div>
           <div className="kpi-info">
             <span className="kpi-label">Total Roster Members</span>
             <h3 className="kpi-value">{totalMembers}</h3>
@@ -214,7 +312,9 @@ export default function TeamManagement({
         </div>
 
         <div className="mgmt-kpi-card">
-          <div className="kpi-icon-box kpi-icon-purple">🏢</div>
+          <div className="kpi-icon-box" style={{ background: 'rgba(139, 92, 246, 0.15)', color: '#8b5cf6' }}>
+            <Building size={22} />
+          </div>
           <div className="kpi-info">
             <span className="kpi-label">Active Departments</span>
             <h3 className="kpi-value">{totalDepartments}</h3>
@@ -223,7 +323,9 @@ export default function TeamManagement({
         </div>
 
         <div className="mgmt-kpi-card">
-          <div className="kpi-icon-box kpi-icon-amber">⭐</div>
+          <div className="kpi-icon-box" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' }}>
+            <Star size={22} />
+          </div>
           <div className="kpi-info">
             <span className="kpi-label">Leadership & Heads</span>
             <h3 className="kpi-value">{coreLeadersCount}</h3>
@@ -232,7 +334,9 @@ export default function TeamManagement({
         </div>
 
         <div className="mgmt-kpi-card">
-          <div className="kpi-icon-box kpi-icon-green">👤</div>
+          <div className="kpi-icon-box" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981' }}>
+            <Sparkles size={22} />
+          </div>
           <div className="kpi-info">
             <span className="kpi-label">General Members</span>
             <h3 className="kpi-value">{generalMembersCount}</h3>
@@ -247,7 +351,7 @@ export default function TeamManagement({
         
         <div className="toolbar-left">
           <div className="mgmt-search-box">
-            <span className="search-icon">🔍</span>
+            <Search size={16} className="search-icon-svg" />
             <input
               type="text"
               className="mgmt-search-input"
@@ -273,7 +377,7 @@ export default function TeamManagement({
             ))}
           </select>
 
-          {/* Role Filter with User Specified Official Roles */}
+          {/* Role Filter */}
           <select
             className="mgmt-select"
             value={selectedRole}
@@ -289,42 +393,42 @@ export default function TeamManagement({
         <div className="toolbar-right">
           
           <button
-            className="btn-mgmt-dept-manage"
+            className="btn-mgmt-secondary"
             onClick={() => setIsDeptModalOpen(true)}
             title="Add or Delete Departments"
           >
-            🏢 Manage Depts
+            <Building size={14} />
+            <span>Manage Depts</span>
           </button>
 
           <button
             className={`btn-mgmt-primary ${isAWS ? 'btn-aws-primary' : 'btn-techno-primary'}`}
             onClick={onOpenAddMemberModal}
+            title="Add new member"
           >
-            ➕ Add Member
+            <Plus size={15} strokeWidth={2.5} />
+            <span>Add Member</span>
           </button>
 
           {onOpenBulkAddModal && (
             <button
-              className="btn-mgmt-primary"
-              style={{
-                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                color: '#ffffff',
-                border: 'none',
-                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)'
-              }}
+              className="btn-mgmt-secondary"
               onClick={onOpenBulkAddModal}
               title="Bulk import multiple members via CSV or Spreadsheet"
             >
-              📥 Bulk Add
+              <UploadCloud size={14} />
+              <span>Bulk Add</span>
             </button>
           )}
 
           <button className="btn-mgmt-secondary" onClick={handleExportCSV} title="Export roster to CSV">
-            📥 Export CSV
+            <Download size={14} />
+            <span>Export CSV</span>
           </button>
 
           <button className="btn-mgmt-secondary" onClick={handleSelectDuplicates} title="Auto select duplicate member entries">
-            🧹 Select Duplicates
+            <Sparkles size={14} />
+            <span>Duplicates</span>
           </button>
 
           {onSyncDatabase && (
@@ -333,13 +437,15 @@ export default function TeamManagement({
               onClick={() => onSyncDatabase(false)} 
               title={`Force sync with ${dbProvider}${lastSyncTime ? ' (Last synced: ' + lastSyncTime.toLocaleTimeString() + ')' : ''}`}
             >
-              {isSavingToDb ? '⏳ Syncing...' : '⚡ Sync DB'}
+              <RefreshCw size={14} className={isSavingToDb ? 'spin-anim' : ''} />
+              <span>{isSavingToDb ? 'Syncing...' : 'Sync DB'}</span>
             </button>
           )}
 
           {onResetDatabase && (
-            <button className="btn-mgmt-danger" onClick={onResetDatabase} title="Reset database to default roster">
-              🔄 Reseed Data
+            <button className="btn-mgmt-secondary btn-reseed" onClick={onResetDatabase} title="Reset database to default roster">
+              <RefreshCw size={14} />
+              <span>Reseed</span>
             </button>
           )}
 
@@ -349,14 +455,14 @@ export default function TeamManagement({
               onClick={() => setViewMode('table')}
               title="Table View"
             >
-              ☰
+              <TableIcon size={15} />
             </button>
             <button
               className={`btn-view-toggle ${viewMode === 'grid' ? 'active' : ''}`}
               onClick={() => setViewMode('grid')}
               title="Grid View"
             >
-              ☷
+              <LayoutGrid size={15} />
             </button>
           </div>
 
@@ -364,19 +470,28 @@ export default function TeamManagement({
 
       </div>
 
-      {/* 2b. BULK ACTIONS FLOATING/TOP BAR */}
+      {/* Floating Selection Bar */}
       {selectedIds.length > 0 && (
-        <div className="bulk-actions-banner">
-          <div className="bulk-info-left">
-            <span className="bulk-badge-count">✓ {selectedIds.length} Selected</span>
-            <span className="bulk-desc-text">Selected members across the roster are ready for batch actions.</span>
-          </div>
-          <div className="bulk-actions-right">
-            <button className="btn-bulk-delete-action" onClick={handleExecuteBulkDelete}>
-              🗑️ Delete Selected ({selectedIds.length})
+        <div className="mgmt-selection-bar">
+          <span className="selection-count">
+            <CheckSquare size={16} />
+            <strong>{selectedIds.length}</strong> {selectedIds.length === 1 ? 'member' : 'members'} selected
+          </span>
+          <div className="selection-actions">
+            <button className="btn-sel-batch" onClick={handleBulkGenerateLetters}>
+              <FileText size={14} />
+              <span>Generate Letters ({selectedIds.length})</span>
             </button>
-            <button className="btn-bulk-clear" onClick={() => setSelectedIds([])}>
-              ✕ Clear Selection
+            <button className="btn-sel-export" onClick={handleExportCSV}>
+              <Download size={14} />
+              <span>Export CSV</span>
+            </button>
+            <button className="btn-sel-delete" onClick={handleBulkDelete}>
+              <Trash2 size={14} />
+              <span>Delete Selected</span>
+            </button>
+            <button className="btn-sel-clear" onClick={() => setSelectedIds([])}>
+              ✕
             </button>
           </div>
         </div>
@@ -388,7 +503,7 @@ export default function TeamManagement({
           <table className="mgmt-table">
             <thead>
               <tr>
-                <th style={{ width: '45px', textAlign: 'center' }}>
+                <th style={{ width: '44px', textAlign: 'center' }}>
                   <input
                     type="checkbox"
                     className="row-checkbox"
@@ -402,14 +517,17 @@ export default function TeamManagement({
                 <th>BRANCH & SEM</th>
                 <th>ROLE STATUS</th>
                 <th>RESPONSIBILITIES</th>
-                <th>MANAGE ACTIONS</th>
+                <th style={{ textAlign: 'right' }}>MANAGE ACTIONS</th>
               </tr>
             </thead>
             <tbody>
               {filteredMembers.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="empty-table-cell">
-                    No team members found matching current filters.
+                    <div className="empty-state-box">
+                      <Users size={36} className="empty-icon" />
+                      <p>No team members found matching current filters.</p>
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -432,75 +550,100 @@ export default function TeamManagement({
                         />
                       </td>
 
-                      {/* Name & Role */}
+                      {/* Name & Role with Modern Avatar + Structured Details */}
                       <td>
-                        <div className="table-member-info">
-                          <strong className="table-member-name">
-                            {member.name}
-                            {isGeneral && <span style={{ marginLeft: '6px', fontSize: '10.5px', background: 'rgba(234, 179, 8, 0.2)', color: '#facc15', padding: '1px 6px', borderRadius: '4px' }}>NEW</span>}
-                          </strong>
-                          <span className="table-member-desig">{member.designation || (isGeneral ? 'General Member (Registered)' : 'Core Member')}</span>
-                          {member.letterRefId ? (
-                            <span className="table-member-ref">{member.letterRefId}</span>
-                          ) : (
-                            <span className="table-member-ref" style={{ color: '#94a3b8' }}>Unissued Letter</span>
-                          )}
+                        <div className="table-member-profile-cell">
+                          <div 
+                            className="member-avatar-chip" 
+                            style={{ 
+                              background: `linear-gradient(135deg, ${deptColor}33, ${deptColor}15)`, 
+                              borderColor: `${deptColor}66` 
+                            }}
+                          >
+                            <span className="member-avatar-initial" style={{ color: deptColor }}>
+                              {member.name ? member.name.charAt(0).toUpperCase() : 'M'}
+                            </span>
+                          </div>
+                          <div className="member-details-col">
+                            <div className="member-name-row">
+                              <span className="member-full-name">{member.name}</span>
+                              {isGeneral && <span className="badge-new-pill">NEW</span>}
+                              {member.isCoLead && <span className="badge-lead-pill">LEAD</span>}
+                            </div>
+                            <span className="member-designation-text">
+                              {member.designation || (isGeneral ? 'General Registered Member' : 'Core Team Member')}
+                            </span>
+                            <div className="member-ref-row">
+                              {member.letterRefId ? (
+                                <span className="member-ref-code" title="Official Offer Letter Reference ID">
+                                  <FileText size={11} /> {member.letterRefId}
+                                </span>
+                              ) : (
+                                <span className="member-ref-unissued">
+                                  <span className="dot-gray"></span> Unissued Letter
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </td>
 
                       {/* Department */}
                       <td>
-                        <span className="dept-badge-pill" style={{ borderColor: deptColor, color: deptColor }}>
+                        <span 
+                          className="dept-badge-pill" 
+                          style={{ 
+                            background: `${deptColor}18`, 
+                            borderColor: `${deptColor}44`, 
+                            color: deptColor 
+                          }}
+                        >
+                          <span className="dept-dot" style={{ background: deptColor }}></span>
                           {member.department || 'General / Unassigned'}
                         </span>
                       </td>
 
                       {/* Branch & Semester */}
                       <td>
-                        <div className="table-branch-box">
-                          <span>{member.branch || 'B.Tech CSE'}</span>
-                          {member.semester && member.semester !== 'Faculty' && (
-                            <small>Sem: {member.semester}</small>
+                        <div className="branch-sem-stack">
+                          <span className="branch-title">{member.branch || 'B.Tech CSE'}</span>
+                          {member.semester && member.semester !== 'Faculty' ? (
+                            <span className="sem-pill">Sem {member.semester}</span>
+                          ) : (
+                            <span className="sem-pill faculty-pill">Core Faculty</span>
                           )}
                         </div>
                       </td>
 
                       {/* Role & Status */}
                       <td>
-                        <div className="role-tags-group">
-                          <span className={`role-badge ${isGeneral ? 'role-general' : (member.isCoLead ? 'role-colead' : 'role-normal')}`}>
+                        <div className="role-status-cell">
+                          <span className={`role-pill ${isGeneral ? 'role-pill-general' : (member.isCoLead ? 'role-pill-lead' : 'role-pill-core')}`}>
                             {member.roleType || 'General Member'}
                           </span>
-                          {member.isCoLead && <span className="tag-colead-mini">ASSOC COORD</span>}
-                          {isGeneral && <span className="tag-pending-mini">PENDING PROMOTION</span>}
                         </div>
                       </td>
 
                       {/* Responsibilities count */}
                       <td>
-                        <span className="resp-count-indicator">
-                          {member.responsibilities?.length || 0} Core Tasks
+                        <span className="resp-count-badge">
+                          <Layers size={13} />
+                          <span>{member.responsibilities?.length || 0} Core Tasks</span>
                         </span>
                       </td>
 
                       {/* Actions */}
                       <td>
-                        <div className="table-actions-cell" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                          {/* Promotion Action - Visible to Organizers & Co-Leads */}
+                        <div className="table-actions-cluster" style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                          {/* Promotion Action */}
                           {canPromote && onOpenPromoteModal && (
                             <button
                               className="btn-tbl-action btn-tbl-promote"
                               onClick={() => onOpenPromoteModal(member)}
-                              title="Promote Member to Core Role & Issue Letter (Organizer/Co-Lead Authority)"
-                              style={{
-                                background: isGeneral ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'rgba(56, 189, 248, 0.15)',
-                                color: isGeneral ? '#ffffff' : '#38bdf8',
-                                border: isGeneral ? 'none' : '1px solid rgba(56, 189, 248, 0.4)',
-                                fontWeight: 700,
-                                boxShadow: isGeneral ? '0 2px 8px rgba(245, 158, 11, 0.4)' : 'none'
-                              }}
+                              title="Promote Member"
                             >
-                              ⭐ {isGeneral ? 'Promote Member' : 'Promote'}
+                              <Star size={13} />
+                              <span>{isGeneral ? 'Promote' : 'Elevate'}</span>
                             </button>
                           )}
 
@@ -509,9 +652,9 @@ export default function TeamManagement({
                               className="btn-tbl-action btn-tbl-letter"
                               onClick={() => onSelectMemberForLetter(member)}
                               title="Generate Official Letter in Studio"
-                              style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#34d399', border: '1px solid rgba(16, 185, 129, 0.4)' }}
                             >
-                              📄 Letter
+                              <FileText size={13} />
+                              <span>Letter</span>
                             </button>
                           )}
 
@@ -520,7 +663,7 @@ export default function TeamManagement({
                             onClick={() => onOpenEditMemberModal(member)}
                             title="Edit Member Profile"
                           >
-                            ✏️ Edit
+                            <Edit size={13} />
                           </button>
                           
                           <button
@@ -528,7 +671,7 @@ export default function TeamManagement({
                             title="Delete Member"
                             onClick={() => onDeleteMember(memberId)}
                           >
-                            🗑️
+                            <Trash2 size={13} />
                           </button>
                         </div>
                       </td>
@@ -550,13 +693,27 @@ export default function TeamManagement({
             const isGeneral = member.roleType === 'General Member';
 
             return (
-              <div key={memberId} className={`mgmt-grid-card ${isChecked ? 'card-selected' : ''} ${isGeneral ? 'card-general-member' : ''}`} style={{ borderLeftColor: deptColor }}>
+              <div 
+                key={memberId} 
+                className={`mgmt-grid-card ${isChecked ? 'card-selected' : ''} ${isGeneral ? 'card-general-member' : ''}`}
+              >
                 <div className="grid-card-header">
-                  <div className="grid-name-box">
-                    <strong>{member.name}</strong>
-                    {member.isCoLead && <span className="badge-colead">ASSOC COORD</span>}
-                    {member.roleType === 'Organizer' && <span className="badge-organizer">ORGANIZER</span>}
-                    {isGeneral && <span className="badge-general-reg">GENERAL MEMBER</span>}
+                  <div className="grid-user-row">
+                    <div 
+                      className="grid-avatar-chip" 
+                      style={{ 
+                        background: `linear-gradient(135deg, ${deptColor}33, ${deptColor}15)`, 
+                        borderColor: `${deptColor}66` 
+                      }}
+                    >
+                      <span style={{ color: deptColor, fontWeight: 800 }}>
+                        {member.name ? member.name.charAt(0).toUpperCase() : 'M'}
+                      </span>
+                    </div>
+                    <div className="grid-name-box">
+                      <strong className="grid-member-name">{member.name}</strong>
+                      <span className="grid-desig-text">{member.designation || 'General Member'}</span>
+                    </div>
                   </div>
                   <input
                     type="checkbox"
@@ -567,55 +724,47 @@ export default function TeamManagement({
                   />
                 </div>
 
-                <div className="grid-desig-text">{member.designation || 'General Member (Registered)'}</div>
-
                 <div className="grid-meta-row">
-                  <span className="dept-tag-pill" style={{ color: deptColor }}>{member.department || 'General / Unassigned'}</span>
-                  <span className="branch-text">{member.semester && member.semester !== 'Faculty' ? `Sem ${member.semester} • ` : ''}{member.branch}</span>
+                  <span className="dept-badge-pill" style={{ background: `${deptColor}18`, borderColor: `${deptColor}44`, color: deptColor }}>
+                    <span className="dept-dot" style={{ background: deptColor }}></span>
+                    {member.department || 'General'}
+                  </span>
+                  <span className="sem-pill">{member.semester && member.semester !== 'Faculty' ? `Sem ${member.semester}` : 'Faculty'}</span>
                 </div>
+
+                {member.letterRefId && (
+                  <div className="grid-ref-row">
+                    <span className="member-ref-code">
+                      <FileText size={11} /> {member.letterRefId}
+                    </span>
+                  </div>
+                )}
 
                 <div className="grid-card-footer" style={{ display: 'flex', gap: '6px', marginTop: '12px' }}>
                   {canPromote && onOpenPromoteModal && (
                     <button
-                      className="btn-action-promote"
+                      className="btn-tbl-action btn-tbl-promote"
                       onClick={() => onOpenPromoteModal(member)}
-                      style={{
-                        flex: 1,
-                        background: isGeneral ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'rgba(56, 189, 248, 0.15)',
-                        color: isGeneral ? '#ffffff' : '#38bdf8',
-                        border: isGeneral ? 'none' : '1px solid rgba(56, 189, 248, 0.4)',
-                        padding: '6px 8px',
-                        borderRadius: '6px',
-                        fontWeight: 700,
-                        fontSize: '12px',
-                        cursor: 'pointer'
-                      }}
+                      style={{ flex: 1 }}
                     >
-                      ⭐ {isGeneral ? 'Promote' : 'Elevate'}
+                      <Star size={13} />
+                      <span>{isGeneral ? 'Promote' : 'Elevate'}</span>
                     </button>
                   )}
                   {onSelectMemberForLetter && (
                     <button
-                      className="btn-action-letter"
+                      className="btn-tbl-action btn-tbl-letter"
                       onClick={() => onSelectMemberForLetter(member)}
-                      style={{
-                        background: 'rgba(16, 185, 129, 0.15)',
-                        color: '#34d399',
-                        border: '1px solid rgba(16, 185, 129, 0.4)',
-                        padding: '6px 8px',
-                        borderRadius: '6px',
-                        fontSize: '12px',
-                        cursor: 'pointer'
-                      }}
                     >
-                      📄 Letter
+                      <FileText size={13} />
+                      <span>Letter</span>
                     </button>
                   )}
-                  <button className="btn-action-edit" onClick={() => onOpenEditMemberModal(member)}>
-                    ✏️
+                  <button className="btn-tbl-action btn-tbl-edit" onClick={() => onOpenEditMemberModal(member)}>
+                    <Edit size={13} />
                   </button>
-                  <button className="btn-action-delete" onClick={() => onDeleteMember(memberId)}>
-                    🗑️
+                  <button className="btn-tbl-action btn-tbl-delete" onClick={() => onDeleteMember(memberId)}>
+                    <Trash2 size={13} />
                   </button>
                 </div>
               </div>
