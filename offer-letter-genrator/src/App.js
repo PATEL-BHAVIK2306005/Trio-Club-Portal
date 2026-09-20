@@ -40,7 +40,6 @@ import {
   Shield,
   QrCode,
   MessageSquare,
-  Cloud,
   Cpu,
   Globe
 } from 'lucide-react';

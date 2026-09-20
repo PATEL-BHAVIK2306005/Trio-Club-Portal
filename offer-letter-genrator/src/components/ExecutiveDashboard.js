@@ -25,8 +25,6 @@ import Swal from 'sweetalert2';
 import {
   fetchLiveTechNews,
   generateAiEventIdea,
-  getStoredKeys,
-  saveStoredKeys,
   DEFAULT_FALLBACK_NEWS
 } from '../services/newsAndAiService';
 
