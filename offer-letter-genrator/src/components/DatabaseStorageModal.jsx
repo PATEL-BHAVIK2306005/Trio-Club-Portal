@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   X,
   Database,
@@ -7,17 +7,13 @@ import {
   Download,
   Trash2,
   CheckCircle2,
-  AlertTriangle,
   Server,
   Activity,
   Layers,
   FileText,
   Image as ImageIcon,
-  ShieldAlert,
   Sparkles
 } from 'lucide-react';
-import Swal from 'sweetalert2';
-import { supabase } from '../lib/supabaseClient';
 
 export default function DatabaseStorageModal({
   isOpen,
