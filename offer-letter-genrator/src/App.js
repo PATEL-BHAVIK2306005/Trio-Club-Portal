@@ -17,7 +17,7 @@ import CertifierEmailModal from './components/CertifierEmailModal';
 import CertificateStudio from './components/certificates/CertificateStudio';
 import PublicCertificateVerification from './components/certificates/PublicCertificateVerification';
 import PublicOfferLetterVerification from './components/PublicOfferLetterVerification';
-import { INITIAL_EVENT_CERTIFICATES } from './data/certificateData';
+import { getLocalCertificates, fetchCertificatesFromSupabase } from './services/certificateVaultService';
 import ExecutiveDashboard from './components/ExecutiveDashboard';
 import QueryManagementModal from './components/QueryManagementModal';
 import UserProfileModal from './components/UserProfileModal';
@@ -176,16 +176,15 @@ function App() {
   });
 
   // Event Certificates Vault State
-  const [certificates, setCertificates] = useState(() => {
-    try {
-      const saved = localStorage.getItem('event_certificates_vault');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+  const [certificates, setCertificates] = useState(() => getLocalCertificates());
+
+  useEffect(() => {
+    fetchCertificatesFromSupabase().then(certs => {
+      if (certs && certs.length > 0) {
+        setCertificates(certs);
       }
-    } catch (e) {}
-    return INITIAL_EVENT_CERTIFICATES;
-  });
+    });
+  }, []);
 
   // Chapter Visibility Matrix (Super Admin controlled, synced with localStorage)
   const [visibleChapters, setVisibleChapters] = useState(() => {

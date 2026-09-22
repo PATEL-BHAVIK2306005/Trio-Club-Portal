@@ -2,6 +2,7 @@ import React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { CERTIFICATE_THEMES, BADGE_TYPES, EVENT_CATEGORIES } from '../../data/certificateData';
 import { CLUB_CONFIGS } from '../../data/teamData';
+import { getLocalTemplate } from '../../services/certificateVaultService';
 
 export default function CertificateDocument({
   certificate,
@@ -32,17 +33,16 @@ export default function CertificateDocument({
     : 'https://itmbu-credentials.org';
   const verificationUrl = `${baseUrl}?verify=${encodeURIComponent(certificate.credentialId || certificate.id)}`;
 
-  const isCustomTemplate = Boolean(certificate.customBgImage);
+  const templateBg = certificate.customBgImage || getLocalTemplate() || null;
+  const isCustomTemplate = Boolean(templateBg && templateBg !== 'ACTIVE_CUSTOM_TEMPLATE') || Boolean(templateBg);
 
   // Custom Field Coordinates & Typography (Certifier.io Layout Engine)
   const defaultPos = isCustomTemplate
     ? {
-        name: { x: 50, y: 53.5, fontSize: 32, color: '#0f172a', fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 800, show: true },
-        eventTitle: { x: 50, y: 62, fontSize: 18, color: '#1e293b', fontWeight: 700, show: false },
-        description: { x: 50, y: 70, fontSize: 12, color: '#475569', show: false },
-        date: { x: 25, y: 84, fontSize: 11, color: '#64748b', show: false },
-        certId: { x: 50, y: 84, fontSize: 11, color: '#64748b', show: false },
-        qrCode: { x: 88, y: 82, size: 54, show: false }
+        name: { x: 50, y: 50, fontSize: 36, color: '#0f172a', fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 'bold', show: true },
+        qrCode: { x: 88, y: 80, size: 70, show: true },
+        hash: { x: 50, y: 88, fontSize: 13, color: '#475569', fontFamily: 'monospace', bgPill: 'none', show: true },
+        verificationUrl: { x: 50, y: 92, fontSize: 12, color: '#0284c7', fontFamily: 'Verdana, sans-serif', bgPill: 'none', show: true }
       }
     : {
         name: { x: 50, y: 46, fontSize: 34, color: '#0f172a', fontFamily: "'Playfair Display', Georgia, serif", fontWeight: 800, show: true },
@@ -234,7 +234,8 @@ export default function CertificateDocument({
         onMouseLeave={handleMouseUp}
         style={{
           width: '1050px',
-          height: '740px',
+          height: '590.625px',
+          aspectRatio: '16/9',
           position: 'relative',
           boxSizing: 'border-box',
           margin: '0 auto',
@@ -246,7 +247,7 @@ export default function CertificateDocument({
           transformOrigin: 'top center',
           userSelect: 'none',
           cursor: isEditingPositions ? (draggingField ? 'grabbing' : 'crosshair') : 'default',
-          backgroundImage: `url(${certificate.customBgImage})`,
+          backgroundImage: `url(${templateBg})`,
           backgroundSize: '100% 100%',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat'
@@ -408,7 +409,7 @@ export default function CertificateDocument({
           </div>
         )}
 
-        {/* Dynamic Field 6: Verification QR Code (Optional) */}
+        {/* Dynamic Field 6: Verification QR Code */}
         {isQrVisible && (
           <div
             onMouseDown={(e) => handleMouseDown(e, 'qrCode')}
@@ -418,13 +419,13 @@ export default function CertificateDocument({
             }}
             style={{
               position: 'absolute',
-              top: `${pos.qrCode?.y || 82}%`,
+              top: `${pos.qrCode?.y || 80}%`,
               left: `${pos.qrCode?.x || 88}%`,
               transform: 'translate(-50%, -50%)',
               background: '#ffffff',
-              padding: '4px',
-              borderRadius: '6px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+              padding: '6px',
+              borderRadius: '8px',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.25)',
               border: isEditingPositions && selectedFieldKey === 'qrCode' ? '2px dashed #0284c7' : '1px solid #e2e8f0',
               cursor: isEditingPositions ? 'grab' : 'default',
               zIndex: selectedFieldKey === 'qrCode' ? 50 : 10
@@ -432,11 +433,83 @@ export default function CertificateDocument({
           >
             <QRCodeSVG
               value={verificationUrl}
-              size={pos.qrCode?.size || 52}
-              level="M"
+              size={pos.qrCode?.size || 60}
+              level="H"
               fgColor="#0a0f1d"
               bgColor="#ffffff"
             />
+          </div>
+        )}
+
+        {/* Dynamic Field 7: Hash ID Overlay */}
+        {(pos.hash?.show !== false) && (
+          <div
+            onMouseDown={(e) => handleMouseDown(e, 'hash')}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onSelectField) onSelectField('hash');
+            }}
+            style={{
+              position: 'absolute',
+              top: `${pos.hash?.y || 88}%`,
+              left: `${pos.hash?.x || 50}%`,
+              transform: 'translate(-50%, -50%)',
+              fontSize: `${pos.hash?.fontSize || 13}px`,
+              fontFamily: 'monospace',
+              fontWeight: 600,
+              color: pos.hash?.color || '#475569',
+              textAlign: 'center',
+              padding: pos.hash?.bgPill === 'dark' || pos.hash?.bgPill === 'light' ? '4px 12px' : '2px 6px',
+              borderRadius: '6px',
+              background: pos.hash?.bgPill === 'dark'
+                ? 'rgba(15, 23, 42, 0.85)'
+                : pos.hash?.bgPill === 'light'
+                ? 'rgba(255, 255, 255, 0.92)'
+                : 'transparent',
+              border: isEditingPositions && selectedFieldKey === 'hash' ? '2px dashed #0284c7' : (pos.hash?.bgPill && pos.hash?.bgPill !== 'none' ? '1px solid rgba(255,255,255,0.2)' : 'none'),
+              boxShadow: pos.hash?.bgPill && pos.hash?.bgPill !== 'none' ? '0 4px 12px rgba(0,0,0,0.15)' : 'none',
+              whiteSpace: 'nowrap',
+              cursor: isEditingPositions ? 'grab' : 'default',
+              zIndex: selectedFieldKey === 'hash' ? 50 : 10
+            }}
+          >
+            Hash ID: {certificate.hash || `0x${(certificate.credentialId || certificate.id || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase()}e984f1a2076cb58210`}
+          </div>
+        )}
+
+        {/* Dynamic Field 8: Verification URL Overlay */}
+        {(pos.verificationUrl?.show !== false) && (
+          <div
+            onMouseDown={(e) => handleMouseDown(e, 'verificationUrl')}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onSelectField) onSelectField('verificationUrl');
+            }}
+            style={{
+              position: 'absolute',
+              top: `${pos.verificationUrl?.y || 92}%`,
+              left: `${pos.verificationUrl?.x || 50}%`,
+              transform: 'translate(-50%, -50%)',
+              fontSize: `${pos.verificationUrl?.fontSize || 12}px`,
+              fontFamily: 'Verdana, sans-serif',
+              fontWeight: 600,
+              color: pos.verificationUrl?.color || '#0284c7',
+              textAlign: 'center',
+              padding: pos.verificationUrl?.bgPill === 'dark' || pos.verificationUrl?.bgPill === 'light' ? '4px 12px' : '2px 6px',
+              borderRadius: '6px',
+              background: pos.verificationUrl?.bgPill === 'dark'
+                ? 'rgba(15, 23, 42, 0.85)'
+                : pos.verificationUrl?.bgPill === 'light'
+                ? 'rgba(255, 255, 255, 0.92)'
+                : 'transparent',
+              border: isEditingPositions && selectedFieldKey === 'verificationUrl' ? '2px dashed #0284c7' : (pos.verificationUrl?.bgPill && pos.verificationUrl?.bgPill !== 'none' ? '1px solid rgba(255,255,255,0.2)' : 'none'),
+              boxShadow: pos.verificationUrl?.bgPill && pos.verificationUrl?.bgPill !== 'none' ? '0 4px 12px rgba(0,0,0,0.15)' : 'none',
+              whiteSpace: 'nowrap',
+              cursor: isEditingPositions ? 'grab' : 'default',
+              zIndex: selectedFieldKey === 'verificationUrl' ? 50 : 10
+            }}
+          >
+            Verify at: {verificationUrl.replace(/^https?:\/\//, '')}
           </div>
         )}
 
