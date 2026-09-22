@@ -26,6 +26,7 @@ export default function CertifierEmailModal({
   const [customGreetingNote, setCustomGreetingNote] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [activeTab, setActiveTab] = useState('compose'); // 'compose' | 'settings' | 'logs'
+  const [mobileSubTab, setMobileSubTab] = useState('editor'); // 'editor' | 'preview'
   const [copiedStatus, setCopiedStatus] = useState(false);
   const [copiedTextStatus, setCopiedTextStatus] = useState(false);
 
@@ -396,26 +397,26 @@ ITM (sls) Baroda University, Vadodara
   };
 
   return (
-    <div className="modal-overlay" style={{ background: 'rgba(10, 15, 29, 0.9)', backdropFilter: 'blur(10px)', zIndex: 9999 }}>
-      <div className="modal-card certifier-email-modal" style={{ maxWidth: '940px', width: '96%', maxHeight: '94vh', display: 'flex', flexDirection: 'column', background: '#0b1324', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '18px', overflow: 'hidden', padding: 0, boxShadow: '0 25px 60px rgba(0,0,0,0.65)' }}>
+    <div className="modal-overlay" style={{ background: 'rgba(10, 15, 29, 0.92)', backdropFilter: 'blur(10px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '10px' }}>
+      <div className="modal-card certifier-email-modal-card">
         
         {/* Modal Header */}
-        <div style={{ padding: '16px 24px', background: 'linear-gradient(90deg, #111e38 0%, #0d172a 100%)', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <span style={{ fontSize: '26px' }}>✨</span>
+        <div className="certifier-header-wrap">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '22px' }}>✨</span>
             <div>
-              <h3 style={{ margin: 0, fontSize: '17.5px', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h3 className="certifier-header-title" style={{ margin: 0, fontSize: '16.5px', fontWeight: 800, color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 React Email Service &amp; Certifier Greeting Desk
-                <span style={{ fontSize: '10.5px', background: 'rgba(56, 189, 248, 0.18)', color: '#38bdf8', padding: '2px 8px', borderRadius: '12px', border: '1px solid #38bdf8' }}>
+                <span style={{ fontSize: '10px', background: 'rgba(56, 189, 248, 0.18)', color: '#38bdf8', padding: '2px 8px', borderRadius: '12px', border: '1px solid #38bdf8' }}>
                   ASP.NET Mail Equivalent
                 </span>
               </h3>
-              <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>
+              <p className="certifier-header-sub" style={{ margin: '2px 0 0 0', fontSize: '11.5px', color: '#94a3b8' }}>
                 Official appointment sender: <strong>{officialSenderEmail}</strong>
               </p>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
             <div style={{ display: 'flex', background: 'rgba(30, 41, 59, 0.8)', padding: '3px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
               <button
                 type="button"
@@ -429,32 +430,92 @@ ITM (sls) Baroda University, Vadodara
                 onClick={() => setActiveTab('settings')}
                 style={{ background: activeTab === 'settings' ? '#0284c7' : 'transparent', color: '#fff', border: 'none', borderRadius: '6px', padding: '5px 10px', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer' }}
               >
-                ⚙️ Service Keys
+                ⚙️ Keys
               </button>
               <button
                 type="button"
                 onClick={() => setActiveTab('logs')}
                 style={{ background: activeTab === 'logs' ? '#0284c7' : 'transparent', color: '#fff', border: 'none', borderRadius: '6px', padding: '5px 10px', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer' }}
               >
-                📜 Dispatch Logs
+                📜 Logs
               </button>
             </div>
             <button 
               type="button" 
               onClick={onClose}
-              style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '22px', cursor: 'pointer', padding: '4px 8px' }}
+              style={{ background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '20px', cursor: 'pointer', padding: '4px 6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              title="Close Dialog"
             >
               ✕
             </button>
           </div>
         </div>
 
+        {/* Mobile Sub-Tab Switcher (Visible only on screens <= 860px) */}
+        {activeTab === 'compose' && (
+          <div className="certifier-mobile-tab-bar">
+            <button
+              type="button"
+              onClick={() => setMobileSubTab('editor')}
+              style={{
+                flex: 1,
+                background: mobileSubTab === 'editor' ? '#0284c7' : 'rgba(255,255,255,0.06)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '8px 12px',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px'
+              }}
+            >
+              ✍️ Email Controls &amp; Send
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileSubTab('preview')}
+              style={{
+                flex: 1,
+                background: mobileSubTab === 'preview' ? '#0284c7' : 'rgba(255,255,255,0.06)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '8px 12px',
+                fontSize: '12px',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px'
+              }}
+            >
+              👁️ Live Certifier Preview
+            </button>
+          </div>
+        )}
+
         {/* Modal Body Container */}
         {activeTab === 'compose' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.25fr', flex: 1, overflow: 'hidden' }}>
+          <div className="certifier-grid-layout">
             
             {/* Left Column: Dispatch Controls */}
-            <div style={{ padding: '20px', borderRight: '1px solid rgba(255,255,255,0.08)', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px', background: 'rgba(15, 23, 42, 0.6)' }}>
+            <div
+              className="certifier-controls-col"
+              style={{
+                padding: '20px',
+                borderRight: '1px solid rgba(255,255,255,0.08)',
+                overflowY: 'auto',
+                display: typeof window !== 'undefined' && window.innerWidth <= 860 && mobileSubTab === 'preview' ? 'none' : 'flex',
+                flexDirection: 'column',
+                gap: '14px',
+                background: 'rgba(15, 23, 42, 0.6)'
+              }}
+            >
               
               {/* Official Sender Box */}
               <div style={{ background: 'rgba(30, 41, 59, 0.7)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px', padding: '12px' }}>
@@ -530,7 +591,8 @@ ITM (sls) Baroda University, Vadodara
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '8px',
-                    boxShadow: '0 4px 14px rgba(2, 132, 199, 0.4)'
+                    boxShadow: '0 4px 14px rgba(2, 132, 199, 0.4)',
+                    minHeight: '44px'
                   }}
                 >
                   <span>{isSending ? '⏳ Sending via React Service...' : '⚡ Send Direct to Candidate Inbox'}</span>
@@ -554,14 +616,15 @@ ITM (sls) Baroda University, Vadodara
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '8px',
-                    boxShadow: '0 4px 12px rgba(234, 67, 53, 0.3)'
+                    boxShadow: '0 4px 12px rgba(234, 67, 53, 0.3)',
+                    minHeight: '40px'
                   }}
                 >
                   <span>🚀 Launch 1-Click Official Gmail</span>
                 </a>
 
                 {/* Copy Buttons */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <div className="certifier-btn-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
                   <button
                     type="button"
                     onClick={handleCopyHtml}
@@ -577,7 +640,8 @@ ITM (sls) Baroda University, Vadodara
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '4px'
+                      gap: '4px',
+                      minHeight: '38px'
                     }}
                   >
                     <span>{copiedStatus ? '✅ Copied HTML!' : '📋 Copy Rich HTML'}</span>
@@ -598,7 +662,8 @@ ITM (sls) Baroda University, Vadodara
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '4px'
+                      gap: '4px',
+                      minHeight: '38px'
                     }}
                   >
                     <span>{copiedTextStatus ? '✅ Copied Text!' : '📄 Copy Plain Text'}</span>
@@ -609,7 +674,15 @@ ITM (sls) Baroda University, Vadodara
             </div>
 
             {/* Right Column: Live Certifier.io Email Preview */}
-            <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#0f172a' }}>
+            <div
+              className="certifier-preview-col"
+              style={{
+                display: typeof window !== 'undefined' && window.innerWidth <= 860 && mobileSubTab === 'editor' ? 'none' : 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+                background: '#0f172a'
+              }}
+            >
               <div style={{ background: '#1e293b', padding: '10px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
                 <span style={{ fontSize: '11px', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                   👁️ Live Certifier.io Template Preview
@@ -620,10 +693,10 @@ ITM (sls) Baroda University, Vadodara
               </div>
 
               {/* Embedded Live HTML Preview */}
-              <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', justifyContent: 'center' }}>
+              <div className="certifier-preview-frame">
                 <div 
                   dangerouslySetInnerHTML={{ __html: certifierHtml }} 
-                  style={{ transform: 'scale(0.88)', transformOrigin: 'top center', width: '100%', maxWidth: '620px' }}
+                  style={{ width: '100%', maxWidth: '620px' }}
                 />
               </div>
             </div>

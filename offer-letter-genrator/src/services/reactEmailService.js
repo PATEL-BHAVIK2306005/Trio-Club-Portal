@@ -1,5 +1,6 @@
 import emailjs from '@emailjs/browser';
 import { supabase } from '../lib/supabaseClient';
+import { generateWelcomeAdminEmailHtml } from './welcomeEmailTemplate';
 
 // Email configuration defaults (stored per chapter & master superadmin vault)
 export const EMAILJS_CONFIG_KEY = 'offer_gen_emailjs_config';
@@ -12,13 +13,13 @@ export function getMasterSmtpConfig() {
       const parsed = JSON.parse(saved);
       return {
         awsEmail: parsed.awsEmail || 'aws.itmbu@gmail.com',
-        awsAppPassword: parsed.awsAppPassword || parsed.masterAppPassword || 'uopdivcccgwkhwgl',
+        awsAppPassword: parsed.awsAppPassword || parsed.masterAppPassword || process.env.REACT_APP_AWS_EMAIL_PASS || '',
         technoEmail: parsed.technoEmail || 'technolabclub25@gmail.com',
-        technoAppPassword: parsed.technoAppPassword || '',
+        technoAppPassword: parsed.technoAppPassword || process.env.REACT_APP_TECHNO_EMAIL_PASS || '',
         gdgocEmail: parsed.gdgocEmail || 'gdgoc.itmbu@gmail.com',
-        gdgocAppPassword: parsed.gdgocAppPassword || '',
+        gdgocAppPassword: parsed.gdgocAppPassword || process.env.REACT_APP_GDGOC_EMAIL_PASS || '',
         globalDefaultEmail: parsed.globalDefaultEmail || 'aws.itmbu@gmail.com',
-        masterAppPassword: parsed.masterAppPassword || 'uopdivcccgwkhwgl',
+        masterAppPassword: parsed.masterAppPassword || process.env.REACT_APP_MASTER_SMTP_PASS || '',
         serviceId: parsed.serviceId || process.env.REACT_APP_EMAILJS_SERVICE_ID || '',
         templateId: parsed.templateId || process.env.REACT_APP_EMAILJS_TEMPLATE_ID || '',
         publicKey: parsed.publicKey || process.env.REACT_APP_EMAILJS_PUBLIC_KEY || ''
@@ -27,13 +28,13 @@ export function getMasterSmtpConfig() {
   } catch (e) {}
   return {
     awsEmail: 'aws.itmbu@gmail.com',
-    awsAppPassword: process.env.REACT_APP_AWS_EMAIL_PASS || 'uopdivcccgwkhwgl',
+    awsAppPassword: process.env.REACT_APP_AWS_EMAIL_PASS || '',
     technoEmail: 'technolabclub25@gmail.com',
     technoAppPassword: process.env.REACT_APP_TECHNO_EMAIL_PASS || '',
     gdgocEmail: 'gdgoc.itmbu@gmail.com',
     gdgocAppPassword: process.env.REACT_APP_GDGOC_EMAIL_PASS || '',
     globalDefaultEmail: 'aws.itmbu@gmail.com',
-    masterAppPassword: process.env.REACT_APP_MASTER_SMTP_PASS || 'uopdivcccgwkhwgl',
+    masterAppPassword: process.env.REACT_APP_MASTER_SMTP_PASS || '',
     serviceId: process.env.REACT_APP_EMAILJS_SERVICE_ID || '',
     templateId: process.env.REACT_APP_EMAILJS_TEMPLATE_ID || '',
     publicKey: process.env.REACT_APP_EMAILJS_PUBLIC_KEY || ''
@@ -298,4 +299,48 @@ export async function sendDirectReactEmail({
     error: lastError,
     data: responseData
   };
+}
+
+/**
+ * Dispatch 3000-Word Rich HTML Welcome Onboarding & Passkey Email to System Administrators / Users
+ */
+export async function sendWelcomeOnboardingEmail({
+  recipientName,
+  recipientEmail,
+  username,
+  password,
+  roleTitle,
+  roleBadge,
+  clubName = 'AWS Student Builder Group & Techno Lab',
+  clubId = 'AWS_SBG',
+  scope = 'Dual-Club Universal Governance',
+  issuedBy = 'Bhavikkumar Patel (Master Super Administrator)'
+}) {
+  const htmlContent = generateWelcomeAdminEmailHtml({
+    recipientName,
+    recipientEmail,
+    username,
+    password,
+    roleTitle,
+    roleBadge,
+    clubName,
+    clubId,
+    scope,
+    loginUrl: window.location.origin,
+    issuedBy
+  });
+
+  const plainText = `Official Administrative Onboarding - ITM (sls) Baroda University\n\nDear ${recipientName},\n\nWelcome to the ITMBU Dual-Club Governance Portal. Your administrator account has been provisioned.\n\nUsername: @${username}\nEmail: ${recipientEmail}\nPasskey: ${password}\nRole: ${roleTitle} (${roleBadge})\nScope: ${scope}\n\nLogin at: ${window.location.origin}\n\nITM (sls) Baroda University, Vadodara`;
+
+  return await sendDirectReactEmail({
+    toEmail: recipientEmail,
+    toName: recipientName,
+    subject: `🔐 Official Administrator Access & Onboarding Clearance | ${roleTitle} [${username}]`,
+    htmlContent,
+    plainText,
+    clubConfig: { id: clubId, name: clubName },
+    letterConfig: { letterRefId: `ADMIN-ONBOARD-${Date.now().toString().slice(-4)}` },
+    member: { name: recipientName, roleType: roleTitle, designation: roleTitle, department: 'Executive Directorate' },
+    customNote: 'Official Onboarding Clearance and Security Credentials'
+  });
 }

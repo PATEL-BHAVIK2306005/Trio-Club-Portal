@@ -216,7 +216,7 @@ app.post('/api/send-offer-letter', async (req, res) => {
 
     // Determine official club sender & credentials
     const clientPass = (req.body.appPassword || '').replace(/\s+/g, '');
-    const masterPass = clientPass || process.env.AWS_EMAIL_PASS || process.env.EMAIL_PASS || process.env.SMTP_PASS || 'uopdivcccgwkhwgl';
+    const masterPass = clientPass || process.env.AWS_EMAIL_PASS || process.env.EMAIL_PASS || process.env.SMTP_PASS || '';
     const masterUser = process.env.AWS_EMAIL_USER || process.env.EMAIL_USER || 'aws.itmbu@gmail.com';
 
     let officialSender = senderEmail;

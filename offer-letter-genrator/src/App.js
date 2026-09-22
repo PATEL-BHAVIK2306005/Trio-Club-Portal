@@ -21,6 +21,7 @@ import { INITIAL_EVENT_CERTIFICATES } from './data/certificateData';
 import ExecutiveDashboard from './components/ExecutiveDashboard';
 import QueryManagementModal from './components/QueryManagementModal';
 import UserProfileModal from './components/UserProfileModal';
+import DatabaseStorageModal from './components/DatabaseStorageModal';
 import awsChipLogo from './assets/aws_chip_logo.png';
 import {
   LayoutDashboard,
@@ -42,6 +43,7 @@ import {
   MessageSquare,
   Cpu,
   Globe,
+  Database,
   Menu,
   X
 } from 'lucide-react';
@@ -346,6 +348,7 @@ function App() {
   const [promotingMember, setPromotingMember] = useState(null);
   const [isSuperAdminConsoleOpen, setIsSuperAdminConsoleOpen] = useState(false);
   const [isQueryModalOpen, setIsQueryModalOpen] = useState(false);
+  const [isStorageModalOpen, setIsStorageModalOpen] = useState(false);
   const [batchPrintList, setBatchPrintList] = useState(null);
   const [dbConnected, setDbConnected] = useState(false);
   const [dbProvider, setDbProvider] = useState('Supabase Cloud');
@@ -1771,19 +1774,36 @@ function App() {
                 </button>
               )}
 
-              {/* Realtime DB Sync (For Admins and Organizers) */}
+              {/* Realtime DB Sync & Storage Inspector (For Admins and Organizers) */}
               {!isStudent && (
-                <button
-                  className="sidebar-nav-item"
-                  onClick={() => { handleSyncDatabase(false); setIsMobileDrawerOpen(false); }}
-                  title="Sync database realtime"
-                >
-                  <div className="nav-item-content">
-                    <RefreshCw size={18} className={`nav-icon ${isSavingToDb ? 'spin-anim' : ''}`} />
-                    <span className="nav-label">Sync Cloud DB</span>
-                  </div>
-                  <span className={`status-dot-mini ${dbConnected ? 'dot-green' : 'dot-red'}`}></span>
-                </button>
+                <>
+                  <button
+                    className="sidebar-nav-item"
+                    onClick={() => { handleSyncDatabase(false); setIsMobileDrawerOpen(false); }}
+                    title="Sync database realtime"
+                  >
+                    <div className="nav-item-content">
+                      <RefreshCw size={18} className={`nav-icon ${isSavingToDb ? 'spin-anim' : ''}`} />
+                      <span className="nav-label">Sync Cloud DB</span>
+                    </div>
+                    <span className={`status-dot-mini ${dbConnected ? 'dot-green' : 'dot-red'}`}></span>
+                  </button>
+
+                  <button
+                    className="sidebar-nav-item"
+                    onClick={() => { setIsStorageModalOpen(true); setIsMobileDrawerOpen(false); }}
+                    title="Database Storage & Quota Inspector"
+                    style={{ background: 'rgba(99, 102, 241, 0.08)', borderColor: 'rgba(99, 102, 241, 0.2)' }}
+                  >
+                    <div className="nav-item-content">
+                      <Database size={18} className="nav-icon" style={{ color: '#818cf8' }} />
+                      <span className="nav-label" style={{ color: '#c7d2fe', fontWeight: 600 }}>DB Storage & Quota</span>
+                    </div>
+                    <span className="portal-badge-counter" style={{ background: '#4f46e5', fontSize: '10px', padding: '1px 6px' }}>
+                      500MB
+                    </span>
+                  </button>
+                </>
               )}
 
               {/* Logout */}
@@ -2435,6 +2455,18 @@ function App() {
         currentUser={currentUser}
         activeOrg={activeOrg}
         theme={appTheme}
+      />
+
+      {/* CLOUD DATABASE STORAGE & QUOTA INSPECTOR MODAL */}
+      <DatabaseStorageModal
+        isOpen={isStorageModalOpen}
+        onClose={() => setIsStorageModalOpen(false)}
+        members={members}
+        certificates={certificates}
+        dbConnected={dbConnected}
+        dbProvider={dbProvider}
+        lastSyncTime={lastSyncTime}
+        onRefreshSync={() => handleSyncDatabase(false)}
       />
 
       {/* EXECUTIVE USER PROFILE & PHOTO UPLOAD MODAL */}

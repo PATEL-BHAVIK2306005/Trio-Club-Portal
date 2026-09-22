@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import UsersTable from './UsersTable';
-import { getMasterSmtpConfig, saveMasterSmtpConfig, sendDirectReactEmail, fetchMasterSmtpConfigFromSupabase, subscribeToSmtpConfigRealtime } from '../services/reactEmailService';
+import { getMasterSmtpConfig, saveMasterSmtpConfig, sendDirectReactEmail, sendWelcomeOnboardingEmail, fetchMasterSmtpConfigFromSupabase, subscribeToSmtpConfigRealtime } from '../services/reactEmailService';
 import { getStoredKeys, saveStoredKeys, generateAiEventIdea } from '../services/newsAndAiService';
 
 // 10 System Administrative RBAC Roles Configuration
@@ -202,6 +202,7 @@ export default function SuperAdminConsole({
   const [searchUserQuery, setSearchUserQuery] = useState('');
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
+  const [showModalPass, setShowModalPass] = useState(false);
 
   // New User Form State
   const [userFormData, setUserFormData] = useState({
@@ -377,13 +378,25 @@ export default function SuperAdminConsole({
   });
 
   // Handle Add or Edit Administrator
-  const handleSaveUserForm = (e) => {
+  const handleSaveUserForm = async (e) => {
     e.preventDefault();
     if (!userFormData.name || !userFormData.username || !userFormData.email) {
       Swal.fire({
         icon: 'warning',
         title: 'Required Fields Missing',
         text: 'Please provide full name, username, and official email.',
+        background: '#ffffff',
+        color: '#0f172a',
+        confirmButtonColor: '#0f172a'
+      });
+      return;
+    }
+
+    if (!editingUser && userFormData.password && userFormData.password.length < 6) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Weak Password',
+        text: 'Initial authentication password must be at least 6 characters.',
         background: '#ffffff',
         color: '#0f172a',
         confirmButtonColor: '#0f172a'
@@ -399,6 +412,7 @@ export default function SuperAdminConsole({
         username: userFormData.username,
         email: userFormData.email,
         role: userFormData.role,
+        password: userFormData.password || u.password || 'admin123',
         organization: userFormData.role === 'SUPER_ADMIN' || userFormData.role === 'FACULTY_ADVISOR' || userFormData.role === 'VIEWER_AUDITOR' ? 'ALL' : userFormData.organization
       } : u));
 
@@ -414,11 +428,13 @@ export default function SuperAdminConsole({
       });
     } else {
       // Create new
+      const assignedPassword = userFormData.password || `Admin@${Math.floor(1000 + Math.random() * 9000)}`;
       const newUser = {
         id: `user-${Date.now().toString().slice(-4)}`,
         name: userFormData.name,
         username: userFormData.username,
         email: userFormData.email,
+        password: assignedPassword,
         role: userFormData.role,
         organization: userFormData.role === 'SUPER_ADMIN' || userFormData.role === 'FACULTY_ADVISOR' || userFormData.role === 'VIEWER_AUDITOR' ? 'ALL' : userFormData.organization,
         status: 'ACTIVE',
@@ -436,7 +452,7 @@ export default function SuperAdminConsole({
           action: 'USER_CREATED',
           category: 'AUTH',
           user: currentUser?.username || 'superadmin',
-          desc: `Created new ${SYSTEM_ROLES[newUser.role]?.title} account for ${newUser.name}`,
+          desc: `Created new ${SYSTEM_ROLES[newUser.role]?.title} account for ${newUser.name} with provisioned credentials`,
           timestamp: new Date().toLocaleTimeString(),
           ip: '127.0.0.1'
         },
@@ -444,20 +460,200 @@ export default function SuperAdminConsole({
       ]);
 
       Swal.fire({
-        toast: true,
-        position: 'top-end',
         icon: 'success',
-        title: `Administrator ${newUser.name} created!`,
-        timer: 2500,
+        title: `Administrator ${newUser.name} Created!`,
+        text: `Provisioning 3,000-word welcome email with login credentials to ${newUser.email}...`,
+        timer: 2000,
         showConfirmButton: false,
         background: '#ffffff',
         color: '#0f172a'
+      });
+
+      // Dispatch 3000-Word Welcome Onboarding Email with Credentials
+      sendWelcomeOnboardingEmail({
+        recipientName: newUser.name,
+        recipientEmail: newUser.email,
+        username: newUser.username,
+        password: assignedPassword,
+        roleTitle: SYSTEM_ROLES[newUser.role]?.title || newUser.role,
+        roleBadge: SYSTEM_ROLES[newUser.role]?.badge || 'Administrator',
+        clubName: newUser.organization === 'ALL' ? 'AWS SBG & Techno Lab (Universal)' : (newUser.organization === 'TECHNO_LAB' ? 'Techno Lab Innovation Chapter' : (newUser.organization === 'GDGOC' ? 'Google Developer Groups on Campus' : 'AWS Student Builder Group')),
+        clubId: newUser.organization,
+        scope: newUser.organization === 'ALL' ? 'Universal Dual-Club Governance & Operations' : `${newUser.organization} Chapter Scope`
+      }).then((res) => {
+        if (res && res.isDelivered) {
+          Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            title: `Welcome & Credentials Email delivered to ${newUser.email}!`,
+            timer: 3500,
+            showConfirmButton: false
+          });
+        }
+      }).catch((mailErr) => {
+        console.warn('Onboarding email dispatch note:', mailErr);
       });
     }
 
     setIsAddUserModalOpen(false);
     setEditingUser(null);
     setUserFormData({ name: '', username: '', email: '', role: 'AWS_LEAD_ADMIN', organization: 'AWS_SBG', password: '' });
+  };
+
+  // Reset Administrator Password Handler
+  const handleResetUserPassword = async (user) => {
+    const suggestedPassword = `Admin@${Math.floor(1000 + Math.random() * 9000)}`;
+    const { value: formValues } = await Swal.fire({
+      title: `Reset Passkey for ${user.name}`,
+      html: `
+        <div style="text-align: left; font-size: 13.5px; color: #1e293b;">
+          <p style="margin-bottom: 8px; color: #64748b;">Enter a new secure passkey for <b>@${user.username}</b> (${user.email}):</p>
+          <input id="swal-input-pwd" type="text" class="swal2-input" placeholder="New Password (min 6 chars)" value="${suggestedPassword}" style="width: 85%; font-family: monospace; font-size: 14px; font-weight: bold; color: #0f172a;" />
+          <div style="margin-top: 14px; display: flex; align-items: center; gap: 8px;">
+            <input type="checkbox" id="swal-dispatch-email" checked style="width: 16px; height: 16px; cursor: pointer; accent-color: #0f172a;" />
+            <label for="swal-dispatch-email" style="cursor: pointer; color: #0f172a; font-weight: 600; font-size: 13px;">Dispatch Updated Credentials & Onboarding Email</label>
+          </div>
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: 'Update & Save Passkey',
+      confirmButtonColor: '#0f172a',
+      cancelButtonColor: '#64748b',
+      background: '#ffffff',
+      color: '#0f172a',
+      preConfirm: () => {
+        const pwd = document.getElementById('swal-input-pwd').value;
+        const sendMail = document.getElementById('swal-dispatch-email').checked;
+        if (!pwd || pwd.length < 6) {
+          Swal.showValidationMessage('Password must be at least 6 characters long');
+          return false;
+        }
+        return { pwd, sendMail };
+      }
+    });
+
+    if (formValues) {
+      const { pwd, sendMail } = formValues;
+      setAdminUsers(prev => prev.map(u => u.id === user.id ? { ...u, password: pwd } : u));
+
+      setAuditLogs(prev => [
+        {
+          id: Date.now(),
+          action: 'PASSWORD_RESET',
+          category: 'SECURITY',
+          user: currentUser?.username || 'superadmin',
+          desc: `Reset passkey for administrator ${user.name} (@${user.username})`,
+          timestamp: new Date().toLocaleTimeString(),
+          ip: '127.0.0.1'
+        },
+        ...prev
+      ]);
+
+      if (sendMail) {
+        try {
+          await sendWelcomeOnboardingEmail({
+            recipientName: user.name,
+            recipientEmail: user.email,
+            username: user.username,
+            password: pwd,
+            roleTitle: SYSTEM_ROLES[user.role]?.title || user.role,
+            roleBadge: SYSTEM_ROLES[user.role]?.badge || 'Administrator',
+            clubName: user.organization === 'ALL' ? 'AWS SBG & Techno Lab (Universal)' : (user.organization === 'TECHNO_LAB' ? 'Techno Lab Innovation Chapter' : 'AWS Student Builder Group'),
+            clubId: user.organization,
+            scope: user.organization === 'ALL' ? 'Universal Dual-Club Governance & Operations' : `${user.organization} Chapter Scope`
+          });
+          Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            title: `Passkey updated & notification sent to ${user.email}!`,
+            timer: 3000,
+            showConfirmButton: false,
+            background: '#ffffff',
+            color: '#0f172a'
+          });
+        } catch (e) {
+          Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: 'success',
+            title: `Passkey updated for ${user.name}!`,
+            timer: 2500,
+            showConfirmButton: false,
+            background: '#ffffff',
+            color: '#0f172a'
+          });
+        }
+      } else {
+        Swal.fire({
+          toast: true,
+          position: 'top-end',
+          icon: 'success',
+          title: `Passkey updated for ${user.name}!`,
+          timer: 2500,
+          showConfirmButton: false,
+          background: '#ffffff',
+          color: '#0f172a'
+        });
+      }
+    }
+  };
+
+  // Resend 3,000-Word Welcome Onboarding Email Handler
+  const handleResendUserEmail = async (user) => {
+    Swal.fire({
+      title: `Resend Onboarding Email?`,
+      text: `Dispatch 3,000-word welcome onboarding email & authentication credentials to ${user.email}?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, Send Email',
+      confirmButtonColor: '#0f172a',
+      cancelButtonColor: '#64748b',
+      background: '#ffffff',
+      color: '#0f172a'
+    }).then(async (res) => {
+      if (res.isConfirmed) {
+        try {
+          Swal.fire({
+            title: 'Dispatching Email...',
+            text: 'Transmitting rich HTML onboarding template via SMTP...',
+            allowOutsideClick: false,
+            didOpen: () => Swal.showLoading()
+          });
+
+          await sendWelcomeOnboardingEmail({
+            recipientName: user.name,
+            recipientEmail: user.email,
+            username: user.username,
+            password: user.password || 'Admin@2026',
+            roleTitle: SYSTEM_ROLES[user.role]?.title || user.role,
+            roleBadge: SYSTEM_ROLES[user.role]?.badge || 'Administrator',
+            clubName: user.organization === 'ALL' ? 'AWS SBG & Techno Lab (Universal)' : (user.organization === 'TECHNO_LAB' ? 'Techno Lab Innovation Chapter' : 'AWS Student Builder Group'),
+            clubId: user.organization,
+            scope: user.organization === 'ALL' ? 'Universal Dual-Club Governance & Operations' : `${user.organization} Chapter Scope`
+          });
+
+          Swal.fire({
+            icon: 'success',
+            title: 'Email Dispatched!',
+            text: `Welcome onboarding email successfully delivered to ${user.email}`,
+            confirmButtonColor: '#0f172a',
+            background: '#ffffff',
+            color: '#0f172a'
+          });
+        } catch (err) {
+          Swal.fire({
+            icon: 'error',
+            title: 'Email Dispatch Error',
+            text: err.message || 'Failed to dispatch email',
+            confirmButtonColor: '#0f172a',
+            background: '#ffffff',
+            color: '#0f172a'
+          });
+        }
+      }
+    });
   };
 
   // Toggle user active / suspended status
@@ -1066,7 +1262,7 @@ export default function SuperAdminConsole({
                                   <span className="time-text">{u.lastActive}</span>
                                 </td>
                                 <td>
-                                  <div className="super-actions-cell">
+                                  <div className="super-actions-cell" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                                     <button
                                       className="btn-super-edit"
                                       onClick={() => {
@@ -1077,7 +1273,7 @@ export default function SuperAdminConsole({
                                           email: u.email,
                                           role: u.role,
                                           organization: u.organization || 'AWS_SBG',
-                                          password: ''
+                                          password: u.password || ''
                                         });
                                         setIsAddUserModalOpen(true);
                                       }}
@@ -1088,6 +1284,56 @@ export default function SuperAdminConsole({
                                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                                       </svg>
                                       Edit
+                                    </button>
+                                    <button
+                                      className="btn-super-reset-pass"
+                                      onClick={() => handleResetUserPassword(u)}
+                                      title="Reset administrator password & credentials"
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                        padding: '5px 9px',
+                                        borderRadius: '8px',
+                                        border: '1.5px solid #cbd5e1',
+                                        background: '#f8fafc',
+                                        color: '#0f172a',
+                                        fontWeight: 600,
+                                        fontSize: '12px',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s'
+                                      }}
+                                    >
+                                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M21 2l-2 2m-1.5 1.5L14 9l-1.5-1.5-3 3 1.5 1.5L3 20v2h2l8-8 1.5 1.5 3-3-1.5-1.5L20 7.5z" />
+                                        <circle cx="7.5" cy="7.5" r="3.5" />
+                                      </svg>
+                                      Reset Pass
+                                    </button>
+                                    <button
+                                      className="btn-super-resend-mail"
+                                      onClick={() => handleResendUserEmail(u)}
+                                      title="Resend 3,000-word onboarding welcome email with credentials"
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px',
+                                        padding: '5px 9px',
+                                        borderRadius: '8px',
+                                        border: '1.5px solid #bae6fd',
+                                        background: '#f0f9ff',
+                                        color: '#0284c7',
+                                        fontWeight: 600,
+                                        fontSize: '12px',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.2s'
+                                      }}
+                                    >
+                                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                        <rect x="2" y="4" width="20" height="16" rx="2" />
+                                        <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                                      </svg>
+                                      Resend Mail
                                     </button>
                                     <button
                                       className={`btn-super-toggle ${u.status === 'ACTIVE' ? 'btn-suspend' : 'btn-activate'}`}
@@ -1852,7 +2098,7 @@ export default function SuperAdminConsole({
                               fontWeight: 700,
                               paddingRight: '40px'
                             }}
-                            placeholder="e.g. uopdivcccgwkhwgl"
+                            placeholder="e.g. abcd efgh ijkl mnop"
                             value={smtpConfig.awsAppPassword || ''}
                             onChange={(e) => setSmtpConfig({ ...smtpConfig, awsAppPassword: e.target.value.trim() })}
                           />
@@ -2178,7 +2424,7 @@ export default function SuperAdminConsole({
                               fontWeight: 700,
                               paddingRight: '40px'
                             }}
-                            placeholder="e.g. uopdivcccgwkhwgl"
+                            placeholder="e.g. abcd efgh ijkl mnop"
                             value={smtpConfig.masterAppPassword || ''}
                             onChange={(e) => setSmtpConfig({ ...smtpConfig, masterAppPassword: e.target.value.trim() })}
                           />
@@ -2567,6 +2813,61 @@ export default function SuperAdminConsole({
                   </select>
                 </div>
               )}
+
+              {/* Administrator Authentication Passkey */}
+              <div className="form-group">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label>{editingUser ? 'Update Password / Passkey' : 'Initial Administrator Passkey *'}</label>
+                  <button
+                    type="button"
+                    onClick={() => setUserFormData(prev => ({ ...prev, password: `Admin@${Math.floor(1000 + Math.random() * 9000)}` }))}
+                    style={{ background: 'none', border: 'none', color: '#0284c7', fontSize: '11.5px', fontWeight: 700, cursor: 'pointer', padding: 0 }}
+                  >
+                    ⚡ Auto Generate
+                  </button>
+                </div>
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <input
+                    type={showModalPass ? 'text' : 'password'}
+                    className="super-input"
+                    value={userFormData.password}
+                    onChange={(e) => setUserFormData({ ...userFormData, password: e.target.value })}
+                    placeholder={editingUser ? 'Leave blank to keep existing passkey' : 'e.g. Admin@2026 or custom password'}
+                    style={{ paddingRight: '40px', fontFamily: showModalPass ? 'inherit' : 'monospace' }}
+                    required={!editingUser}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowModalPass(!showModalPass)}
+                    style={{
+                      position: 'absolute',
+                      right: '10px',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: '#64748b',
+                      display: 'flex',
+                      alignItems: 'center'
+                    }}
+                    title={showModalPass ? 'Hide password' : 'Show password'}
+                  >
+                    {showModalPass ? (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+                        <line x1="1" y1="1" x2="23" y2="23"></line>
+                      </svg>
+                    ) : (
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                        <circle cx="12" cy="12" r="3"></circle>
+                      </svg>
+                    )}
+                  </button>
+                </div>
+                <small style={{ fontSize: '11px', color: '#64748b', marginTop: '2px' }}>
+                  {editingUser ? 'Enter new passkey to override previous password.' : 'This passkey is delivered in the 3,000-word HTML welcome onboarding email.'}
+                </small>
+              </div>
 
               <div className="submodal-footer">
                 <button type="button" className="super-btn-secondary" onClick={() => setIsAddUserModalOpen(false)}>

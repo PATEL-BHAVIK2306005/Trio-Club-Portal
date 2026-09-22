@@ -42,12 +42,10 @@ module.exports = async (req, res) => {
     }
 
     // Determine official club sender & credentials
-    // Universal Fallback Master Credentials (from local verified config)
-    const MASTER_DEFAULT_USER = 'aws.itmbu@gmail.com';
-    const MASTER_DEFAULT_PASS = 'uopdivcccgwkhwgl';
+    const MASTER_DEFAULT_USER = process.env.AWS_EMAIL_USER || 'aws.itmbu@gmail.com';
 
     const clientPass = (req.body?.appPassword || '').replace(/\s+/g, '');
-    const masterPass = clientPass || process.env.AWS_EMAIL_PASS || process.env.EMAIL_PASS || process.env.SMTP_PASS || MASTER_DEFAULT_PASS;
+    const masterPass = clientPass || process.env.AWS_EMAIL_PASS || process.env.EMAIL_PASS || process.env.SMTP_PASS || '';
     const masterUser = process.env.AWS_EMAIL_USER || process.env.EMAIL_USER || MASTER_DEFAULT_USER;
 
     let officialSender = '';

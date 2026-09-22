@@ -11,7 +11,13 @@ import {
   Sparkles,
   ArrowUpRight,
   RefreshCw,
-  Eye
+  Eye,
+  FileText,
+  Download,
+  Paperclip,
+  Copy,
+  Check,
+  ExternalLink
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import {
@@ -37,18 +43,19 @@ export default function QueryManagementModal({
   const [isSyncing, setIsSyncing] = useState(false);
   const [isNewQueryModalOpen, setIsNewQueryModalOpen] = useState(false);
 
-  // New Message State
+  // New Message State (Images & PDFs up to 30 MB)
   const [messageText, setMessageText] = useState('');
-  const [attachedImage, setAttachedImage] = useState(null);
+  const [attachedFile, setAttachedFile] = useState(null); // { url, name, size, type: 'image' | 'pdf' }
   const [isSending, setIsSending] = useState(false);
   const [previewImageModal, setPreviewImageModal] = useState(null);
+  const [copiedMsgId, setCopiedMsgId] = useState(null);
 
   // New Query Form State
   const [newTitle, setNewTitle] = useState('');
   const [newCategory, setNewCategory] = useState(activeOrg || 'AWS_SBG');
   const [newUrgency, setNewUrgency] = useState('MEDIUM');
   const [newDescription, setNewDescription] = useState('');
-  const [newInitialImage, setNewInitialImage] = useState(null);
+  const [newInitialFile, setNewInitialFile] = useState(null);
 
   const chatEndRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -107,7 +114,8 @@ export default function QueryManagementModal({
       q.title.toLowerCase().includes(qTerm) ||
       q.id.toLowerCase().includes(qTerm) ||
       (q.description && q.description.toLowerCase().includes(qTerm)) ||
-      (q.author?.name && q.author.name.toLowerCase().includes(qTerm));
+      (q.author?.name && q.author.name.toLowerCase().includes(qTerm)) ||
+      (Array.isArray(q.messages) && q.messages.some(m => (m.text && m.text.toLowerCase().includes(qTerm)) || (m.fileName && m.fileName.toLowerCase().includes(qTerm))));
     return matchesFilter && matchesSearch;
   });
 
@@ -115,36 +123,72 @@ export default function QueryManagementModal({
   const inProgressCount = queries.filter(q => q.status === 'IN_PROGRESS').length;
   const resolvedCount = queries.filter(q => q.status === 'RESOLVED').length;
 
-  // Handle Image File Selection
-  const handleImageFileChange = (e, target = 'chat') => {
+  // Handle File Selection (Images and PDFs with strict 30MB limit)
+  const handleFileChange = (e, target = 'chat') => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 5 * 1024 * 1024) {
+    const MAX_FILE_SIZE = 30 * 1024 * 1024; // 30 MB Strict Limit
+
+    if (file.size > MAX_FILE_SIZE) {
+      Swal.fire({
+        icon: 'error',
+        title: '⚠️ File Exceeds 30MB Limit',
+        html: `The selected file (<b>${file.name}</b>) is <b>${(file.size / (1024 * 1024)).toFixed(1)} MB</b>.<br/><br/>Files strictly <b>above 30 MB are not allowed</b> for cloud discussions & attachments.`,
+        background: '#ffffff',
+        color: '#0f172a',
+        confirmButtonColor: '#0f172a'
+      });
+      if (e.target) e.target.value = '';
+      return;
+    }
+
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
+    const isImage = file.type.startsWith('image/');
+
+    if (!isPdf && !isImage) {
       Swal.fire({
         icon: 'warning',
-        title: 'Image Too Large',
-        text: 'Please select an image smaller than 5 MB for real-time cloud sync.',
-        confirmButtonColor: '#ff9900'
+        title: 'Unsupported File Format',
+        text: 'Please select an Image (PNG, JPG, WEBP) or a PDF document under 30 MB.',
+        background: '#ffffff',
+        color: '#0f172a',
+        confirmButtonColor: '#0f172a'
       });
+      if (e.target) e.target.value = '';
       return;
     }
 
     const reader = new FileReader();
     reader.onload = () => {
+      const fileData = {
+        url: reader.result,
+        name: file.name,
+        size: (file.size / (1024 * 1024)).toFixed(1) + ' MB',
+        type: isPdf ? 'pdf' : 'image'
+      };
+
       if (target === 'chat') {
-        setAttachedImage(reader.result);
+        setAttachedFile(fileData);
       } else {
-        setNewInitialImage(reader.result);
+        setNewInitialFile(fileData);
       }
     };
     reader.readAsDataURL(file);
   };
 
+  // Copy message text helper
+  const handleCopyMessage = (text, id) => {
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setCopiedMsgId(id);
+    setTimeout(() => setCopiedMsgId(null), 2000);
+  };
+
   // Handle Send Message
   const handleSendMessage = async (e) => {
     if (e) e.preventDefault();
-    if ((!messageText.trim() && !attachedImage) || !activeQuery) return;
+    if ((!messageText.trim() && !attachedFile) || !activeQuery) return;
 
     setIsSending(true);
     const senderName = currentUser?.name || currentUser?.username || 'Executive Admin';
@@ -152,13 +196,19 @@ export default function QueryManagementModal({
     const senderAvatar = currentUser?.avatar || '👑';
 
     try {
-      await addMessageToQuery(activeQuery.id, {
+      const payload = {
         senderName,
         senderRole,
         avatar: senderAvatar,
         text: messageText.trim(),
-        image: attachedImage
-      });
+        image: attachedFile?.type === 'image' ? attachedFile.url : null,
+        pdfUrl: attachedFile?.type === 'pdf' ? attachedFile.url : null,
+        fileName: attachedFile?.name || null,
+        fileSize: attachedFile?.size || null,
+        fileType: attachedFile?.type || null
+      };
+
+      await addMessageToQuery(activeQuery.id, payload);
 
       // Update local state immediately
       setQueries(prev => {
@@ -171,11 +221,7 @@ export default function QueryManagementModal({
                 ...msgs,
                 {
                   id: `msg-${Date.now()}`,
-                  senderName,
-                  senderRole,
-                  avatar: senderAvatar,
-                  text: messageText.trim(),
-                  image: attachedImage,
+                  ...payload,
                   timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                 }
               ]
@@ -186,7 +232,7 @@ export default function QueryManagementModal({
       });
 
       setMessageText('');
-      setAttachedImage(null);
+      setAttachedFile(null);
     } catch (err) {
       console.error(err);
     } finally {
@@ -213,14 +259,18 @@ export default function QueryManagementModal({
         avatar: currentUser?.avatar || '👑',
         email: currentUser?.email || 'admin@itmbu.ac.in'
       },
-      messages: newDescription.trim() ? [
+      messages: newDescription.trim() || newInitialFile ? [
         {
           id: `msg-init-${Date.now()}`,
           senderName: currentUser?.name || currentUser?.username || 'Executive Admin',
           senderRole: currentUser?.role || 'Lead Organizer',
           avatar: currentUser?.avatar || '👑',
-          text: newDescription.trim(),
-          image: newInitialImage,
+          text: newDescription.trim() || `Initiated topic with attached ${newInitialFile?.type?.toUpperCase() || 'file'}.`,
+          image: newInitialFile?.type === 'image' ? newInitialFile.url : null,
+          pdfUrl: newInitialFile?.type === 'pdf' ? newInitialFile.url : null,
+          fileName: newInitialFile?.name || null,
+          fileSize: newInitialFile?.size || null,
+          fileType: newInitialFile?.type || null,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ] : []
@@ -231,7 +281,7 @@ export default function QueryManagementModal({
     setIsNewQueryModalOpen(false);
     setNewTitle('');
     setNewDescription('');
-    setNewInitialImage(null);
+    setNewInitialFile(null);
 
     Swal.fire({
       icon: 'success',
@@ -262,7 +312,7 @@ export default function QueryManagementModal({
   };
 
   return (
-    <div className="query-modal-overlay" onClick={onClose}>
+    <div className="query-modal-overlay" onClick={onClose} style={{ zIndex: 1200 }}>
       <div className={`query-modal-container ${theme === 'dark' ? 'theme-dark' : 'theme-light'}`} onClick={(e) => e.stopPropagation()}>
         
         {/* MODAL TOP BAR */}
@@ -278,9 +328,12 @@ export default function QueryManagementModal({
                   <span className="pulse-dot"></span>
                   Supabase Cloud Realtime
                 </span>
+                <span style={{ fontSize: '11px', color: '#64748b', background: '#f1f5f9', padding: '2px 8px', borderRadius: '6px', fontWeight: 600 }}>
+                  Max PDF 30MB
+                </span>
               </div>
               <p className="query-header-subtitle">
-                Collaborative chapter issue tracking, club questions & live multi-chapter discussion hub
+                Collaborative chapter issue tracking, letter verification & live multi-chapter discussion hub
               </p>
             </div>
           </div>
@@ -381,7 +434,8 @@ export default function QueryManagementModal({
                   const isActive = activeQuery?.id === item.id;
                   const badge = getStatusBadge(item.status);
                   const msgCount = Array.isArray(item.messages) ? item.messages.length : 0;
-                  const hasImage = item.messages?.some(m => m.image);
+                  const hasImage = item.messages?.some(m => m.image || m.fileType === 'image');
+                  const hasPdf = item.messages?.some(m => m.pdfUrl || m.fileType === 'pdf');
 
                   return (
                     <div
@@ -417,6 +471,11 @@ export default function QueryManagementModal({
                         </div>
                         
                         <div className="ticket-meta-badges">
+                          {hasPdf && (
+                            <span className="meta-badge-pdf" title="Has attached PDF document" style={{ color: '#ef4444', display: 'inline-flex', alignItems: 'center', gap: '2px', fontSize: '11px', fontWeight: 700 }}>
+                              <FileText size={12} /> PDF
+                            </span>
+                          )}
                           {hasImage && (
                             <span className="meta-badge-image" title="Has attached screenshots/images">
                               <ImageIcon size={12} />
@@ -490,11 +549,13 @@ export default function QueryManagementModal({
                     <div className="chat-empty-thread">
                       <Sparkles size={32} opacity={0.4} />
                       <h4>No messages yet in this discussion</h4>
-                      <p>Share updates, queries, appointment letter feedback, or upload design proof images below.</p>
+                      <p>Share updates, queries, appointment letter feedback, or upload design proof images & PDF files (up to 30 MB) below.</p>
                     </div>
                   ) : (
                     activeQuery.messages.map((msg, idx) => {
                       const isMe = msg.senderName === (currentUser?.name || currentUser?.username || 'Executive Admin');
+                      const hasPdf = msg.pdfUrl || msg.fileType === 'pdf' || (msg.image && msg.image.startsWith('data:application/pdf'));
+                      const hasImg = msg.image && !msg.image.startsWith('data:application/pdf');
 
                       return (
                         <div key={msg.id || idx} className={`chat-message-row ${isMe ? 'message-outgoing' : 'message-incoming'}`}>
@@ -507,18 +568,123 @@ export default function QueryManagementModal({
                               <span className="message-sender-name">{msg.senderName}</span>
                               {msg.senderRole && <span className="message-sender-role">{msg.senderRole}</span>}
                               <span className="message-timestamp">{msg.timestamp || 'Just now'}</span>
+                              
+                              {msg.text && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyMessage(msg.text, msg.id || idx)}
+                                  title="Copy text"
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    color: '#94a3b8',
+                                    padding: '2px 4px',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    marginLeft: '4px'
+                                  }}
+                                >
+                                  {copiedMsgId === (msg.id || idx) ? <Check size={12} color="#10b981" /> : <Copy size={12} />}
+                                </button>
+                              )}
                             </div>
 
                             <div className="message-bubble-body">
                               {msg.text && <p className="message-text-content">{msg.text}</p>}
 
                               {/* Attached Image inside Chat */}
-                              {msg.image && (
+                              {hasImg && (
                                 <div className="message-image-attachment-wrap" onClick={() => setPreviewImageModal(msg.image)}>
                                   <img src={msg.image} alt="Attachment" className="message-attached-img" />
                                   <div className="img-hover-overlay">
                                     <Eye size={18} />
-                                    <span>Click to enlarge</span>
+                                    <span>Click to enlarge preview</span>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Attached PDF inside Chat */}
+                              {hasPdf && (
+                                <div style={{
+                                  marginTop: '8px',
+                                  padding: '12px 14px',
+                                  background: isMe ? 'rgba(0, 0, 0, 0.15)' : '#f8fafc',
+                                  border: `1.5px solid ${isMe ? 'rgba(255, 255, 255, 0.25)' : '#e2e8f0'}`,
+                                  borderRadius: '10px',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  gap: '12px',
+                                  maxWidth: '340px'
+                                }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
+                                    <div style={{
+                                      width: '36px',
+                                      height: '36px',
+                                      borderRadius: '8px',
+                                      background: '#fee2e2',
+                                      color: '#dc2626',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      flexShrink: 0
+                                    }}>
+                                      <FileText size={20} />
+                                    </div>
+                                    <div style={{ overflow: 'hidden' }}>
+                                      <strong style={{
+                                        display: 'block',
+                                        fontSize: '12.5px',
+                                        color: isMe ? '#ffffff' : '#0f172a',
+                                        textOverflow: 'ellipsis',
+                                        overflow: 'hidden',
+                                        whiteSpace: 'nowrap'
+                                      }}>
+                                        {msg.fileName || 'Attached_Document.pdf'}
+                                      </strong>
+                                      <small style={{ color: isMe ? '#fed7aa' : '#64748b', fontSize: '11px' }}>
+                                        PDF Document {msg.fileSize ? `• ${msg.fileSize}` : '• < 30 MB'}
+                                      </small>
+                                    </div>
+                                  </div>
+
+                                  <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                                    <a
+                                      href={msg.pdfUrl || msg.image}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      title="Open PDF in new tab"
+                                      style={{
+                                        padding: '6px',
+                                        borderRadius: '6px',
+                                        background: isMe ? 'rgba(255,255,255,0.2)' : '#f1f5f9',
+                                        color: isMe ? '#ffffff' : '#0f172a',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        textDecoration: 'none'
+                                      }}
+                                    >
+                                      <ExternalLink size={14} />
+                                    </a>
+                                    <a
+                                      href={msg.pdfUrl || msg.image}
+                                      download={msg.fileName || 'Document.pdf'}
+                                      title="Download PDF"
+                                      style={{
+                                        padding: '6px',
+                                        borderRadius: '6px',
+                                        background: isMe ? 'rgba(255,255,255,0.2)' : '#f1f5f9',
+                                        color: isMe ? '#ffffff' : '#0f172a',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        textDecoration: 'none'
+                                      }}
+                                    >
+                                      <Download size={14} />
+                                    </a>
                                   </div>
                                 </div>
                               )}
@@ -543,26 +709,51 @@ export default function QueryManagementModal({
                   <button type="button" onClick={() => handleQuickReply('Will resolve this before next chapter deployment. ⚡')}>
                     In Next Sprint ⚡
                   </button>
-                  <button type="button" onClick={() => handleQuickReply('Attached the updated certificate proof. 🖼️')}>
-                    Proof Attached 🖼️
+                  <button type="button" onClick={() => handleQuickReply('Attached the updated appointment letter / PDF. 📄')}>
+                    PDF Attached 📄
                   </button>
                 </div>
 
-                {/* Image Attachment Preview Strip */}
-                {attachedImage && (
-                  <div className="image-attachment-preview-bar">
-                    <div className="preview-thumb-box">
-                      <img src={attachedImage} alt="Attachment Preview" />
-                      <button
-                        type="button"
-                        className="btn-remove-preview"
-                        onClick={() => setAttachedImage(null)}
-                        title="Remove image"
-                      >
-                        <X size={14} />
-                      </button>
+                {/* File Attachment Preview Strip before sending */}
+                {attachedFile && (
+                  <div className="image-attachment-preview-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      {attachedFile.type === 'image' ? (
+                        <div className="preview-thumb-box">
+                          <img src={attachedFile.url} alt="Attachment Preview" />
+                        </div>
+                      ) : (
+                        <div style={{
+                          width: '44px',
+                          height: '44px',
+                          borderRadius: '8px',
+                          background: '#fee2e2',
+                          color: '#dc2626',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <FileText size={22} />
+                        </div>
+                      )}
+                      <div>
+                        <strong style={{ display: 'block', fontSize: '12.5px', color: '#0f172a' }}>
+                          {attachedFile.name}
+                        </strong>
+                        <span className="preview-label" style={{ fontSize: '11px' }}>
+                          {attachedFile.type.toUpperCase()} • {attachedFile.size} • Under 30MB Limit ✓
+                        </span>
+                      </div>
                     </div>
-                    <span className="preview-label">Image attached • Ready to send to Supabase Cloud</span>
+                    <button
+                      type="button"
+                      className="btn-remove-preview"
+                      onClick={() => setAttachedFile(null)}
+                      title="Remove attachment"
+                      style={{ position: 'static', width: '26px', height: '26px', borderRadius: '6px', background: '#e2e8f0', color: '#0f172a' }}
+                    >
+                      <X size={16} />
+                    </button>
                   </div>
                 )}
 
@@ -571,24 +762,24 @@ export default function QueryManagementModal({
                   <input
                     type="file"
                     ref={fileInputRef}
-                    accept="image/*"
+                    accept="image/*,application/pdf"
                     style={{ display: 'none' }}
-                    onChange={(e) => handleImageFileChange(e, 'chat')}
+                    onChange={(e) => handleFileChange(e, 'chat')}
                   />
 
                   <button
                     type="button"
                     className="composer-btn-attach"
                     onClick={() => fileInputRef.current?.click()}
-                    title="Attach Image / Screenshot"
+                    title="Attach Image or PDF Document (Max 30 MB)"
                   >
-                    <ImageIcon size={19} />
+                    <Paperclip size={19} />
                   </button>
 
                   <input
                     type="text"
                     className="composer-text-input"
-                    placeholder="Type your discussion message or reply..."
+                    placeholder="Type your discussion message, notes, or reply..."
                     value={messageText}
                     onChange={(e) => setMessageText(e.target.value)}
                   />
@@ -596,7 +787,7 @@ export default function QueryManagementModal({
                   <button
                     type="submit"
                     className="composer-btn-send"
-                    disabled={isSending || (!messageText.trim() && !attachedImage)}
+                    disabled={isSending || (!messageText.trim() && !attachedFile)}
                   >
                     <Send size={16} />
                     <span>Send</span>
@@ -617,7 +808,7 @@ export default function QueryManagementModal({
 
       {/* MODAL 2: RAISE NEW QUERY DIALOG */}
       {isNewQueryModalOpen && (
-        <div className="new-query-submodal-overlay" onClick={() => setIsNewQueryModalOpen(false)}>
+        <div className="new-query-submodal-overlay" onClick={() => setIsNewQueryModalOpen(false)} style={{ zIndex: 99999 }}>
           <div className="new-query-submodal-card" onClick={(e) => e.stopPropagation()}>
             <div className="submodal-header">
               <div className="submodal-title-row">
@@ -672,26 +863,37 @@ export default function QueryManagementModal({
                 />
               </div>
 
-              {/* Image Attachment for New Query */}
+              {/* File Attachment for New Query (Image or PDF <= 30MB) */}
               <div className="form-group">
-                <label>Attach Screenshot / Design Proof (Optional)</label>
+                <label>Attach Screenshot or PDF Document (Optional &bull; Max 30 MB)</label>
                 <input
                   type="file"
                   ref={newQueryFileInputRef}
-                  accept="image/*"
+                  accept="image/*,application/pdf"
                   style={{ display: 'none' }}
-                  onChange={(e) => handleImageFileChange(e, 'newQuery')}
+                  onChange={(e) => handleFileChange(e, 'newQuery')}
                 />
                 
-                {newInitialImage ? (
-                  <div className="image-attachment-preview-bar" style={{ marginTop: '4px' }}>
-                    <div className="preview-thumb-box">
-                      <img src={newInitialImage} alt="Attachment Preview" />
-                      <button type="button" className="btn-remove-preview" onClick={() => setNewInitialImage(null)}>
-                        <X size={14} />
-                      </button>
+                {newInitialFile ? (
+                  <div className="image-attachment-preview-bar" style={{ marginTop: '4px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      {newInitialFile.type === 'image' ? (
+                        <div className="preview-thumb-box">
+                          <img src={newInitialFile.url} alt="Attachment Preview" />
+                        </div>
+                      ) : (
+                        <div style={{ width: '36px', height: '36px', borderRadius: '6px', background: '#fee2e2', color: '#dc2626', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <FileText size={18} />
+                        </div>
+                      )}
+                      <div>
+                        <strong style={{ fontSize: '12.5px', color: '#0f172a', display: 'block' }}>{newInitialFile.name}</strong>
+                        <span className="preview-label" style={{ fontSize: '11px' }}>{newInitialFile.type.toUpperCase()} • {newInitialFile.size}</span>
+                      </div>
                     </div>
-                    <span className="preview-label">Screenshot attached</span>
+                    <button type="button" className="btn-remove-preview" onClick={() => setNewInitialFile(null)} style={{ position: 'static', width: '24px', height: '24px', borderRadius: '4px' }}>
+                      <X size={14} />
+                    </button>
                   </div>
                 ) : (
                   <button
@@ -699,8 +901,8 @@ export default function QueryManagementModal({
                     className="btn-upload-box"
                     onClick={() => newQueryFileInputRef.current?.click()}
                   >
-                    <ImageIcon size={18} />
-                    <span>Click to upload image/screenshot (Max 5 MB)</span>
+                    <Paperclip size={18} />
+                    <span>Click to attach Image / PDF document (Strict Max 30 MB)</span>
                   </button>
                 )}
               </div>
@@ -719,14 +921,88 @@ export default function QueryManagementModal({
         </div>
       )}
 
-      {/* FULL IMAGE LIGHTBOX MODAL */}
+      {/* FULL IMAGE LIGHTBOX MODAL WITH ULTRA-HIGH Z-INDEX */}
       {previewImageModal && (
-        <div className="image-lightbox-overlay" onClick={() => setPreviewImageModal(null)}>
-          <div className="image-lightbox-content" onClick={(e) => e.stopPropagation()}>
-            <button className="lightbox-close-btn" onClick={() => setPreviewImageModal(null)}>
-              <X size={24} />
-            </button>
-            <img src={previewImageModal} alt="Enlarged Attachment" className="lightbox-img" />
+        <div
+          className="image-lightbox-overlay"
+          onClick={() => setPreviewImageModal(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.92)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 999999,
+            padding: '30px'
+          }}
+        >
+          <div
+            className="image-lightbox-content"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              position: 'relative',
+              maxWidth: '92vw',
+              maxHeight: '92vh',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center'
+            }}
+          >
+            <div style={{ position: 'absolute', top: '-45px', right: '0', display: 'flex', gap: '10px' }}>
+              <a
+                href={previewImageModal}
+                download="Discussion_Screenshot.png"
+                style={{
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '38px',
+                  height: '38px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  textDecoration: 'none'
+                }}
+                title="Download Image"
+              >
+                <Download size={18} />
+              </a>
+              <button
+                className="lightbox-close-btn"
+                onClick={() => setPreviewImageModal(null)}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '38px',
+                  height: '38px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer'
+                }}
+                title="Close Lightbox"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <img
+              src={previewImageModal}
+              alt="Enlarged Attachment"
+              className="lightbox-img"
+              style={{
+                maxWidth: '90vw',
+                maxHeight: '85vh',
+                borderRadius: '12px',
+                boxShadow: '0 25px 60px rgba(0, 0, 0, 0.75)',
+                objectFit: 'contain'
+              }}
+            />
           </div>
         </div>
       )}
