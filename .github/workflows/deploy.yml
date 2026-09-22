@@ -8,6 +8,8 @@ on:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 jobs:
   build-and-deploy:
@@ -16,6 +18,8 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          persist-credentials: true
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -34,7 +38,7 @@ jobs:
           REACT_APP_SUPABASE_ANON_KEY: ${{ secrets.REACT_APP_SUPABASE_ANON_KEY }}
           REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
         run: |
-          npm run build
+          CI=false npm run build
           cp build/index.html build/404.html
 
       - name: Deploy to GitHub Pages
@@ -42,3 +46,4 @@ jobs:
         with:
           folder: offer-letter-genrator/build
           branch: gh-pages
+          token: ${{ secrets.GITHUB_TOKEN }}

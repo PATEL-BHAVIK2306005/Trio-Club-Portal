@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import Swal from 'sweetalert2';
 import {
   X,
   Database,
@@ -138,6 +139,7 @@ export default function DatabaseStorageModal({
         }
       ]
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [members, adminUsers, auditLogs, lastCalculated]);
 
   if (!isOpen) return null;
