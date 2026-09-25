@@ -31,7 +31,9 @@ import {
   GraduationCap,
   ClipboardList,
   SlidersHorizontal,
-  CheckSquare
+  CheckSquare,
+  Sun,
+  Moon
 } from 'lucide-react';
 import {
   fetchCloudFinanceData,
@@ -51,17 +53,17 @@ const INITIAL_FINANCE_DATA = {
       createdBy: 'Bhavikkumar Patel (Treasurer Lead)',
       createdAt: '2026-09-20',
       coOrganizerApproval: {
-        approvedBy: 'Tannvi Acharya (Co-Organizer / Lead)',
+        approvedBy: 'Bhavikkumar Patel (Super Admin) (Co-Organizer)',
         approvedAt: '2026-09-22 11:30',
         note: 'Verified roster against semester 5 active student builder registrations.'
       },
       advisorApproval: {
-        approvedBy: 'Faculty Advisor (Prof. S. Joshi)',
+        approvedBy: 'Faculty Advisor (Institutional Review)',
         approvedAt: '2026-09-23 09:45',
         note: 'Institutional compliance and swag logistics sanctioned.'
       },
       superAdminApproval: {
-        approvedBy: 'Super Administrator Root',
+        approvedBy: 'Bhavikkumar Patel (Super Admin) Universal Root',
         approvedAt: '2026-09-23 15:45',
         note: 'Sanctioned for official on-spot distribution & printable manifest authorized.'
       }
@@ -191,13 +193,15 @@ const INITIAL_FINANCE_DATA = {
     {
       id: 'SWAG-001',
       chapter: 'AWS_SBG',
-      studentName: 'Tanvi Acharya',
-      enrollmentNo: '24C21002',
-      swagItem: 'AWS CORE TEAM KIT + DESK MATE + 2 MORE SWAGS',
-      remark: 'M SIZE T SHIRT',
+      studentName: 'Pratham Mahajan',
+      enrollmentNo: '24CS1026',
+      department: 'Technical Team',
+      directorName: 'Pratham Mahajan (Director of Technical Team)',
+      swagItem: 'Core Team Kit + Clear Belt Bag + Magnetic Phone Mount + Holographics Sticker',
+      remark: "T shirt Size 'L' & Pencil Pouch goes to Vansham Khambhoj",
       status: 'ALLOTTED',
       approvalStatus: 'SUPER_ADMIN_APPROVED',
-      approvedBy: 'Super Admin (Universal Root)',
+      approvedBy: 'Bhavikkumar Patel (Super Admin) (Super Admin)',
       allocatedDate: '2026-09-20',
       claimedTimestamp: null,
       claimedBy: null
@@ -205,50 +209,42 @@ const INITIAL_FINANCE_DATA = {
     {
       id: 'SWAG-002',
       chapter: 'AWS_SBG',
-      studentName: 'Bhavikkumar Patel',
-      enrollmentNo: '2306005',
-      swagItem: 'AWS Builder T-Shirt + Cloud Sticker Pack',
-      remark: 'Size L • Verified at Desk',
+      studentName: 'Tanvi Acharya',
+      enrollmentNo: '24CS1002',
+      department: 'Finance & Sponsorship',
+      directorName: 'Tanvi Acharya (Head of Treasury)',
+      swagItem: 'CORE - TEAM KIT+TABLE DESK + 2 MORE SWAGS',
+      remark: 'T SHIRT SIZE "M"',
       status: 'CLAIMED',
       approvalStatus: 'SUPER_ADMIN_APPROVED',
-      approvedBy: 'Super Admin (Universal Root)',
-      allocatedDate: '2026-09-10',
-      claimedTimestamp: '2026-09-12 14:32',
+      approvedBy: 'Bhavikkumar Patel (Super Admin) (Super Admin)',
+      allocatedDate: '2026-09-20',
+      claimedTimestamp: '2026-09-22 14:10',
       claimedBy: 'Treasurer Desk'
     },
     {
       id: 'SWAG-003',
       chapter: 'AWS_SBG',
-      studentName: 'Tannvi Acharya',
-      enrollmentNo: '2306012',
-      swagItem: 'AWS DeepRacer Hoodie + Builder Badge',
-      remark: 'Size M • Cohort Lead Kit',
-      status: 'CLAIMED',
-      approvalStatus: 'SUPER_ADMIN_APPROVED',
-      approvedBy: 'Super Admin (Universal Root)',
-      allocatedDate: '2026-09-10',
-      claimedTimestamp: '2026-09-11 11:15',
-      claimedBy: 'Treasurer Desk'
-    },
-    {
-      id: 'SWAG-004',
-      chapter: 'AWS_SBG',
-      studentName: 'Rohan Mehta',
-      enrollmentNo: '2306045',
-      swagItem: 'AWS Builder T-Shirt',
-      remark: 'Size M • Pending Pickup',
+      studentName: 'Bhavik Patel',
+      enrollmentNo: '24CS1053',
+      department: 'Technical Team',
+      directorName: 'Bhavikkumar Patel (Technical Director / Super Admin)',
+      swagItem: 'MAIN DISTRIBUTOR',
+      remark: 'NO',
       status: 'ALLOTTED',
-      approvalStatus: 'CO_ORGANIZER_APPROVED',
-      approvedBy: 'Tannvi Acharya (Co-Organizer)',
-      allocatedDate: '2026-09-15',
+      approvalStatus: 'SUPER_ADMIN_APPROVED',
+      approvedBy: 'Super Administrator',
+      allocatedDate: '2026-09-21',
       claimedTimestamp: null,
       claimedBy: null
     },
     {
-      id: 'SWAG-005',
+      id: 'SWAG-004',
       chapter: 'GDGOC',
       studentName: 'Ananya Joshi',
       enrollmentNo: '2306088',
+      department: 'Technical Team',
+      directorName: 'Ananya Joshi (GDG Organizer)',
       swagItem: 'Google Cloud Skills T-Shirt + Pin Set',
       remark: 'Tier 1 Arcade Completion Kit',
       status: 'ALLOTTED',
@@ -259,24 +255,12 @@ const INITIAL_FINANCE_DATA = {
       claimedBy: null
     },
     {
-      id: 'SWAG-006',
-      chapter: 'GDGOC',
-      studentName: 'Hardik Shah',
-      enrollmentNo: '2306102',
-      swagItem: 'Google Cloud Backpack + Tech Hoodie + Bottle',
-      remark: 'Tier 3 Ultimate Cloud Champion',
-      status: 'ALLOTTED',
-      approvalStatus: 'SUPER_ADMIN_APPROVED',
-      approvedBy: 'Super Administrator Root',
-      allocatedDate: '2026-09-20',
-      claimedTimestamp: null,
-      claimedBy: null
-    },
-    {
-      id: 'SWAG-007',
+      id: 'SWAG-005',
       chapter: 'TECHNO_LAB',
       studentName: 'Vansham Kamboj',
       enrollmentNo: '2306020',
+      department: 'R&D Cell',
+      directorName: 'Vansham Kamboj (R&D Lead)',
       swagItem: 'Techno Lab Robotics Kit + Tech Cap',
       remark: 'R&D Cell Lead Allocation',
       status: 'CLAIMED',
@@ -341,7 +325,7 @@ const INITIAL_FINANCE_DATA = {
   expenseVouchers: [
     {
       id: 'EXP-101',
-      title: 'High-Tea & Snacks for AWS Day Attendees (200 Students)',
+      title: 'High-Tea & Catering for AWS Builder Attendees (200 Students)',
       eventName: 'AWS Cloud Day & Builder Jam 2026',
       chapter: 'AWS_SBG',
       submittedBy: 'Bhavikkumar Patel',
@@ -362,16 +346,16 @@ const INITIAL_FINANCE_DATA = {
       eventName: 'AWS Cloud Day & Builder Jam 2026',
       chapter: 'AWS_SBG',
       submittedBy: 'Tannvi Acharya',
-      amount: 4800,
+      amount: 950,
       category: 'Printing & Badges',
       billDate: '2026-09-13',
-      status: 'FACULTY_APPROVED',
+      status: 'SETTLED',
       treasurerSignOff: 'Bhavik Patel (Treasurer)',
       facultySignOff: 'Faculty Coordinator (Approved)',
       paymentMode: 'Cash Advance Reimbursement',
       receiptUrl: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?w=600&auto=format&fit=crop&q=60',
-      receiptName: 'graphics_print_receipt_4800.png',
-      settledRef: null
+      receiptName: 'graphics_print_receipt_950.png',
+      settledRef: 'ITMBU-FIN-TXN-9982'
     },
     {
       id: 'EXP-103',
@@ -413,16 +397,26 @@ const INITIAL_FINANCE_DATA = {
   sponsorshipInflows: [
     {
       id: 'INFLOW-01',
-      sponsorName: 'AWS User Group Gujarat / Community Grant',
+      sponsorName: 'AWS User Group Gujarat & Student Builder Fund',
       chapter: 'AWS_SBG',
       category: 'Community Grant',
-      amount: 25000,
+      amount: 50000,
       paymentDate: '2026-09-02',
       utrReferenceNo: 'UTR-HDFC-9920188219',
       notes: 'Sanctioned for Cloud Day 2026 builder tracks.'
     },
     {
       id: 'INFLOW-02',
+      sponsorName: 'TechCorp Solutions & Corporate Grants',
+      chapter: 'AWS_SBG',
+      category: 'Corporate Sponsorship',
+      amount: 25000,
+      paymentDate: '2026-09-04',
+      utrReferenceNo: 'UTR-ICICI-8827391102',
+      notes: 'Title sponsorship for AI & Cloud HackFest.'
+    },
+    {
+      id: 'INFLOW-03',
       sponsorName: 'TechCorp Solutions Pvt Ltd (Gold Sponsor)',
       chapter: 'TECHNO_LAB',
       category: 'Corporate Sponsorship',
@@ -432,7 +426,7 @@ const INITIAL_FINANCE_DATA = {
       notes: 'Title sponsorship for AI & Robotics HackFest.'
     },
     {
-      id: 'INFLOW-03',
+      id: 'INFLOW-04',
       sponsorName: 'ITM (sls) Baroda University Annual Activity Fund',
       chapter: 'GDGOC',
       category: 'University Allocation',
@@ -615,6 +609,8 @@ export default function TreasurerFinanceHub({
   currentUser = null,
   itmbuLogo = null,
   clubLogo = null,
+  appTheme = null,
+  onToggleTheme = null,
   onClose = () => { }
 }) {
   const [activeTab, setActiveTab] = useState('swags');
@@ -622,6 +618,36 @@ export default function TreasurerFinanceHub({
   const [searchQuery, setSearchQuery] = useState('');
   const [isCloudSynced, setIsCloudSynced] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+
+  // Local / Synced Theme State ('light' | 'dark')
+  const [localTheme, setLocalTheme] = useState(() => {
+    if (appTheme) return appTheme;
+    try {
+      return localStorage.getItem('itmbu_portal_theme') || 'dark';
+    } catch (e) {
+      return 'dark';
+    }
+  });
+
+  useEffect(() => {
+    if (appTheme) {
+      setLocalTheme(appTheme);
+    }
+  }, [appTheme]);
+
+  const activeTheme = appTheme || localTheme;
+
+  const handleToggleLocalTheme = () => {
+    const next = activeTheme === 'dark' ? 'light' : 'dark';
+    setLocalTheme(next);
+    try {
+      localStorage.setItem('itmbu_portal_theme', next);
+      localStorage.setItem('itmbu_auth_theme', next);
+    } catch (e) {}
+    if (onToggleTheme) {
+      onToggleTheme();
+    }
+  };
 
   // Column Visibility Checkboxes (for Screen Table & PDF Print Manifest)
   const [swagColumns, setSwagColumns] = useState({
@@ -1929,7 +1955,10 @@ export default function TreasurerFinanceHub({
   };
 
   return (
-    <div className="treasurer-finance-hub-container">
+    <div
+      className={`treasurer-finance-hub-container tf-theme-${activeTheme}`}
+      data-theme={activeTheme}
+    >
 
       {/* TOP HEADER */}
       <header className="tf-header">
@@ -2523,7 +2552,7 @@ export default function TreasurerFinanceHub({
                     <Search size={16} />
                     <input
                       type="text"
-                      placeholder="Search name, enrollment no, or alloted swag..."
+                      placeholder="Search name, enrollment no, or allotted swag..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
@@ -2668,15 +2697,15 @@ export default function TreasurerFinanceHub({
                   <table className="tf-data-table">
                     <thead>
                       <tr>
-                        {swagColumns.srNo && <th style={{ width: '50px', textAlign: 'center' }}>Sr.No</th>}
-                        {swagColumns.studentName && <th>Name</th>}
-                        {swagColumns.enrollmentNo && <th>Enrollment no</th>}
-                        {swagColumns.department && <th>Department &amp; Director / Lead</th>}
-                        {swagColumns.swagItem && <th>Alloted Swags</th>}
-                        {swagColumns.remark && <th>Remark</th>}
-                        {swagColumns.approvalStatus && <th style={{ textAlign: 'center', minWidth: '180px' }}>Approval Seal &amp; Verified By</th>}
-                        {swagColumns.status && <th style={{ textAlign: 'center', width: '120px' }}>Claim Status</th>}
-                        <th style={{ textAlign: 'right', width: '180px' }}>Action</th>
+                        {swagColumns.srNo && <th style={{ width: '60px', textAlign: 'center' }}>SR.NO</th>}
+                        {swagColumns.studentName && <th>NAME</th>}
+                        {swagColumns.enrollmentNo && <th>ENROLLMENT NO</th>}
+                        {swagColumns.department && <th>DEPARTMENT &amp; DIRECTOR / LEAD</th>}
+                        {swagColumns.swagItem && <th>ALLOTTED SWAGS</th>}
+                        {swagColumns.remark && <th>REMARK</th>}
+                        {swagColumns.approvalStatus && <th style={{ textAlign: 'center', minWidth: '220px' }}>APPROVAL SEAL &amp; VERIFIED BY</th>}
+                        {swagColumns.status && <th style={{ textAlign: 'center', width: '130px' }}>CLAIM STATUS</th>}
+                        <th style={{ textAlign: 'right', width: '220px' }}>ACTION</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2712,14 +2741,14 @@ export default function TreasurerFinanceHub({
                             )}
                             {swagColumns.swagItem && (
                               <td>
-                                <span style={{ color: '#38bdf8', fontWeight: 600, letterSpacing: '0.2px' }}>
+                                <span style={{ color: '#38bdf8', fontWeight: 700, letterSpacing: '0.2px', fontSize: '12.5px', textTransform: 'uppercase' }}>
                                   {swag.swagItem || '—'}
                                 </span>
                               </td>
                             )}
                             {swagColumns.remark && (
                               <td>
-                                <span style={{ color: '#cbd5e1', fontSize: '13px' }}>
+                                <span style={{ color: '#cbd5e1', fontSize: '12.5px' }}>
                                   {swag.remark || '—'}
                                 </span>
                               </td>
@@ -2727,21 +2756,21 @@ export default function TreasurerFinanceHub({
                             {swagColumns.approvalStatus && (
                               <td style={{ textAlign: 'center' }}>
                                 {swag.approvalStatus === 'SUPER_ADMIN_APPROVED' && (
-                                  <div className="status-pill status-approved-super" style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '2px', padding: '6px 10px', borderRadius: '8px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 800, fontSize: '12px' }}>
+                                  <div className="status-pill status-approved-super" style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '3px', padding: '6px 12px', borderRadius: '8px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 800, fontSize: '11.5px', color: '#34d399' }}>
                                       <Crown size={13} />
                                       <span>{swag.approvedBy || 'Bhavikkumar Patel (Super Admin)'}</span>
                                     </div>
-                                    <span style={{ fontSize: '10px', opacity: 0.85, fontWeight: 600 }}>👑 Final Super Admin Seal</span>
+                                    <span style={{ fontSize: '10px', color: '#fbbf24', fontWeight: 700 }}>⭐ Final Super Admin Seal</span>
                                   </div>
                                 )}
                                 {swag.approvalStatus === 'CO_ORGANIZER_APPROVED' && (
-                                  <div className="status-pill status-approved-coorg" style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '2px', padding: '6px 10px', borderRadius: '8px' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 800, fontSize: '12px' }}>
+                                  <div className="status-pill status-approved-coorg" style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'center', gap: '3px', padding: '6px 12px', borderRadius: '8px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontWeight: 800, fontSize: '11.5px', color: '#60a5fa' }}>
                                       <CheckCircle2 size={13} />
                                       <span>{swag.approvedBy || 'Tannvi Acharya (Co-Organizer)'}</span>
                                     </div>
-                                    <span style={{ fontSize: '10px', opacity: 0.85, fontWeight: 600 }}>✓ Chapter Verified</span>
+                                    <span style={{ fontSize: '10px', opacity: 0.9, fontWeight: 600 }}>✓ Chapter Verified</span>
                                   </div>
                                 )}
                                 {(!swag.approvalStatus || swag.approvalStatus === 'PENDING_APPROVAL') && (

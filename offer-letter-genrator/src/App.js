@@ -2356,6 +2356,8 @@ function App() {
             members={members}
             departments={activeDepartments}
             isInlineView={true}
+            appTheme={appTheme}
+            onToggleTheme={toggleAppTheme}
             onClose={() => setCurrentView('dashboard')}
           />
         </main>
