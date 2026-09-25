@@ -1039,14 +1039,14 @@ export default function AuthScreen({
             )}
           </div>
 
-          {/* Official Roles Segmented Selector */}
-          <div className="itmbu-segmented-role-bar" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', marginBottom: '14px' }}>
+          {/* 3 Core Roles Segmented Selector: ADMIN | STAFF | MEMBER */}
+          <div className="itmbu-segmented-role-bar" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '14px' }}>
             <button
               type="button"
               className={`role-seg-btn ${selectedRoleTier === 'ADMIN' ? 'active-super' : ''}`}
               onClick={() => handleRoleTierChange('ADMIN')}
               title="ADMIN: Master Platform Privileges"
-              style={{ padding: '8px 2px', fontSize: '10px' }}
+              style={{ padding: '9px 4px', fontSize: '11px' }}
             >
               <span className="seg-icon">👑</span>
               <span style={{ fontWeight: 700 }}>ADMIN</span>
@@ -1054,21 +1054,10 @@ export default function AuthScreen({
 
             <button
               type="button"
-              className={`role-seg-btn ${selectedRoleTier === 'CO-LEDS' ? 'active-staff' : ''}`}
-              onClick={() => handleRoleTierChange('CO-LEDS')}
-              title="CO-LEDS: Chapter Operations & Team Leadership"
-              style={{ padding: '8px 2px', fontSize: '10px', borderColor: selectedRoleTier === 'CO-LEDS' ? '#8b5cf6' : undefined, color: selectedRoleTier === 'CO-LEDS' ? '#c4b5fd' : undefined }}
-            >
-              <span className="seg-icon">👔</span>
-              <span style={{ fontWeight: 700 }}>CO-LEDS</span>
-            </button>
-
-            <button
-              type="button"
               className={`role-seg-btn ${selectedRoleTier === 'FACULTY_ADVISOR(MENTOR)' ? 'active-staff' : ''}`}
               onClick={() => handleRoleTierChange('FACULTY_ADVISOR(MENTOR)')}
               title="STAFF: Faculty Advisor & Academic Mentor"
-              style={{ padding: '8px 2px', fontSize: '10px', borderColor: selectedRoleTier === 'FACULTY_ADVISOR(MENTOR)' ? '#059669' : undefined, color: selectedRoleTier === 'FACULTY_ADVISOR(MENTOR)' ? '#34d399' : undefined }}
+              style={{ padding: '9px 4px', fontSize: '11px', borderColor: selectedRoleTier === 'FACULTY_ADVISOR(MENTOR)' ? '#059669' : undefined, color: selectedRoleTier === 'FACULTY_ADVISOR(MENTOR)' ? '#34d399' : undefined }}
             >
               <span className="seg-icon">🎓</span>
               <span style={{ fontWeight: 700 }}>STAFF</span>
@@ -1076,43 +1065,10 @@ export default function AuthScreen({
 
             <button
               type="button"
-              className={`role-seg-btn ${selectedRoleTier === 'TREASURER(FINANCE & SWAGS)' ? 'active-super' : ''}`}
-              onClick={() => handleRoleTierChange('TREASURER(FINANCE & SWAGS)')}
-              title="TREASURER: Finance, Budgets & Swags Hub"
-              style={{ padding: '8px 2px', fontSize: '10px', borderColor: selectedRoleTier === 'TREASURER(FINANCE & SWAGS)' ? '#f59e0b' : undefined, color: selectedRoleTier === 'TREASURER(FINANCE & SWAGS)' ? '#fbbf24' : undefined }}
-            >
-              <span className="seg-icon">💰</span>
-              <span style={{ fontWeight: 700 }}>FINANCE</span>
-            </button>
-
-            <button
-              type="button"
-              className={`role-seg-btn ${selectedRoleTier === 'DOCUMENT-PROVIDER(LEGAL ADVOCATE)' ? 'active-certifier' : ''}`}
-              onClick={() => handleRoleTierChange('DOCUMENT-PROVIDER(LEGAL ADVOCATE)')}
-              title="DOCUMENT-PROVIDER: Letters & Certificate Authority"
-              style={{ padding: '8px 2px', fontSize: '10px' }}
-            >
-              <span className="seg-icon">📜</span>
-              <span style={{ fontWeight: 700 }}>DOCS</span>
-            </button>
-
-            <button
-              type="button"
-              className={`role-seg-btn ${selectedRoleTier === 'DEVLOPER(FOR ADDING NEW FEATURE)' ? 'active-student' : ''}`}
-              onClick={() => handleRoleTierChange('DEVLOPER(FOR ADDING NEW FEATURE)')}
-              title="DEVELOPER: Adding New Features, Cloud DB & Sandbox"
-              style={{ padding: '8px 2px', fontSize: '10px', borderColor: selectedRoleTier === 'DEVLOPER(FOR ADDING NEW FEATURE)' ? '#06b6d4' : undefined, color: selectedRoleTier === 'DEVLOPER(FOR ADDING NEW FEATURE)' ? '#22d3ee' : undefined }}
-            >
-              <span className="seg-icon">💻</span>
-              <span style={{ fontWeight: 700 }}>DEV</span>
-            </button>
-
-            <button
-              type="button"
               className={`role-seg-btn ${selectedRoleTier === 'CORE TEAM MEMBER' ? 'active-student' : ''}`}
               onClick={() => handleRoleTierChange('CORE TEAM MEMBER')}
-              title="CORE TEAM MEMBER: Directory, My Offer Letter & Certs"
-              style={{ padding: '8px 2px', fontSize: '10px' }}
+              title="MEMBER: Student Core Team & Directory"
+              style={{ padding: '9px 4px', fontSize: '11px' }}
             >
               <span className="seg-icon">👥</span>
               <span style={{ fontWeight: 700 }}>MEMBER</span>
