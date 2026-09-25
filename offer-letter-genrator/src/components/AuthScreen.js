@@ -561,25 +561,39 @@ export default function AuthScreen({
       return;
     }
 
-    // 3. FACULTY_ADVISOR(MENTOR) / STAFF
-    const isFacultyAttempt = selectedRoleTier === 'FACULTY_ADVISOR(MENTOR)' || cleanUsername.includes('faculty') || cleanUsername.includes('mentor') || cleanUsername.includes('advisor') || cleanUsername.includes('staff');
+    // 3. STAFF (Faculty Advisors, Departmental Directors, Treasury, Legal, Tech Leads)
+    const isFacultyAttempt = selectedRoleTier === 'FACULTY_ADVISOR(MENTOR)' || cleanUsername.includes('faculty') || cleanUsername.includes('mentor') || cleanUsername.includes('advisor') || cleanUsername.includes('staff') || cleanUsername.includes('treasurer') || cleanUsername.includes('finance') || cleanUsername.includes('director') || cleanUsername.includes('legal') || cleanUsername.includes('document') || cleanUsername.includes('developer') || cleanUsername.includes('lead');
     if (isFacultyAttempt) {
-      const validFacultyPasswords = ['Advisor@2026', 'Staff@2026', 'Faculty@2026', 'mentor123', 'admin123', 'SuperAdmin@2026', 'itmbu2026'];
+      const validFacultyPasswords = [
+        'Advisor@2026', 'Staff@2026', 'Faculty@2026', 'Director@2026', 'Treasurer@2026', 'Finance@2026', 'LegalDoc@2026', 'DevLead@2026',
+        'mentor123', 'admin123', 'lead123', 'treasurer123', 'SuperAdmin@2026', 'itmbu2026'
+      ];
       if (!validFacultyPasswords.includes(cleanPassword) && cleanPassword.length < 4) {
         setIsSubmitting(false);
         refreshCaptcha();
-        setErrorMsg('❌ Access Denied: Invalid Faculty Advisor / Staff Credentials.');
+        setErrorMsg('❌ Access Denied: Invalid Staff / Departmental Credentials.');
         return;
+      }
+
+      let staffDisplayName = 'Faculty Advisor & Academic Mentor';
+      if (cleanUsername.includes('treasurer') || cleanUsername.includes('finance')) {
+        staffDisplayName = `${activeClub.shortName} Treasurer & Finance Head`;
+      } else if (cleanUsername.includes('director') || cleanUsername.includes('lead')) {
+        staffDisplayName = `${activeClub.shortName} Departmental Director`;
+      } else if (cleanUsername.includes('legal') || cleanUsername.includes('document')) {
+        staffDisplayName = 'Document Provider & Legal Advocate Desk';
+      } else if (cleanUsername.includes('dev')) {
+        staffDisplayName = `${activeClub.shortName} Tech Lead & Platform Developer`;
       }
 
       const userSession = {
         username: username.trim(),
-        role: 'FACULTY_ADVISOR(MENTOR)',
+        role: 'STAFF',
         roleType: 'FACULTY_ADVISOR(MENTOR)',
         organization: selectedSection || 'AWS_SBG',
         allowedOrgs: ['AWS_SBG', 'TECHNO_LAB', 'GDGOC'],
-        displayName: 'Faculty Advisor & Academic Mentor',
-        allowedViews: ['dashboard', 'letter_studio', 'certificate_studio', 'team_management', 'finance_hub'],
+        displayName: staffDisplayName,
+        allowedViews: ['dashboard', 'directors_hub', 'finance_hub', 'letter_studio', 'certificate_studio', 'team_management'],
         loginTime: new Date().toISOString()
       };
 
@@ -996,8 +1010,8 @@ export default function AuthScreen({
                 </div>
                 <div className="club-offer-brand-divider" style={{ background: '#059669' }}></div>
                 <div className="club-offer-brand-details">
-                  <div className="club-offer-brand-title" style={{ color: '#34d399' }}>FACULTY ADVISOR &amp; ACADEMIC MENTOR</div>
-                  <div className="club-offer-brand-sub">Institutional Review &bull; Academic Sanctions &bull; ITMBU</div>
+                  <div className="club-offer-brand-title" style={{ color: '#34d399' }}>STAFF, DIRECTORS &amp; ADVISORS</div>
+                  <div className="club-offer-brand-sub">Faculty Advisors &bull; Departmental Directors &bull; Treasury &bull; Legal &amp; Dev Ops &bull; ITMBU</div>
                 </div>
               </div>
             ) : selectedRoleTier === 'TREASURER(FINANCE & SWAGS)' ? (
