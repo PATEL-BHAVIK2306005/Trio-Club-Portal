@@ -234,9 +234,9 @@ export default function AuthScreen({
   const initialChapter = availableChapters[0] || 'AWS_SBG';
   const [selectedSection, setSelectedSection] = useState(initialChapter);
   
-  // Login State
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('SuperAdmin@2026');
+  // Login State (securely empty by default to prevent credential leakage)
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -461,28 +461,13 @@ export default function AuthScreen({
     refreshCaptcha();
   };
 
-  // Role Tier Change Handler with Auto-Preset for 100% effortless login
+  // Role Tier Change Handler (securely switches role context without leaking or auto-filling credentials)
   const handleRoleTierChange = (roleTier) => {
     setSelectedRoleTier(roleTier);
     setErrorMsg('');
+    setUsername('');
+    setPassword('');
     setUserCaptchaInput('');
-
-    if (roleTier === 'ADMIN') {
-      setUsername('admin');
-      setPassword('SuperAdmin@2026');
-    } else if (roleTier === 'CO-LEDS') {
-      setUsername(selectedSection === 'AWS_SBG' ? 'aws.colead' : (selectedSection === 'TECHNO_LAB' ? 'technolab.colead' : 'gdgoc.colead'));
-      setPassword('CoLead@2026');
-    } else if (roleTier === 'DOCUMENT-PROVIDER(LEGAL ADVOCATE)') {
-      setUsername('legal.doc');
-      setPassword('LegalDoc@2026');
-    } else if (roleTier === 'DEVLOPER(FOR ADDING NEW FEATURE)') {
-      setUsername('developer');
-      setPassword('DevLead@2026');
-    } else if (roleTier === 'CORE TEAM MEMBER') {
-      setUsername('student.member');
-      setPassword('Student@2026');
-    }
     setTimeout(refreshCaptcha, 40);
   };
 
@@ -576,7 +561,61 @@ export default function AuthScreen({
       return;
     }
 
-    // 3. DOCUMENT-PROVIDER(LEGAL ADVOCATE)
+    // 3. FACULTY_ADVISOR(MENTOR) / STAFF
+    const isFacultyAttempt = selectedRoleTier === 'FACULTY_ADVISOR(MENTOR)' || cleanUsername.includes('faculty') || cleanUsername.includes('mentor') || cleanUsername.includes('advisor') || cleanUsername.includes('staff');
+    if (isFacultyAttempt) {
+      const validFacultyPasswords = ['Advisor@2026', 'Staff@2026', 'Faculty@2026', 'mentor123', 'admin123', 'SuperAdmin@2026', 'itmbu2026'];
+      if (!validFacultyPasswords.includes(cleanPassword) && cleanPassword.length < 4) {
+        setIsSubmitting(false);
+        refreshCaptcha();
+        setErrorMsg('❌ Access Denied: Invalid Faculty Advisor / Staff Credentials.');
+        return;
+      }
+
+      const userSession = {
+        username: username.trim(),
+        role: 'FACULTY_ADVISOR(MENTOR)',
+        roleType: 'FACULTY_ADVISOR(MENTOR)',
+        organization: selectedSection || 'AWS_SBG',
+        allowedOrgs: ['AWS_SBG', 'TECHNO_LAB', 'GDGOC'],
+        displayName: 'Faculty Advisor & Academic Mentor',
+        allowedViews: ['dashboard', 'letter_studio', 'certificate_studio', 'team_management', 'finance_hub'],
+        loginTime: new Date().toISOString()
+      };
+
+      setIsSubmitting(false);
+      onLogin(userSession);
+      return;
+    }
+
+    // 4. TREASURER(FINANCE & SWAGS)
+    const isTreasurerAttempt = selectedRoleTier === 'TREASURER(FINANCE & SWAGS)' || cleanUsername.includes('treasurer') || cleanUsername.includes('finance');
+    if (isTreasurerAttempt) {
+      const validTreasurerPasswords = ['Treasurer@2026', 'Finance@2026', 'treasurer123', 'admin123', 'SuperAdmin@2026', 'itmbu2026'];
+      if (!validTreasurerPasswords.includes(cleanPassword) && cleanPassword.length < 4) {
+        setIsSubmitting(false);
+        refreshCaptcha();
+        setErrorMsg('❌ Access Denied: Invalid Treasurer Credentials.');
+        return;
+      }
+
+      const userSession = {
+        username: username.trim(),
+        role: 'TREASURER(FINANCE & SWAGS)',
+        roleType: 'TREASURER(FINANCE & SWAGS)',
+        organization: selectedSection || 'AWS_SBG',
+        allowedOrgs: ['AWS_SBG', 'TECHNO_LAB', 'GDGOC'],
+        displayName: `${activeClub.shortName} Treasurer & Finance Head`,
+        allowedViews: ['dashboard', 'finance_hub', 'team_management', 'letter_studio'],
+        loginTime: new Date().toISOString()
+      };
+
+      setIsSubmitting(false);
+      onLogin(userSession);
+      return;
+    }
+
+    // 5. DOCUMENT-PROVIDER(LEGAL ADVOCATE)
     const isDocProviderAttempt = selectedRoleTier === 'DOCUMENT-PROVIDER(LEGAL ADVOCATE)' || cleanUsername.includes('legal') || cleanUsername.includes('document') || cleanUsername.includes('certifier');
     if (isDocProviderAttempt) {
       const validDocPasswords = ['LegalDoc@2026', 'Cert@2026', 'cert123', 'admin123', 'SuperAdmin@2026', 'itmbu2026'];
@@ -949,6 +988,30 @@ export default function AuthScreen({
                   <div className="club-offer-brand-sub">Chapter Operations &amp; Team Leadership Matrix</div>
                 </div>
               </div>
+            ) : selectedRoleTier === 'FACULTY_ADVISOR(MENTOR)' ? (
+              <div className="club-official-offer-brand" style={{ borderColor: '#059669' }}>
+                <div className="club-logo-pill-box" style={{ background: 'rgba(5, 150, 105, 0.15)', borderColor: '#059669', color: '#34d399' }}>
+                  <span>🎓</span>
+                  <span>STAFF</span>
+                </div>
+                <div className="club-offer-brand-divider" style={{ background: '#059669' }}></div>
+                <div className="club-offer-brand-details">
+                  <div className="club-offer-brand-title" style={{ color: '#34d399' }}>FACULTY ADVISOR &amp; ACADEMIC MENTOR</div>
+                  <div className="club-offer-brand-sub">Institutional Review &bull; Academic Sanctions &bull; ITMBU</div>
+                </div>
+              </div>
+            ) : selectedRoleTier === 'TREASURER(FINANCE & SWAGS)' ? (
+              <div className="club-official-offer-brand" style={{ borderColor: '#f59e0b' }}>
+                <div className="club-logo-pill-box" style={{ background: 'rgba(245, 158, 11, 0.15)', borderColor: '#f59e0b', color: '#fbbf24' }}>
+                  <span>💰</span>
+                  <span>TREASURER</span>
+                </div>
+                <div className="club-offer-brand-divider" style={{ background: '#f59e0b' }}></div>
+                <div className="club-offer-brand-details">
+                  <div className="club-offer-brand-title" style={{ color: '#fbbf24' }}>TREASURER &amp; FINANCE COMMAND</div>
+                  <div className="club-offer-brand-sub">Budget Control &bull; Swag Allocations &bull; Expense Audits</div>
+                </div>
+              </div>
             ) : selectedRoleTier === 'DEVLOPER(FOR ADDING NEW FEATURE)' ? (
               <div className="club-official-offer-brand" style={{ borderColor: '#06b6d4' }}>
                 <div className="club-logo-pill-box" style={{ background: 'rgba(6, 182, 212, 0.15)', borderColor: '#06b6d4', color: '#22d3ee' }}>
@@ -976,14 +1039,14 @@ export default function AuthScreen({
             )}
           </div>
 
-          {/* 5 Official Roles Segmented Selector */}
-          <div className="itmbu-segmented-role-bar" style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '4px', marginBottom: '14px' }}>
+          {/* Official Roles Segmented Selector */}
+          <div className="itmbu-segmented-role-bar" style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', marginBottom: '14px' }}>
             <button
               type="button"
               className={`role-seg-btn ${selectedRoleTier === 'ADMIN' ? 'active-super' : ''}`}
               onClick={() => handleRoleTierChange('ADMIN')}
               title="ADMIN: Master Platform Privileges"
-              style={{ padding: '8px 2px', fontSize: '11px' }}
+              style={{ padding: '8px 2px', fontSize: '10px' }}
             >
               <span className="seg-icon">👑</span>
               <span style={{ fontWeight: 700 }}>ADMIN</span>
@@ -994,7 +1057,7 @@ export default function AuthScreen({
               className={`role-seg-btn ${selectedRoleTier === 'CO-LEDS' ? 'active-staff' : ''}`}
               onClick={() => handleRoleTierChange('CO-LEDS')}
               title="CO-LEDS: Chapter Operations & Team Leadership"
-              style={{ padding: '8px 2px', fontSize: '11px', borderColor: selectedRoleTier === 'CO-LEDS' ? '#8b5cf6' : undefined, color: selectedRoleTier === 'CO-LEDS' ? '#c4b5fd' : undefined }}
+              style={{ padding: '8px 2px', fontSize: '10px', borderColor: selectedRoleTier === 'CO-LEDS' ? '#8b5cf6' : undefined, color: selectedRoleTier === 'CO-LEDS' ? '#c4b5fd' : undefined }}
             >
               <span className="seg-icon">👔</span>
               <span style={{ fontWeight: 700 }}>CO-LEDS</span>
@@ -1002,10 +1065,32 @@ export default function AuthScreen({
 
             <button
               type="button"
+              className={`role-seg-btn ${selectedRoleTier === 'FACULTY_ADVISOR(MENTOR)' ? 'active-staff' : ''}`}
+              onClick={() => handleRoleTierChange('FACULTY_ADVISOR(MENTOR)')}
+              title="STAFF: Faculty Advisor & Academic Mentor"
+              style={{ padding: '8px 2px', fontSize: '10px', borderColor: selectedRoleTier === 'FACULTY_ADVISOR(MENTOR)' ? '#059669' : undefined, color: selectedRoleTier === 'FACULTY_ADVISOR(MENTOR)' ? '#34d399' : undefined }}
+            >
+              <span className="seg-icon">🎓</span>
+              <span style={{ fontWeight: 700 }}>STAFF</span>
+            </button>
+
+            <button
+              type="button"
+              className={`role-seg-btn ${selectedRoleTier === 'TREASURER(FINANCE & SWAGS)' ? 'active-super' : ''}`}
+              onClick={() => handleRoleTierChange('TREASURER(FINANCE & SWAGS)')}
+              title="TREASURER: Finance, Budgets & Swags Hub"
+              style={{ padding: '8px 2px', fontSize: '10px', borderColor: selectedRoleTier === 'TREASURER(FINANCE & SWAGS)' ? '#f59e0b' : undefined, color: selectedRoleTier === 'TREASURER(FINANCE & SWAGS)' ? '#fbbf24' : undefined }}
+            >
+              <span className="seg-icon">💰</span>
+              <span style={{ fontWeight: 700 }}>FINANCE</span>
+            </button>
+
+            <button
+              type="button"
               className={`role-seg-btn ${selectedRoleTier === 'DOCUMENT-PROVIDER(LEGAL ADVOCATE)' ? 'active-certifier' : ''}`}
               onClick={() => handleRoleTierChange('DOCUMENT-PROVIDER(LEGAL ADVOCATE)')}
               title="DOCUMENT-PROVIDER: Letters & Certificate Authority"
-              style={{ padding: '8px 2px', fontSize: '10.5px' }}
+              style={{ padding: '8px 2px', fontSize: '10px' }}
             >
               <span className="seg-icon">📜</span>
               <span style={{ fontWeight: 700 }}>DOCS</span>
@@ -1016,7 +1101,7 @@ export default function AuthScreen({
               className={`role-seg-btn ${selectedRoleTier === 'DEVLOPER(FOR ADDING NEW FEATURE)' ? 'active-student' : ''}`}
               onClick={() => handleRoleTierChange('DEVLOPER(FOR ADDING NEW FEATURE)')}
               title="DEVELOPER: Adding New Features, Cloud DB & Sandbox"
-              style={{ padding: '8px 2px', fontSize: '10.5px', borderColor: selectedRoleTier === 'DEVLOPER(FOR ADDING NEW FEATURE)' ? '#06b6d4' : undefined, color: selectedRoleTier === 'DEVLOPER(FOR ADDING NEW FEATURE)' ? '#22d3ee' : undefined }}
+              style={{ padding: '8px 2px', fontSize: '10px', borderColor: selectedRoleTier === 'DEVLOPER(FOR ADDING NEW FEATURE)' ? '#06b6d4' : undefined, color: selectedRoleTier === 'DEVLOPER(FOR ADDING NEW FEATURE)' ? '#22d3ee' : undefined }}
             >
               <span className="seg-icon">💻</span>
               <span style={{ fontWeight: 700 }}>DEV</span>
@@ -1027,7 +1112,7 @@ export default function AuthScreen({
               className={`role-seg-btn ${selectedRoleTier === 'CORE TEAM MEMBER' ? 'active-student' : ''}`}
               onClick={() => handleRoleTierChange('CORE TEAM MEMBER')}
               title="CORE TEAM MEMBER: Directory, My Offer Letter & Certs"
-              style={{ padding: '8px 2px', fontSize: '10.5px' }}
+              style={{ padding: '8px 2px', fontSize: '10px' }}
             >
               <span className="seg-icon">👥</span>
               <span style={{ fontWeight: 700 }}>MEMBER</span>
@@ -1083,28 +1168,30 @@ export default function AuthScreen({
           {authMode === 'login' ? (
             <form className="itmbu-portal-form" onSubmit={handleLoginFormSubmit}>
               
-              {/* 1-Click Role Quick Autofill Presets */}
+              {/* Role Context Indicator (Secure: No credentials auto-filled) */}
               <div style={{ marginBottom: '12px', background: 'rgba(255,255,255,0.03)', padding: '8px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '10.5px', color: '#94a3b8', fontWeight: 600 }}>Active Role Preset:</span>
-                  <span style={{ fontSize: '10.5px', color: '#38bdf8', fontWeight: 700 }}>⚡ Ready to Sign In</span>
+                  <span style={{ fontSize: '10.5px', color: '#94a3b8', fontWeight: 600 }}>Active Role Mode:</span>
+                  <span style={{ fontSize: '10.5px', color: '#38bdf8', fontWeight: 700 }}>🔐 Secure Sign In</span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '4px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '3px' }}>
                   {[
-                    { id: 'ADMIN', label: '👑 Admin', u: 'admin', p: 'SuperAdmin@2026' },
-                    { id: 'CO-LEDS', label: '👔 Co-Leads', u: selectedSection === 'AWS_SBG' ? 'aws.colead' : (selectedSection === 'TECHNO_LAB' ? 'technolab.colead' : 'gdgoc.colead'), p: 'CoLead@2026' },
-                    { id: 'DOCUMENT-PROVIDER(LEGAL ADVOCATE)', label: '📜 Legal Doc', u: 'legal.doc', p: 'LegalDoc@2026' },
-                    { id: 'DEVLOPER(FOR ADDING NEW FEATURE)', label: '💻 Dev Lead', u: 'developer', p: 'DevLead@2026' },
-                    { id: 'CORE TEAM MEMBER', label: '👥 Member', u: 'student.member', p: 'Student@2026' }
+                    { id: 'ADMIN', label: '👑 Admin' },
+                    { id: 'CO-LEDS', label: '👔 Co-Leads' },
+                    { id: 'FACULTY_ADVISOR(MENTOR)', label: '🎓 Staff' },
+                    { id: 'TREASURER(FINANCE & SWAGS)', label: '💰 Finance' },
+                    { id: 'DOCUMENT-PROVIDER(LEGAL ADVOCATE)', label: '📜 Legal Doc' },
+                    { id: 'DEVLOPER(FOR ADDING NEW FEATURE)', label: '💻 Dev Lead' },
+                    { id: 'CORE TEAM MEMBER', label: '👥 Member' }
                   ].map(preset => (
                     <button
                       key={preset.id}
                       type="button"
                       onClick={() => handleRoleTierChange(preset.id)}
                       style={{
-                        fontSize: '9.5px',
+                        fontSize: '9px',
                         fontWeight: 700,
-                        padding: '5px 2px',
+                        padding: '5px 1px',
                         borderRadius: '5px',
                         background: selectedRoleTier === preset.id ? 'rgba(56, 189, 248, 0.18)' : 'rgba(255,255,255,0.04)',
                         border: selectedRoleTier === preset.id ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.08)',
