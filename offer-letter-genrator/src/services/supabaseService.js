@@ -513,3 +513,153 @@ export const sendOfferLetterEmailService = async ({
     refId: refId
   };
 };
+
+// 12. Realtime Cloud Admin Users Synchronization (Multi-Device Support)
+export const fetchCloudAdminUsers = async (defaultUsers = []) => {
+  try {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('brandings')
+        .select('*')
+        .eq('organization', 'GLOBAL_ADMIN_USERS')
+        .single();
+
+      if (!error && data?.config && Array.isArray(data.config) && data.config.length > 0) {
+        localStorage.setItem('offer_gen_admin_users', JSON.stringify(data.config));
+        return data.config;
+      }
+    }
+  } catch (err) {
+    console.warn('[Supabase Cloud Admin Fetch Notice]:', err?.message || err);
+  }
+  const localSaved = localStorage.getItem('offer_gen_admin_users');
+  return localSaved ? JSON.parse(localSaved) : defaultUsers;
+};
+
+export const saveCloudAdminUsers = async (adminUsersList) => {
+  try {
+    localStorage.setItem('offer_gen_admin_users', JSON.stringify(adminUsersList));
+    if (supabase) {
+      await supabase
+        .from('brandings')
+        .upsert({
+          organization: 'GLOBAL_ADMIN_USERS',
+          config: adminUsersList,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'organization' });
+    }
+  } catch (err) {
+    console.warn('[Supabase Cloud Admin Save Notice]:', err?.message || err);
+  }
+};
+
+export const subscribeToCloudAdminUsers = (onChangeCallback) => {
+  try {
+    if (!supabase) return null;
+    const channelName = `realtime_admin_users_${Date.now()}`;
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'brandings' },
+        (payload) => {
+          if (payload.new && payload.new.organization === 'GLOBAL_ADMIN_USERS' && Array.isArray(payload.new.config)) {
+            const cloudUsers = payload.new.config;
+            localStorage.setItem('offer_gen_admin_users', JSON.stringify(cloudUsers));
+            if (onChangeCallback) {
+              onChangeCallback(cloudUsers);
+            }
+          }
+        }
+      )
+      .subscribe();
+    return channel;
+  } catch (err) {
+    console.warn('[Supabase Admin Users Realtime Notice]:', err?.message || err);
+    return null;
+  }
+};
+
+// 12. Supabase Treasurer & Finance Master Ledger Synchronizer
+export const fetchCloudFinanceData = async (defaultData) => {
+  try {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('brandings')
+        .select('*')
+        .eq('organization', 'GLOBAL_FINANCE_LEDGER')
+        .single();
+
+      if (!error && data?.config && typeof data.config === 'object') {
+        localStorage.setItem('itmbu_finance_master_data', JSON.stringify(data.config));
+        return { data: data.config, connected: true };
+      } else if (error && (error.code === 'PGRST116' || error.message?.includes('0 rows'))) {
+        // Seed initial row to Supabase
+        await supabase
+          .from('brandings')
+          .upsert({
+            organization: 'GLOBAL_FINANCE_LEDGER',
+            config: defaultData,
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'organization' });
+        return { data: defaultData, connected: true };
+      }
+    }
+  } catch (err) {
+    console.warn('[Supabase Cloud Finance Fetch Notice]:', err?.message || err);
+  }
+  const localSaved = localStorage.getItem('itmbu_finance_master_data');
+  return { 
+    data: localSaved ? JSON.parse(localSaved) : defaultData, 
+    connected: Boolean(supabase) 
+  };
+};
+
+export const saveCloudFinanceData = async (financeData) => {
+  try {
+    localStorage.setItem('itmbu_finance_master_data', JSON.stringify(financeData));
+    if (supabase) {
+      const { error } = await supabase
+        .from('brandings')
+        .upsert({
+          organization: 'GLOBAL_FINANCE_LEDGER',
+          config: financeData,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'organization' });
+      if (error) throw error;
+      return true;
+    }
+  } catch (err) {
+    console.warn('[Supabase Cloud Finance Save Notice]:', err?.message || err);
+    return false;
+  }
+  return true;
+};
+
+export const subscribeToCloudFinanceData = (onChangeCallback) => {
+  try {
+    if (!supabase) return null;
+    const channelName = `realtime_finance_ledger_${Date.now()}`;
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'brandings' },
+        (payload) => {
+          if (payload.new && payload.new.organization === 'GLOBAL_FINANCE_LEDGER' && payload.new.config) {
+            const cloudFinance = payload.new.config;
+            localStorage.setItem('itmbu_finance_master_data', JSON.stringify(cloudFinance));
+            if (onChangeCallback) {
+              onChangeCallback(cloudFinance);
+            }
+          }
+        }
+      )
+      .subscribe();
+    return channel;
+  } catch (err) {
+    console.warn('[Supabase Finance Realtime Notice]:', err?.message || err);
+    return null;
+  }
+};
+

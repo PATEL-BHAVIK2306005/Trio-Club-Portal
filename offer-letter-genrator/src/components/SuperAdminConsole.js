@@ -3,107 +3,106 @@ import Swal from 'sweetalert2';
 import UsersTable from './UsersTable';
 import { getMasterSmtpConfig, saveMasterSmtpConfig, sendDirectReactEmail, sendWelcomeOnboardingEmail, fetchMasterSmtpConfigFromSupabase, subscribeToSmtpConfigRealtime } from '../services/reactEmailService';
 import { getStoredKeys, saveStoredKeys, generateAiEventIdea } from '../services/newsAndAiService';
+import { fetchCloudAdminUsers, saveCloudAdminUsers, subscribeToCloudAdminUsers } from '../services/supabaseService';
 
-// 10 System Administrative RBAC Roles Configuration
+// 8 Official Administrative RBAC Roles Configuration
 export const SYSTEM_ROLES = {
-  SUPER_ADMIN: {
-    id: 'SUPER_ADMIN',
-    title: 'Super Administrator (Universal)',
-    badge: 'Universal Master',
+  ADMIN: {
+    id: 'ADMIN',
+    title: 'Master Administrator (Universal)',
+    badge: 'UNIVERSAL ADMIN',
     color: '#f59e0b',
-    description: 'Unrestricted universal master access across AWS SBG and Techno Lab, user RBAC management, database operations, and branding.',
-    permissions: ['ALL_PERMISSIONS', 'USER_MANAGEMENT', 'CLOUD_DATABASE_SEED', 'GLOBAL_GOVERNANCE', 'LETTER_ISSUANCE', 'BRANDING_VAULT']
+    description: 'Full unrestricted master privileges: Global governance, all studios, all settings, users, databases, swags and finances.',
+    permissions: ['ALL_PERMISSIONS', 'USER_MANAGEMENT', 'CLOUD_DATABASE_SEED', 'GLOBAL_GOVERNANCE', 'LETTER_ISSUANCE', 'BRANDING_VAULT', 'FINANCE_AUDIT']
   },
-  AWS_LEAD_ADMIN: {
-    id: 'AWS_LEAD_ADMIN',
-    title: 'AWS SBG Lead Organizer',
-    badge: 'AWS SBG Lead',
-    color: '#ff9900',
-    description: 'Full operational administration over AWS Student Builder Group roster, letter drafting, department workflows, and signatures.',
-    permissions: ['AWS_ROSTER_MANAGE', 'AWS_LETTER_GENERATE', 'AWS_BRANDING_EDIT', 'AWS_CSV_EXPORT']
+  CO_LEDS: {
+    id: 'CO-LEDS',
+    title: 'Co-Lead Organizer',
+    badge: 'LEADERSHIP & OPS',
+    color: '#8b5cf6',
+    description: 'Chapter leadership: Team management, event operations, letters overview, swags audit desk, and club operations.',
+    permissions: ['CHAPTER_OPS', 'TEAM_MANAGEMENT', 'EVENT_LETTERS', 'FINANCE_HUB', 'ROSTER_VIEW']
   },
-  TECHNO_LEAD_ADMIN: {
-    id: 'TECHNO_LEAD_ADMIN',
-    title: 'Techno Lab Lead Organizer',
-    badge: 'Techno Lab Lead',
-    color: '#0284c7',
-    description: 'Full operational administration over Techno Lab roster, robotics/AI wing appointments, and letter issuance.',
-    permissions: ['TECHNO_ROSTER_MANAGE', 'TECHNO_LETTER_GENERATE', 'TECHNO_BRANDING_EDIT', 'TECHNO_CSV_EXPORT']
+  DOCUMENT_PROVIDER: {
+    id: 'DOCUMENT-PROVIDER(LEGAL ADVOCATE)',
+    title: 'Document Provider & Legal Advocate (Advocate Lead)',
+    badge: 'LEGAL & DOC AUTHORITY',
+    color: '#10b981',
+    description: 'Document authority: Joining & offer letter generation, certificate minting, cryptographic seals & verification QR dispatch.',
+    permissions: ['OFFER_LETTER_GENERATE', 'CERTIFICATE_MINTING', 'BATCH_GENERATOR', 'SEAL_VERIFICATION', 'ROSTER_VIEW']
   },
-  GDGOC_LEAD_ADMIN: {
-    id: 'GDGOC_LEAD_ADMIN',
-    title: 'GDGoC ITMBU Lead Organizer',
-    badge: 'GDGoC Lead',
-    color: '#4285f4',
-    description: 'Full operational administration over Google Developer Groups on Campus ITMBU roster, tech wings, and letter issuance.',
-    permissions: ['GDGOC_ROSTER_MANAGE', 'GDGOC_LETTER_GENERATE', 'GDGOC_BRANDING_EDIT', 'GDGOC_CSV_EXPORT']
+  DEVELOPER: {
+    id: 'DEVLOPER(FOR ADDING NEW FEATURE)',
+    title: 'Developer (Feature Engineering)',
+    badge: 'DEV & TECH LAB',
+    color: '#06b6d4',
+    description: 'Platform developer: Cloud database schemas, branding engines, UI theme customizer, API test desks, and letter templates.',
+    permissions: ['CLOUD_DB_SCHEMAS', 'BRANDING_ENGINE', 'UI_THEME_CUSTOMIZER', 'API_TEST_DESK', 'ROSTER_VIEW']
   },
-  EXECUTIVE_SECRETARY: {
-    id: 'EXECUTIVE_SECRETARY',
-    title: 'Executive Secretary & Records Keeper',
-    badge: 'Executive Secretary',
-    color: '#ec4899',
-    description: 'Manages chapter documentation registries, meeting proceedings, appointment letter logs, and institutional correspondence.',
-    permissions: ['RECORDS_MANAGEMENT', 'LETTER_REGISTRY_VIEW', 'MINUTES_OF_MEETING', 'ROSTER_VIEW']
-  },
-  TREASURER_FINANCE: {
-    id: 'TREASURER_FINANCE',
+  TREASURER: {
+    id: 'TREASURER(FINANCE & SWAGS)',
     title: 'Treasurer & Finance Head',
-    badge: 'Treasurer & Finance',
+    badge: 'FINANCE & SWAGS',
     color: '#d97706',
-    description: 'Controls departmental financial budgets, university allocations, sponsorship invoices, and event expenditure approvals.',
-    permissions: ['BUDGET_MANAGEMENT', 'FINANCE_AUDIT', 'EXPENSE_APPROVAL', 'ROSTER_VIEW']
-  },
-  TECHNICAL_ARCHITECT: {
-    id: 'TECHNICAL_ARCHITECT',
-    title: 'Technical Lead & Cloud Architect',
-    badge: 'Technical Architect',
-    color: '#0891b2',
-    description: 'Oversees technical infrastructure, hands-on lab deployments, GitHub code repositories, and hackathon judge evaluation.',
-    permissions: ['TECH_INFRA_CONTROL', 'WORKSHOP_LEAD', 'GITHUB_REPO_ADMIN', 'ROSTER_VIEW']
-  },
-  CREATIVE_DIRECTOR: {
-    id: 'CREATIVE_DIRECTOR',
-    title: 'Creative & Media Director',
-    badge: 'Creative Director',
-    color: '#e11d48',
-    description: 'Directs digital creative assets, branding consistency, social media broadcasting, and event photography campaigns.',
-    permissions: ['MEDIA_ASSETS_MANAGE', 'BRAND_ASSET_VAULT', 'SOCIAL_MEDIA_BROADCAST', 'ROSTER_VIEW']
-  },
-  OUTREACH_AMBASSADOR: {
-    id: 'OUTREACH_AMBASSADOR',
-    title: 'Outreach & PR Ambassador',
-    badge: 'Outreach & PR Lead',
-    color: '#2563eb',
-    description: 'Manages university collaborations, inter-college partnerships, external sponsor relations, and campus ambassador networks.',
-    permissions: ['OUTREACH_CAMPAIGNS', 'PARTNERSHIP_MANAGEMENT', 'COMMUNITY_PR', 'ROSTER_VIEW']
+    description: 'Financial administration: Controls departmental budgets, university allocations, swags inventory manifests, and expense approvals.',
+    permissions: ['BUDGET_MANAGEMENT', 'SWAGS_AUDIT', 'EXPENSE_APPROVAL', 'FINANCE_HUB', 'ROSTER_VIEW']
   },
   FACULTY_ADVISOR: {
-    id: 'FACULTY_ADVISOR',
-    title: 'Faculty & Academic Mentor',
-    badge: 'Faculty Advisor',
+    id: 'FACULTY_ADVISOR(MENTOR)',
+    title: 'Faculty Advisor & Academic Mentor',
+    badge: 'ACADEMIC & ADVISORY',
     color: '#059669',
-    description: 'Academic oversight, official letter review & audit verification, digital faculty signature authorization.',
-    permissions: ['AUDIT_VIEW_ALL', 'SIGNATURE_APPROVE', 'LETTER_VERIFICATION', 'ROSTER_VIEW']
+    description: 'Academic oversight: Institutional compliance, official letter review & audit verification, digital faculty signature authorization.',
+    permissions: ['ACADEMIC_OVERSIGHT', 'SIGNATURE_APPROVE', 'LETTER_VERIFICATION', 'ROSTER_VIEW', 'FINANCE_AUDIT']
   },
-  VIEWER_AUDITOR: {
-    id: 'VIEWER_AUDITOR',
-    title: 'Auditor & Compliance Officer',
-    badge: 'Auditor (Read-Only)',
-    color: '#7c3aed',
-    description: 'Institutional compliance officer with read-only inspection access across issued letters, reference IDs, and roster logs.',
-    permissions: ['ROSTER_VIEW_ONLY', 'LETTER_VERIFY_ONLY', 'AUDIT_LOGS_VIEW']
+  MEDIA_CREATIVE: {
+    id: 'MEDIA_CREATIVE_LEAD',
+    title: 'Creative & Media Director',
+    badge: 'CREATIVE & MEDIA',
+    color: '#e11d48',
+    description: 'Digital assets & media: Branding consistency, social media broadcasting, event photography campaigns, and banner design studio.',
+    permissions: ['MEDIA_ASSETS_MANAGE', 'BRAND_ASSET_VAULT', 'SOCIAL_MEDIA_BROADCAST', 'ROSTER_VIEW']
+  },
+  CORE_TEAM_MEMBER: {
+    id: 'CORE TEAM MEMBER',
+    title: 'Core Team Member',
+    badge: 'CORE MEMBER',
+    color: '#38bdf8',
+    description: 'Member hub: Campus directory, personalized offer letters, event certificates, and query helpdesk.',
+    permissions: ['OFFER_LETTER_VIEW', 'CERTIFICATES_VIEW', 'CAMPUS_DIRECTORY', 'QUERY_HELPDESK']
   }
 };
 
-// Initial Default Administrators and Managers across all 5 roles
+// Safe Resolver for SYSTEM_ROLES (Prevents any undefined property access)
+export const getSystemRole = (roleKey) => {
+  if (!roleKey) return SYSTEM_ROLES.ADMIN;
+  const normalized = String(roleKey).toUpperCase().trim();
+  
+  if (SYSTEM_ROLES[normalized]) return SYSTEM_ROLES[normalized];
+  
+  const foundById = Object.values(SYSTEM_ROLES).find(r => r.id === roleKey || r.id.toUpperCase() === normalized);
+  if (foundById) return foundById;
+
+  if (normalized.includes('ADMIN') || normalized.includes('SUPER') || normalized.includes('MASTER')) return SYSTEM_ROLES.ADMIN;
+  if (normalized.includes('TREASURER') || normalized.includes('FINANCE') || normalized.includes('SWAG')) return SYSTEM_ROLES.TREASURER;
+  if (normalized.includes('FACULTY') || normalized.includes('MENTOR') || normalized.includes('ADVISOR') || normalized.includes('PROFESSOR')) return SYSTEM_ROLES.FACULTY_ADVISOR;
+  if (normalized.includes('MEDIA') || normalized.includes('CREATIVE') || normalized.includes('DESIGN') || normalized.includes('PR_') || normalized.includes('OUTREACH')) return SYSTEM_ROLES.MEDIA_CREATIVE;
+  if (normalized.includes('CO-LED') || normalized.includes('CO_LEAD') || normalized.includes('COLEAD') || normalized.includes('LEAD_ADMIN') || normalized.includes('ORGANIZER') || normalized.includes('LEAD')) return SYSTEM_ROLES.CO_LEDS;
+  if (normalized.includes('DOCUMENT') || normalized.includes('LEGAL') || normalized.includes('ADVOCATE') || normalized.includes('CERTIFIER') || normalized.includes('SECRETARY')) return SYSTEM_ROLES.DOCUMENT_PROVIDER;
+  if (normalized.includes('DEV') || normalized.includes('TECH') || normalized.includes('ARCHITECT')) return SYSTEM_ROLES.DEVELOPER;
+  if (normalized.includes('CORE') || normalized.includes('MEMBER') || normalized.includes('STUDENT') || normalized.includes('AUDITOR')) return SYSTEM_ROLES.CORE_TEAM_MEMBER;
+
+  return SYSTEM_ROLES.ADMIN;
+};
+
+// Initial Default Administrators and Managers across the 8 RBAC roles
 export const DEFAULT_ADMIN_USERS = [
   {
     id: 'user-001',
     name: 'Bhavikkumar Patel',
     username: 'superadmin',
     email: 'bhavik.itmbu@gmail.com',
-    role: 'SUPER_ADMIN',
+    role: 'ADMIN',
     organization: 'ALL',
     status: 'ACTIVE',
     lastActive: 'Just now',
@@ -113,33 +112,57 @@ export const DEFAULT_ADMIN_USERS = [
   {
     id: 'user-002',
     name: 'Tannvi Acharya',
-    username: 'aws.organizer',
+    username: 'aws.colead',
     email: 'aws.itmbu@gmail.com',
-    role: 'AWS_LEAD_ADMIN',
+    role: 'CO-LEDS',
     organization: 'AWS_SBG',
     status: 'ACTIVE',
     lastActive: '10 mins ago',
     createdAt: '2026-09-05T10:30:00Z',
-    avatar: '☁️'
+    avatar: '👔'
   },
   {
     id: 'user-003',
-    name: 'Vansham Kamboj',
-    username: 'technolab.lead',
-    email: 'technolabclub25@gmail.com',
-    role: 'TECHNO_LEAD_ADMIN',
-    organization: 'TECHNO_LAB',
+    name: 'Advocate Document Lead',
+    username: 'legal.advocate',
+    email: 'legal.itmbu@gmail.com',
+    role: 'DOCUMENT-PROVIDER(LEGAL ADVOCATE)',
+    organization: 'ALL',
     status: 'ACTIVE',
     lastActive: '25 mins ago',
     createdAt: '2026-09-05T11:00:00Z',
-    avatar: '🔬'
+    avatar: '📜'
   },
   {
     id: 'user-004',
+    name: 'Vansham Kamboj',
+    username: 'developer.lead',
+    email: 'technolabclub25@gmail.com',
+    role: 'DEVLOPER(FOR ADDING NEW FEATURE)',
+    organization: 'TECHNO_LAB',
+    status: 'ACTIVE',
+    lastActive: '1 hour ago',
+    createdAt: '2026-09-02T09:15:00Z',
+    avatar: '💻'
+  },
+  {
+    id: 'user-005',
+    name: 'Treasurer & Swags Lead',
+    username: 'treasurer.itmbu',
+    email: 'treasurer.itmbu@gmail.com',
+    role: 'TREASURER(FINANCE & SWAGS)',
+    organization: 'AWS_SBG',
+    status: 'ACTIVE',
+    lastActive: '45 mins ago',
+    createdAt: '2026-09-06T12:00:00Z',
+    avatar: '💰'
+  },
+  {
+    id: 'user-006',
     name: 'Dr. Pradeep Laxkar',
-    username: 'pradeep.laxkar',
+    username: 'faculty.mentor',
     email: 'pradeep.laxkar@itmbu.ac.in',
-    role: 'FACULTY_ADVISOR',
+    role: 'FACULTY_ADVISOR(MENTOR)',
     organization: 'ALL',
     status: 'ACTIVE',
     lastActive: '1 hour ago',
@@ -147,16 +170,28 @@ export const DEFAULT_ADMIN_USERS = [
     avatar: '🎓'
   },
   {
-    id: 'user-005',
-    name: 'University Compliance Officer',
-    username: 'auditor.itmbu',
-    email: 'compliance.audit@itmbu.ac.in',
-    role: 'VIEWER_AUDITOR',
+    id: 'user-007',
+    name: 'Creative & Media Head',
+    username: 'creative.lead',
+    email: 'creative.itmbu@gmail.com',
+    role: 'MEDIA_CREATIVE_LEAD',
     organization: 'ALL',
+    status: 'ACTIVE',
+    lastActive: '15 mins ago',
+    createdAt: '2026-09-08T15:30:00Z',
+    avatar: '🎨'
+  },
+  {
+    id: 'user-008',
+    name: 'Core Chapter Student',
+    username: 'core.member',
+    email: 'coremember.itmbu@gmail.com',
+    role: 'CORE TEAM MEMBER',
+    organization: 'AWS_SBG',
     status: 'ACTIVE',
     lastActive: '2 hours ago',
     createdAt: '2026-09-10T14:00:00Z',
-    avatar: '👁️'
+    avatar: '👥'
   }
 ];
 
@@ -192,10 +227,21 @@ export default function SuperAdminConsole({
   // User Management Sub-Tab: 'rbac_admins' | 'all_members_table'
   const [userViewSubTab, setUserViewSubTab] = useState('rbac_admins');
 
-  // User Management State
+  // User Management State (Self-healing role migration to 5 RBAC tiers)
   const [adminUsers, setAdminUsers] = useState(() => {
     const saved = localStorage.getItem('offer_gen_admin_users');
-    return saved ? JSON.parse(saved) : DEFAULT_ADMIN_USERS;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map(u => ({
+            ...u,
+            role: getSystemRole(u.role).id
+          }));
+        }
+      } catch (e) {}
+    }
+    return DEFAULT_ADMIN_USERS;
   });
 
   const [roleFilter, setRoleFilter] = useState('ALL');
@@ -209,7 +255,7 @@ export default function SuperAdminConsole({
     name: '',
     username: '',
     email: '',
-    role: 'AWS_LEAD_ADMIN',
+    role: 'ADMIN',
     organization: 'AWS_SBG',
     password: ''
   });
@@ -253,17 +299,42 @@ export default function SuperAdminConsole({
     ];
   });
 
-  // Save admin users to localStorage
+  // Save admin users to localStorage and Supabase Cloud
   useEffect(() => {
     localStorage.setItem('offer_gen_admin_users', JSON.stringify(adminUsers));
   }, [adminUsers]);
 
-  // Realtime Supabase Cloud Synchronization for Multi-Chapter SMTP Credentials
+  // Realtime Supabase Cloud Synchronization for Multi-Chapter Admin Users & SMTP Credentials
   const [isSmtpCloudSynced, setIsSmtpCloudSynced] = useState(false);
   const [isSyncingSmtp, setIsSyncingSmtp] = useState(false);
+  const [isUsersCloudSynced, setIsUsersCloudSynced] = useState(false);
+  const [isSyncingUsers, setIsSyncingUsers] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
+      // Sync Admin Users from Supabase Cloud
+      setIsSyncingUsers(true);
+      fetchCloudAdminUsers(DEFAULT_ADMIN_USERS)
+        .then((cloudList) => {
+          if (cloudList && Array.isArray(cloudList) && cloudList.length > 0) {
+            const normalized = cloudList.map(u => ({ ...u, role: getSystemRole(u.role).id }));
+            setAdminUsers(normalized);
+            setIsUsersCloudSynced(true);
+          }
+        })
+        .catch(() => {})
+        .finally(() => setIsSyncingUsers(false));
+
+      // Realtime subscription for live multi-device admin user sync
+      const adminUsersSub = subscribeToCloudAdminUsers((liveUsers) => {
+        if (liveUsers && Array.isArray(liveUsers) && liveUsers.length > 0) {
+          const normalized = liveUsers.map(u => ({ ...u, role: getSystemRole(u.role).id }));
+          setAdminUsers(normalized);
+          setIsUsersCloudSynced(true);
+        }
+      });
+
+      // Sync SMTP Config from Supabase Cloud
       setIsSyncingSmtp(true);
       fetchMasterSmtpConfigFromSupabase()
         .then((cfg) => {
@@ -275,7 +346,7 @@ export default function SuperAdminConsole({
         .catch(() => {})
         .finally(() => setIsSyncingSmtp(false));
 
-      const sub = subscribeToSmtpConfigRealtime((liveCfg) => {
+      const smtpSub = subscribeToSmtpConfigRealtime((liveCfg) => {
         if (liveCfg) {
           setSmtpConfig(liveCfg);
           setIsSmtpCloudSynced(true);
@@ -283,8 +354,11 @@ export default function SuperAdminConsole({
       });
 
       return () => {
-        if (sub && typeof sub.unsubscribe === 'function') {
-          sub.unsubscribe();
+        if (adminUsersSub && typeof adminUsersSub.unsubscribe === 'function') {
+          adminUsersSub.unsubscribe();
+        }
+        if (smtpSub && typeof smtpSub.unsubscribe === 'function') {
+          smtpSub.unsubscribe();
         }
       };
     }
@@ -406,7 +480,7 @@ export default function SuperAdminConsole({
 
     if (editingUser) {
       // Update existing
-      setAdminUsers(prev => prev.map(u => u.id === editingUser.id ? {
+      const updatedList = adminUsers.map(u => u.id === editingUser.id ? {
         ...u,
         name: userFormData.name,
         username: userFormData.username,
@@ -414,7 +488,10 @@ export default function SuperAdminConsole({
         role: userFormData.role,
         password: userFormData.password || u.password || 'admin123',
         organization: userFormData.role === 'SUPER_ADMIN' || userFormData.role === 'FACULTY_ADVISOR' || userFormData.role === 'VIEWER_AUDITOR' ? 'ALL' : userFormData.organization
-      } : u));
+      } : u);
+
+      setAdminUsers(updatedList);
+      saveCloudAdminUsers(updatedList);
 
       Swal.fire({
         toast: true,
@@ -443,7 +520,9 @@ export default function SuperAdminConsole({
         avatar: '👤'
       };
 
-      setAdminUsers(prev => [newUser, ...prev]);
+      const updatedList = [newUser, ...adminUsers];
+      setAdminUsers(updatedList);
+      saveCloudAdminUsers(updatedList);
 
       // Add to audit logs
       setAuditLogs(prev => [
@@ -475,8 +554,8 @@ export default function SuperAdminConsole({
         recipientEmail: newUser.email,
         username: newUser.username,
         password: assignedPassword,
-        roleTitle: SYSTEM_ROLES[newUser.role]?.title || newUser.role,
-        roleBadge: SYSTEM_ROLES[newUser.role]?.badge || 'Administrator',
+        roleTitle: getSystemRole(newUser.role).title,
+        roleBadge: getSystemRole(newUser.role).badge,
         clubName: newUser.organization === 'ALL' ? 'AWS SBG & Techno Lab (Universal)' : (newUser.organization === 'TECHNO_LAB' ? 'Techno Lab Innovation Chapter' : (newUser.organization === 'GDGOC' ? 'Google Developer Groups on Campus' : 'AWS Student Builder Group')),
         clubId: newUser.organization,
         scope: newUser.organization === 'ALL' ? 'Universal Dual-Club Governance & Operations' : `${newUser.organization} Chapter Scope`
@@ -498,7 +577,7 @@ export default function SuperAdminConsole({
 
     setIsAddUserModalOpen(false);
     setEditingUser(null);
-    setUserFormData({ name: '', username: '', email: '', role: 'AWS_LEAD_ADMIN', organization: 'AWS_SBG', password: '' });
+    setUserFormData({ name: '', username: '', email: '', role: 'ADMIN', organization: 'AWS_SBG', password: '' });
   };
 
   // Reset Administrator Password Handler
@@ -535,7 +614,9 @@ export default function SuperAdminConsole({
 
     if (formValues) {
       const { pwd, sendMail } = formValues;
-      setAdminUsers(prev => prev.map(u => u.id === user.id ? { ...u, password: pwd } : u));
+      const updatedList = adminUsers.map(u => u.id === user.id ? { ...u, password: pwd } : u);
+      setAdminUsers(updatedList);
+      saveCloudAdminUsers(updatedList);
 
       setAuditLogs(prev => [
         {
@@ -557,8 +638,8 @@ export default function SuperAdminConsole({
             recipientEmail: user.email,
             username: user.username,
             password: pwd,
-            roleTitle: SYSTEM_ROLES[user.role]?.title || user.role,
-            roleBadge: SYSTEM_ROLES[user.role]?.badge || 'Administrator',
+            roleTitle: getSystemRole(user.role).title,
+            roleBadge: getSystemRole(user.role).badge,
             clubName: user.organization === 'ALL' ? 'AWS SBG & Techno Lab (Universal)' : (user.organization === 'TECHNO_LAB' ? 'Techno Lab Innovation Chapter' : 'AWS Student Builder Group'),
             clubId: user.organization,
             scope: user.organization === 'ALL' ? 'Universal Dual-Club Governance & Operations' : `${user.organization} Chapter Scope`
@@ -658,13 +739,15 @@ export default function SuperAdminConsole({
 
   // Toggle user active / suspended status
   const handleToggleUserStatus = (userId) => {
-    setAdminUsers(prev => prev.map(u => {
+    const updatedList = adminUsers.map(u => {
       if (u.id === userId) {
         const nextStatus = u.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
         return { ...u, status: nextStatus };
       }
       return u;
-    }));
+    });
+    setAdminUsers(updatedList);
+    saveCloudAdminUsers(updatedList);
   };
 
   // Delete administrator
@@ -693,7 +776,9 @@ export default function SuperAdminConsole({
       color: '#0f172a'
     }).then((result) => {
       if (result.isConfirmed) {
-        setAdminUsers(prev => prev.filter(u => u.id !== user.id));
+        const updatedList = adminUsers.filter(u => u.id !== user.id);
+        setAdminUsers(updatedList);
+        saveCloudAdminUsers(updatedList);
         Swal.fire({
           toast: true,
           position: 'top-end',
@@ -915,9 +1000,9 @@ export default function SuperAdminConsole({
           </div>
 
           <div className="super-header-right">
-            <div className="super-db-live-indicator">
-              <span className="live-pulsar"></span>
-              <span>{dbProvider} (Live Synchronized)</span>
+            <div className="super-db-live-indicator" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span className="live-pulsar" style={{ background: isUsersCloudSynced ? '#10b981' : (isSyncingUsers ? '#f59e0b' : '#38bdf8') }}></span>
+              <span>{dbProvider} {isSyncingUsers ? '(Syncing...)' : (isUsersCloudSynced ? '• Cloud Realtime Active' : '(Live)')}</span>
             </div>
             <button className="btn-close-super-console" onClick={onClose} title="Close Super Admin Console">
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1210,7 +1295,7 @@ export default function SuperAdminConsole({
                           <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} className="super-select" style={{ height: '38px', padding: '6px 12px', fontSize: '13px' }}>
                             <option value="ALL">All System Roles ({adminUsers.length})</option>
                             {Object.values(SYSTEM_ROLES).map(r => (
-                              <option key={r.id} value={r.id}>{r.badge} ({adminUsers.filter(u => u.role === r.id).length})</option>
+                              <option key={r.id} value={r.id}>{r.title} ({adminUsers.filter(u => u.role === r.id).length})</option>
                             ))}
                           </select>
                         </div>
@@ -1229,7 +1314,7 @@ export default function SuperAdminConsole({
                         </thead>
                         <tbody>
                           {filteredAdminUsers.map(u => {
-                            const roleObj = SYSTEM_ROLES[u.role] || SYSTEM_ROLES.SUPER_ADMIN;
+                            const roleObj = getSystemRole(u.role);
                             return (
                               <tr key={u.id}>
                                 <td>
@@ -1244,9 +1329,14 @@ export default function SuperAdminConsole({
                                   </div>
                                 </td>
                                 <td>
-                                  <span className="system-role-pill" style={{ borderColor: roleObj.color, color: roleObj.color, background: `${roleObj.color}15` }}>
-                                    {roleObj.badge}
-                                  </span>
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                    <span className="system-role-pill" style={{ borderColor: roleObj.color, color: roleObj.color, background: `${roleObj.color}15`, fontWeight: 700, fontSize: '12px' }}>
+                                      {roleObj.title}
+                                    </span>
+                                    <span style={{ fontSize: '10.5px', color: '#64748b', fontWeight: 600 }}>
+                                      {roleObj.badge}
+                                    </span>
+                                  </div>
                                 </td>
                                 <td>
                                   <span className={`scope-badge ${u.organization === 'ALL' ? 'scope-universal' : u.organization === 'AWS_SBG' ? 'scope-aws' : 'scope-techno'}`}>
@@ -1373,44 +1463,70 @@ export default function SuperAdminConsole({
                         <thead>
                           <tr>
                             <th>FEATURE / CAPABILITY</th>
-                            <th>SUPER ADMIN</th>
-                            <th>AWS LEAD</th>
-                            <th>TECHNO LEAD</th>
-                            <th>FACULTY MENTOR</th>
-                            <th>AUDITOR</th>
+                            <th>ADMIN</th>
+                            <th>CO-LEDS</th>
+                            <th>DOC PROVIDER</th>
+                            <th>DEVELOPER</th>
+                            <th>TREASURER</th>
+                            <th>FACULTY ADVISOR</th>
+                            <th>CREATIVE MEDIA</th>
+                            <th>CORE MEMBER</th>
                           </tr>
                         </thead>
                         <tbody>
                           <tr>
-                            <td>Roster & Core Team Management</td>
-                            <td className="perm-grant">✓ Universal</td>
-                            <td className="perm-grant">✓ AWS Only</td>
-                            <td className="perm-grant">✓ Techno Only</td>
-                            <td className="perm-view">✓ View</td>
-                            <td className="perm-view">✓ View</td>
+                            <td>Roster & Team Operations</td>
+                            <td className="perm-grant">✓ Universal Full</td>
+                            <td className="perm-grant">✓ Chapter Full</td>
+                            <td className="perm-view">✓ Roster Verification</td>
+                            <td className="perm-view">✓ View Only</td>
+                            <td className="perm-view">✓ Swags Audit View</td>
+                            <td className="perm-view">✓ Academic Review</td>
+                            <td className="perm-view">✓ Directory View</td>
+                            <td className="perm-view">✓ Campus Directory</td>
                           </tr>
                           <tr>
-                            <td>Appointment Letter Issuance & Print</td>
-                            <td className="perm-grant">✓ Universal</td>
-                            <td className="perm-grant">✓ AWS Only</td>
-                            <td className="perm-grant">✓ Techno Only</td>
-                            <td className="perm-view">✓ Verify</td>
-                            <td className="perm-deny">✕ View Only</td>
+                            <td>Joining & Offer Letter Issuance</td>
+                            <td className="perm-grant">✓ Master Studio</td>
+                            <td className="perm-view">✓ Review & View</td>
+                            <td className="perm-grant">✓ Issue & Generate</td>
+                            <td className="perm-view">✓ Template Dev</td>
+                            <td className="perm-view">✓ View Letters</td>
+                            <td className="perm-grant">✓ Verify & Sign</td>
+                            <td className="perm-view">✓ Design Assets</td>
+                            <td className="perm-view">✓ My Offer Letter</td>
                           </tr>
                           <tr>
-                            <td>Logos, Brandings & Signature Vault</td>
-                            <td className="perm-grant">✓ Full Edit</td>
-                            <td className="perm-grant">✓ AWS Edit</td>
-                            <td className="perm-grant">✓ Techno Edit</td>
-                            <td className="perm-grant">✓ Sign Vault</td>
-                            <td className="perm-deny">✕ No</td>
+                            <td>Certificate Minting & Verification QR</td>
+                            <td className="perm-grant">✓ Master Vault</td>
+                            <td className="perm-view">✓ Overview</td>
+                            <td className="perm-grant">✓ Mint & Dispatch</td>
+                            <td className="perm-view">✓ Studio Config</td>
+                            <td className="perm-deny">✕ Restricted</td>
+                            <td className="perm-grant">✓ Faculty Endorsement</td>
+                            <td className="perm-grant">✓ Graphic Layouts</td>
+                            <td className="perm-view">✓ My Certificates</td>
                           </tr>
                           <tr>
-                            <td>Cloud Database Reseed & User RBAC</td>
-                            <td className="perm-grant">✓ Master</td>
+                            <td>Finance & Swags Allocation</td>
+                            <td className="perm-grant">✓ Final Sign-Off</td>
+                            <td className="perm-grant">✓ Audit & Ops</td>
                             <td className="perm-deny">✕ Restricted</td>
                             <td className="perm-deny">✕ Restricted</td>
+                            <td className="perm-grant">✓ Full Ledger & Swags</td>
+                            <td className="perm-grant">✓ Level 3 Sanction</td>
                             <td className="perm-deny">✕ Restricted</td>
+                            <td className="perm-deny">✕ Restricted</td>
+                          </tr>
+                          <tr>
+                            <td>Cloud DB, Branding & Settings</td>
+                            <td className="perm-grant">✓ Master RBAC</td>
+                            <td className="perm-deny">✕ Restricted</td>
+                            <td className="perm-deny">✕ Restricted</td>
+                            <td className="perm-grant">✓ DB & Themes</td>
+                            <td className="perm-deny">✕ Restricted</td>
+                            <td className="perm-deny">✕ Restricted</td>
+                            <td className="perm-grant">✓ Brand Vault</td>
                             <td className="perm-deny">✕ Restricted</td>
                           </tr>
                         </tbody>

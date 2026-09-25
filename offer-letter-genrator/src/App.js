@@ -22,6 +22,8 @@ import ExecutiveDashboard from './components/ExecutiveDashboard';
 import QueryManagementModal from './components/QueryManagementModal';
 import UserProfileModal from './components/UserProfileModal';
 import DatabaseStorageModal from './components/DatabaseStorageModal';
+import TreasurerFinanceHub from './components/finance/TreasurerFinanceHub.jsx';
+import DirectorsLeadsHub from './components/directors/DirectorsLeadsHub.jsx';
 import awsChipLogo from './assets/aws_chip_logo.png';
 import {
   LayoutDashboard,
@@ -45,7 +47,10 @@ import {
   Globe,
   Database,
   Menu,
-  X
+  X,
+  Crown,
+  Rocket,
+  DollarSign
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import {
@@ -1520,19 +1525,39 @@ function App() {
     );
   }
 
-  const userRole = currentUser?.role || 'ORGANIZER';
-  const isSuperAdmin = userRole === 'SUPER_ADMIN';
-  const isCertifier = userRole === 'CERTIFIER';
-  const isStudent = userRole === 'MEMBER' || userRole === 'STUDENT';
-  const isOrganizer = !isSuperAdmin && !isCertifier && !isStudent;
+  const rawUserRole = (currentUser?.role || currentUser?.roleType || 'ADMIN').toUpperCase();
+  const userRole = rawUserRole;
+  const isAdmin = rawUserRole === 'ADMIN' || rawUserRole === 'SUPER_ADMIN';
+  const isCoLeads = rawUserRole === 'CO-LEDS' || rawUserRole === 'CO_LEAD' || rawUserRole === 'CO_LEADS' || rawUserRole.includes('CO-LEAD');
+  const isDocProvider = rawUserRole === 'DOCUMENT-PROVIDER(LEGAL ADVOCATE)' || rawUserRole === 'DOCUMENT_PROVIDER' || rawUserRole.includes('LEGAL') || rawUserRole.includes('CERTIFIER');
+  const isDeveloper = rawUserRole === 'DEVLOPER(FOR ADDING NEW FEATURE)' || rawUserRole === 'DEVELOPER' || rawUserRole.includes('DEV') || rawUserRole.includes('ARCHITECT');
+  const isTreasurerRole = rawUserRole.includes('TREASURER') || rawUserRole.includes('FINANCE') || rawUserRole.includes('SWAG');
+  const isFacultyAdvisor = rawUserRole.includes('FACULTY') || rawUserRole.includes('MENTOR') || rawUserRole.includes('ADVISOR');
+  const isMediaCreative = rawUserRole.includes('MEDIA') || rawUserRole.includes('CREATIVE');
+  const isCoreMember = !isAdmin && !isCoLeads && !isDocProvider && !isDeveloper && !isTreasurerRole && !isFacultyAdvisor && !isMediaCreative;
 
-  const rolePerspectiveBadge = isSuperAdmin 
-    ? { title: 'Super Administrator', icon: null, color: '#f59e0b', tag: 'UNIVERSAL ROOT' }
-    : isCertifier
-    ? { title: 'Certificate Authority', icon: null, color: '#10b981', tag: 'CERTIFIER DESK' }
-    : isStudent
-    ? { title: 'Student Member', icon: null, color: '#38bdf8', tag: 'STUDENT PORTAL' }
-    : { title: 'Chapter Organizer', icon: null, color: '#6366f1', tag: 'CHAPTER LEAD' };
+  const isSuperAdmin = isAdmin;
+  const isTreasurer = isAdmin || isCoLeads || isTreasurerRole;
+  const isDirectorOrLead = isAdmin || isCoLeads;
+  const isCertifier = isAdmin || isDocProvider;
+  const isStudent = isCoreMember;
+  const isOrganizer = isAdmin || isCoLeads;
+
+  const rolePerspectiveBadge = isAdmin
+    ? { title: 'Master Administrator', icon: <Crown size={11} color="#ffffff" />, color: '#f59e0b', tag: 'UNIVERSAL ADMIN' }
+    : isCoLeads
+    ? { title: 'Co-Lead Organizer', icon: <Shield size={11} color="#ffffff" />, color: '#8b5cf6', tag: 'CO-LEADS COMMAND' }
+    : isDocProvider
+    ? { title: 'Document Provider & Legal Desk', icon: <Award size={11} color="#ffffff" />, color: '#10b981', tag: 'LEGAL & DOC AUTHORITY' }
+    : isDeveloper
+    ? { title: 'Developer & Feature Engineering', icon: <Cpu size={11} color="#ffffff" />, color: '#06b6d4', tag: 'DEV & TECH LAB' }
+    : isTreasurerRole
+    ? { title: 'Treasurer & Finance Command', icon: <DollarSign size={11} color="#ffffff" />, color: '#d97706', tag: 'FINANCE & SWAGS' }
+    : isFacultyAdvisor
+    ? { title: 'Faculty Advisor & Mentor', icon: <Award size={11} color="#ffffff" />, color: '#059669', tag: 'ACADEMIC & ADVISORY' }
+    : isMediaCreative
+    ? { title: 'Creative & Media Director', icon: <Globe size={11} color="#ffffff" />, color: '#e11d48', tag: 'CREATIVE & MEDIA' }
+    : { title: 'Core Team Member', icon: <Users size={11} color="#ffffff" />, color: '#38bdf8', tag: 'CORE MEMBER' };
 
   const availableChaptersList = Object.keys(CLUB_CONFIGS).filter(key => visibleChapters[key] !== false);
   const activeOrgMembersCount = members.filter(m => (m.organization || 'AWS_SBG') === activeOrg).length;
@@ -1633,31 +1658,33 @@ function App() {
           {/* Nav Section: MAIN MENU */}
           <div className="sidebar-section-group">
             <span className="sidebar-group-title">
-              {isStudent ? 'STUDENT SERVICES' : (isCertifier ? 'CERTIFICATION DESK' : 'MAIN MENU')}
+              {isAdmin ? 'MASTER NAVIGATION' : (isCoLeads ? 'CHAPTER OPERATIONS' : (isDocProvider ? 'DOCUMENT AUTHORITY' : (isDeveloper ? 'ENGINEERING & LAB' : 'MEMBER PORTAL')))}
             </span>
             
             <nav className="sidebar-nav-list">
-              {/* Dashboard */}
+              {/* Dashboard / Overview */}
               <button
                 className={`sidebar-nav-item ${currentView === 'dashboard' ? 'active' : ''}`}
                 onClick={() => { setCurrentView('dashboard'); setIsMobileDrawerOpen(false); }}
               >
                 <div className="nav-item-content">
                   <LayoutDashboard size={18} className="nav-icon" />
-                  <span className="nav-label">{isStudent ? 'My Overview' : 'Dashboard'}</span>
+                  <span className="nav-label">{isCoreMember ? 'My Overview' : (isDeveloper ? 'Telemetry & Health' : 'Dashboard')}</span>
                 </div>
               </button>
 
-              {/* Tasks / Letter Studio / My Letter */}
+              {/* Letter Studio / My Offer Letter (Admin, Doc Provider, Co-Leads, Core Member, Developer) */}
               <button
                 className={`sidebar-nav-item ${currentView === 'letter_studio' ? 'active' : ''}`}
                 onClick={() => { setCurrentView('letter_studio'); setIsMobileDrawerOpen(false); }}
               >
                 <div className="nav-item-content">
                   <FileText size={18} className="nav-icon" />
-                  <span className="nav-label">{isStudent ? 'My Offer Letter' : (isCertifier ? 'Letters Registry' : 'Letter Studio')}</span>
+                  <span className="nav-label">
+                    {isCoreMember ? 'My Offer Letter' : (isDocProvider ? 'Joining Letter Studio' : (isDeveloper ? 'Letter Templates' : 'Letter Studio'))}
+                  </span>
                 </div>
-                <span className="nav-counter-badge">{isStudent ? 'Official' : `${activeOrgMembersCount || 12}+`}</span>
+                <span className="nav-counter-badge">{isCoreMember ? 'Official' : `${activeOrgMembersCount || 12}+`}</span>
               </button>
 
               {/* Certificate Studio / My Certificates */}
@@ -1667,36 +1694,59 @@ function App() {
               >
                 <div className="nav-item-content">
                   <Award size={18} className="nav-icon" />
-                  <span className="nav-label">{isStudent ? 'My Certificates' : (isCertifier ? 'Issue & Verify' : 'Certificates')}</span>
+                  <span className="nav-label">
+                    {isCoreMember ? 'My Certificates' : (isDocProvider ? 'Certificate Authority' : (isDeveloper ? 'Cert Studio Engine' : 'Certificates'))}
+                  </span>
                 </div>
                 <span className="nav-counter-badge badge-soft">{certificates.length || 6}</span>
               </button>
 
-              {/* Team Management / Directory */}
-              <button
-                className={`sidebar-nav-item ${currentView === 'team_management' ? 'active' : ''}`}
-                onClick={() => { setCurrentView('team_management'); setIsMobileDrawerOpen(false); }}
-              >
-                <div className="nav-item-content">
-                  <Users size={18} className="nav-icon" />
-                  <span className="nav-label">{isStudent ? 'Campus Directory' : 'Team Roster'}</span>
-                </div>
-              </button>
+              {/* Team Management / Campus Directory (Admin, Co-Leads, Doc Provider, Core Member) */}
+              {!isDeveloper && (
+                <button
+                  className={`sidebar-nav-item ${currentView === 'team_management' ? 'active' : ''}`}
+                  onClick={() => { setCurrentView('team_management'); setIsMobileDrawerOpen(false); }}
+                >
+                  <div className="nav-item-content">
+                    <Users size={18} className="nav-icon" />
+                    <span className="nav-label">{isCoreMember ? 'Campus Directory' : (isDocProvider ? 'Roster Verification' : 'Team Roster')}</span>
+                  </div>
+                </button>
+              )}
 
-              {/* Branding Settings (Admin & Organizer only) */}
-              {(isSuperAdmin || isOrganizer) && (
+
+              {/* Treasurer & Finance Hub (Admin & Co-Leads only) */}
+              {(isAdmin || isCoLeads) && (
+                <button
+                  className={`sidebar-nav-item ${currentView === 'finance_hub' ? 'active' : ''}`}
+                  onClick={() => { setCurrentView('finance_hub'); setIsMobileDrawerOpen(false); }}
+                  title="Treasurer & Finance Command Center (Swags, Budgets, Inflows, Hardware)"
+                  id="sidebar-treasurer-finance-btn"
+                >
+                  <div className="nav-item-content">
+                    <DollarSign size={18} className="nav-icon" style={{ color: '#f59e0b' }} />
+                    <span className="nav-label" style={{ fontWeight: 700, color: currentView === 'finance_hub' ? '#f59e0b' : undefined }}>Finance &amp; Swags</span>
+                  </div>
+                  <span className="nav-counter-badge" style={{ background: '#d97706', color: '#ffffff', fontWeight: 700, fontSize: '10.5px' }}>
+                    Audit Desk
+                  </span>
+                </button>
+              )}
+
+              {/* Branding Settings (Admin & Developer only) */}
+              {(isAdmin || isDeveloper) && (
                 <button
                   className={`sidebar-nav-item ${currentView === 'branding' ? 'active' : ''}`}
                   onClick={() => { setCurrentView('branding'); setIsMobileDrawerOpen(false); }}
                 >
                   <div className="nav-item-content">
-                    <Palette size={18} className="nav-icon" />
-                    <span className="nav-label">Branding</span>
+                    <Palette size={18} className="nav-icon" style={{ color: '#06b6d4' }} />
+                    <span className="nav-label">{isDeveloper ? 'Theme & Feature Lab' : 'Branding'}</span>
                   </div>
                 </button>
               )}
 
-              {/* Club Queries & Live Discussion Hub */}
+              {/* Club Queries & Live Discussion Hub (Available for ALL 5 roles) */}
               <button
                 className="sidebar-nav-item"
                 onClick={() => { setIsQueryModalOpen(true); setIsMobileDrawerOpen(false); }}
@@ -1708,21 +1758,21 @@ function App() {
                   <span className="nav-label" style={{ fontWeight: 600 }}>Club Queries</span>
                 </div>
                 <span className="nav-counter-badge" style={{ background: '#f59e0b', color: '#ffffff', fontWeight: 700, fontSize: '10.5px' }}>
-                  On Discuss
+                  Helpdesk
                 </span>
               </button>
             </nav>
           </div>
 
-          {/* Nav Section: GENERAL / ROLE CONTROLS */}
+          {/* Nav Section: GENERAL / ROLE TOOLS */}
           <div className="sidebar-section-group">
             <span className="sidebar-group-title">
-              {isSuperAdmin ? 'ADMINISTRATION' : (isCertifier ? 'DISPATCH TOOLS' : (isStudent ? 'VERIFICATION' : 'GENERAL'))}
+              {isAdmin ? 'ADMINISTRATION' : (isDocProvider ? 'LEGAL DISPATCH' : (isDeveloper ? 'DEVELOPER TOOLS' : 'VERIFICATION'))}
             </span>
             
             <nav className="sidebar-nav-list">
-              {/* Settings / Super Admin Console / Certifier Hub / Verify QR */}
-              {isSuperAdmin ? (
+              {/* Super Admin Console (Admin Only) */}
+              {isAdmin && (
                 <button
                   className="sidebar-nav-item"
                   onClick={() => { setIsSuperAdminConsoleOpen(true); setIsMobileDrawerOpen(false); }}
@@ -1734,18 +1784,24 @@ function App() {
                   </div>
                   <span className="nav-counter-badge" style={{ background: '#f59e0b', color: '#ffffff' }}>Root</span>
                 </button>
-              ) : isCertifier ? (
+              )}
+
+              {/* Email Dispatch (Document Provider & Admin) */}
+              {(isDocProvider || isAdmin) && (
                 <button
                   className="sidebar-nav-item"
                   onClick={() => { setIsCertifierEmailModalOpen(true); setIsMobileDrawerOpen(false); }}
-                  title="Open Email Dispatch & Certifier Verification Modal"
+                  title="Open Email Dispatch & Certificate Issuer Modal"
                 >
                   <div className="nav-item-content">
                     <Mail size={18} className="nav-icon" style={{ color: '#10b981' }} />
                     <span className="nav-label" style={{ fontWeight: 700, color: '#10b981' }}>Email Dispatch</span>
                   </div>
                 </button>
-              ) : isStudent ? (
+              )}
+
+              {/* Public QR Verification (Doc Provider, Core Member, Co-Leads) */}
+              {(isDocProvider || isCoreMember || isCoLeads) && (
                 <button
                   className="sidebar-nav-item"
                   onClick={() => {
@@ -1760,21 +1816,10 @@ function App() {
                     <span className="nav-label">Verify QR Credential</span>
                   </div>
                 </button>
-              ) : (
-                <button
-                  className="sidebar-nav-item"
-                  onClick={() => { setCurrentView('branding'); setIsMobileDrawerOpen(false); }}
-                  title="Chapter Settings & Signatures"
-                >
-                  <div className="nav-item-content">
-                    <Settings size={18} className="nav-icon" />
-                    <span className="nav-label">Chapter Settings</span>
-                  </div>
-                </button>
               )}
 
-              {/* Realtime DB Sync & Storage Inspector (For Admins and Organizers) */}
-              {!isStudent && (
+              {/* Realtime DB Sync & Storage Inspector (Admin & Developer) */}
+              {(isAdmin || isDeveloper) && (
                 <>
                   <button
                     className="sidebar-nav-item"
@@ -2295,6 +2340,35 @@ function App() {
             onSaveToDatabase={handleSaveBrandingToDatabase}
             isSavingToDb={isSavingToDb}
             dbSaveStatus={dbSaveStatus}
+          />
+        </main>
+      )}
+
+      {/* VIEW 4: TREASURER & FINANCE HEAD ENGINE (SWAGS, BUDGETS, INFLOWS, HARDWARE) */}
+      {currentView === 'finance_hub' && (
+        <main className="team-mgmt-layout no-print" style={{ padding: 0 }}>
+          <TreasurerFinanceHub
+            activeOrg={activeOrg}
+            currentUser={currentUser}
+            itmbuLogo={itmbuLogo}
+            clubLogo={activeClubLogo}
+            clubConfig={activeClub}
+            members={members}
+            departments={activeDepartments}
+            isInlineView={true}
+            onClose={() => setCurrentView('dashboard')}
+          />
+        </main>
+      )}
+
+      {/* VIEW 5: DIRECTORS & DEPARTMENTAL LEADS OPERATIONS SUITE */}
+      {currentView === 'directors_hub' && (
+        <main className="team-mgmt-layout no-print" style={{ padding: 0 }}>
+          <DirectorsLeadsHub
+            activeOrg={activeOrg}
+            currentUser={currentUser}
+            isInlineView={true}
+            onClose={() => setCurrentView('dashboard')}
           />
         </main>
       )}

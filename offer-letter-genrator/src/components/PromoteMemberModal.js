@@ -1,21 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { CLUB_CONFIGS } from '../data/teamData';
 
-// Official System Roles with Enhanced 15-Tier RBAC
+// Official 5 Core Roles
 export const PROMOTABLE_ROLES = [
-  { value: 'Core Team Member', label: 'Core Team Member', defaultDesig: 'Core Team Member' },
-  { value: 'Associate Coordinator', label: 'Associate Coordinator (Co-Lead)', defaultDesig: 'Associate Coordinator', isCoLead: true },
-  { value: 'Executive Secretary', label: 'Executive Secretary', defaultDesig: 'Executive Secretary & Documentation Head' },
-  { value: 'Treasurer & Finance Head', label: 'Treasurer & Finance Head', defaultDesig: 'Treasurer & Finance Controller' },
-  { value: 'Technical Lead & Architect', label: 'Technical Lead & Architect', defaultDesig: 'Technical Lead & Cloud Architect' },
-  { value: 'Creative & Media Director', label: 'Creative & Media Director', defaultDesig: 'Director of Creative & Media Strategy' },
-  { value: 'Outreach & PR Head', label: 'Outreach & PR Head', defaultDesig: 'Head of Outreach & Public Relations' },
-  { value: 'Club Head', label: 'Club Head (Department/Wing Lead)', defaultDesig: 'Head of Department' },
-  { value: 'University Event + Club Coordinator', label: 'University Event + Club Coordinator', defaultDesig: 'Lead University Coordinator' },
-  { value: 'Organizer', label: 'Lead Organizer / President', defaultDesig: 'Lead Organizer & President' },
-  { value: 'Advisor', label: 'Student / Senior Advisor', defaultDesig: 'Student Advisor' },
-  { value: 'Admin', label: 'Section Administrator', defaultDesig: 'Club Administrator' },
-  { value: 'Faculty Mentor', label: 'Faculty Mentor / Patron', defaultDesig: 'Faculty Mentor' }
+  { value: 'ADMIN', label: '👑 ADMIN (Master Administrator)', defaultDesig: 'Master Administrator' },
+  { value: 'CO-LEDS', label: '👔 CO-LEDS (Associate Coordinator / Co-Lead)', defaultDesig: 'Associate Coordinator', isCoLead: true },
+  { value: 'DOCUMENT-PROVIDER(LEGAL ADVOCATE)', label: '📜 DOCUMENT-PROVIDER (Legal Advocate)', defaultDesig: 'Document Provider & Legal Advocate' },
+  { value: 'DEVLOPER(FOR ADDING NEW FEATURE)', label: '💻 DEVLOPER (For Adding New Feature)', defaultDesig: 'Technical Lead & Feature Developer' },
+  { value: 'CORE TEAM MEMBER', label: '👥 CORE TEAM MEMBER (Active Member)', defaultDesig: 'Core Team Member' }
 ];
 
 export default function PromoteMemberModal({

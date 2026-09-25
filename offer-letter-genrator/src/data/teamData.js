@@ -1,3 +1,94 @@
+export const SYSTEM_ROLES = {
+  ADMIN: {
+    id: 'ADMIN',
+    name: 'ADMIN',
+    title: 'Master Administrator',
+    tag: 'UNIVERSAL ADMIN',
+    color: '#f59e0b',
+    icon: '👑',
+    description: 'Full master privileges: Global governance, all studios, all settings, users, databases and finances.',
+    allowedViews: ['dashboard', 'letter_studio', 'certificate_studio', 'team_management', 'branding', 'finance_hub', 'directors_hub'],
+    allowedModals: ['super_admin_console', 'cloud_db', 'queries', 'add_member', 'bulk_add', 'promote_member', 'edit_member', 'batch_generator', 'branding_settings']
+  },
+  CO_LEDS: {
+    id: 'CO-LEDS',
+    name: 'CO-LEDS',
+    title: 'Co-Lead Organizer',
+    tag: 'LEADERSHIP & OPS',
+    color: '#8b5cf6',
+    icon: '👔',
+    description: 'Chapter leadership: Team management, Directors Suite (MoM & tasks), event letters overview, and club operations.',
+    allowedViews: ['dashboard', 'team_management', 'directors_hub', 'letter_studio', 'certificate_studio', 'finance_hub'],
+    allowedModals: ['queries', 'add_member', 'edit_member', 'promote_member']
+  },
+  DOCUMENT_PROVIDER: {
+    id: 'DOCUMENT-PROVIDER(LEGAL ADVOCATE)',
+    name: 'DOCUMENT-PROVIDER(LEGAL ADVOCATE)',
+    title: 'Document Provider & Legal Advocate',
+    tag: 'LEGAL & DOC AUTHORITY',
+    color: '#10b981',
+    icon: '📜',
+    description: 'Document authority: Joining & offer letter generation, certificate minting, cryptographic seals & verification QR.',
+    allowedViews: ['dashboard', 'letter_studio', 'certificate_studio', 'team_management'],
+    allowedModals: ['batch_generator', 'certifier_email', 'queries']
+  },
+  DEVELOPER: {
+    id: 'DEVLOPER(FOR ADDING NEW FEATURE)',
+    name: 'DEVLOPER(FOR ADDING NEW FEATURE)',
+    title: 'Developer (Feature Engineering)',
+    tag: 'DEV & TECH LAB',
+    color: '#06b6d4',
+    icon: '💻',
+    description: 'Platform developer: Cloud database schemas, branding engines, UI theme customizer, API test desks, and letter templates.',
+    allowedViews: ['dashboard', 'branding', 'letter_studio', 'certificate_studio'],
+    allowedModals: ['cloud_db', 'queries']
+  },
+  CORE_TEAM_MEMBER: {
+    id: 'CORE TEAM MEMBER',
+    name: 'CORE TEAM MEMBER',
+    title: 'Core Team Member',
+    tag: 'CORE MEMBER',
+    color: '#38bdf8',
+    icon: '👥',
+    description: 'Member hub: Campus directory, personalized offer letters, event certificates, and query helpdesk.',
+    allowedViews: ['dashboard', 'letter_studio', 'certificate_studio', 'team_management', 'directors_hub'],
+    allowedModals: ['queries']
+  },
+  TREASURER: {
+    id: 'TREASURER(FINANCE & SWAGS)',
+    name: 'TREASURER(FINANCE & SWAGS)',
+    title: 'Treasurer & Finance Head',
+    tag: 'FINANCE & SWAGS',
+    color: '#f59e0b',
+    icon: '💰',
+    description: 'Financial administration: Controls departmental budgets, university funds, swags inventory allocations, and expense verification.',
+    allowedViews: ['dashboard', 'finance_hub', 'team_management', 'letter_studio'],
+    allowedModals: ['queries']
+  },
+  FACULTY_ADVISOR: {
+    id: 'FACULTY_ADVISOR(MENTOR)',
+    name: 'FACULTY_ADVISOR(MENTOR)',
+    title: 'Faculty Advisor & Academic Mentor',
+    tag: 'ACADEMIC & ADVISORY',
+    color: '#059669',
+    icon: '🎓',
+    description: 'Academic oversight: Institutional compliance, official letter review & audit verification, digital faculty signature authorization.',
+    allowedViews: ['dashboard', 'letter_studio', 'certificate_studio', 'team_management', 'finance_hub'],
+    allowedModals: ['queries']
+  },
+  MEDIA_CREATIVE: {
+    id: 'MEDIA_CREATIVE_LEAD',
+    name: 'MEDIA_CREATIVE_LEAD',
+    title: 'Creative & Media Director',
+    tag: 'CREATIVE & MEDIA',
+    color: '#e11d48',
+    icon: '🎨',
+    description: 'Digital assets & media: Branding consistency, social media broadcasting, event photography campaigns, and banner design studio.',
+    allowedViews: ['dashboard', 'branding', 'letter_studio', 'certificate_studio', 'team_management'],
+    allowedModals: ['queries']
+  }
+};
+
 export const CLUB_CONFIGS = {
   AWS_SBG: {
     id: 'AWS_SBG',

@@ -1,23 +1,13 @@
 import React, { useState } from 'react';
 import { CLUB_CONFIGS } from '../data/teamData';
 
-// Official System Roles with Enhanced 15-Tier RBAC
+// Official 5 Core Roles
 export const OFFICIAL_ROLES = [
-  { value: 'Organizer', label: 'Organizer (Lead / President)' },
-  { value: 'Associate Coordinator', label: 'Associate Coordinator (Co-Lead)' },
-  { value: 'Executive Secretary', label: 'Executive Secretary' },
-  { value: 'Treasurer & Finance Head', label: 'Treasurer & Finance Head' },
-  { value: 'Technical Lead & Architect', label: 'Technical Lead & Architect' },
-  { value: 'Creative & Media Director', label: 'Creative & Media Director' },
-  { value: 'Outreach & PR Head', label: 'Outreach & PR Head' },
-  { value: 'Core Team Member', label: 'Core Team Member' },
-  { value: 'Club Head', label: 'Club Head (Department/Wing Lead)' },
-  { value: 'University Event + Club Coordinator', label: 'University Event + Club Coordinator' },
-  { value: 'Auditor & Compliance Officer', label: 'Auditor & Compliance Officer' },
-  { value: 'Advisor', label: 'Advisor' },
-  { value: 'Admin', label: 'Admin' },
-  { value: 'General Member', label: 'General Member' },
-  { value: 'Faculty Mentor', label: 'Faculty Mentor / Patron' }
+  { value: 'ADMIN', label: '👑 ADMIN (Master Administrator)' },
+  { value: 'CO-LEDS', label: '👔 CO-LEDS (Leadership & Ops)' },
+  { value: 'DOCUMENT-PROVIDER(LEGAL ADVOCATE)', label: '📜 DOCUMENT-PROVIDER (Legal Advocate)' },
+  { value: 'DEVLOPER(FOR ADDING NEW FEATURE)', label: '💻 DEVLOPER (For Adding New Feature)' },
+  { value: 'CORE TEAM MEMBER', label: '👥 CORE TEAM MEMBER (Active Member)' }
 ];
 
 export default function AddMemberModal({

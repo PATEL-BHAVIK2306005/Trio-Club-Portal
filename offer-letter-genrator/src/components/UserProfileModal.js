@@ -33,45 +33,56 @@ export default function UserProfileModal({
 
   if (!isOpen) return null;
 
-  const isSuperAdmin = userRole === 'SUPER_ADMIN';
-  const isCertifier = userRole === 'CERTIFIER';
-  const isStudent = userRole === 'MEMBER' || userRole === 'STUDENT';
+  const rawRole = (userRole || currentUser?.role || currentUser?.roleType || 'ADMIN').toUpperCase();
+  const isAdmin = rawRole === 'ADMIN' || rawRole === 'SUPER_ADMIN';
+  const isCoLeads = rawRole === 'CO-LEDS' || rawRole === 'CO_LEAD' || rawRole === 'CO_LEADS' || rawRole.includes('CO-LEAD');
+  const isDocProvider = rawRole === 'DOCUMENT-PROVIDER(LEGAL ADVOCATE)' || rawRole === 'DOCUMENT_PROVIDER' || rawRole.includes('LEGAL') || rawRole.includes('CERTIFIER');
+  const isDeveloper = rawRole === 'DEVLOPER(FOR ADDING NEW FEATURE)' || rawRole === 'DEVELOPER' || rawRole.includes('DEV');
 
-  // Role Badge Color & Title
+  // Role Badge Color & Title for 5 Official Roles
   const getRoleBadge = () => {
-    if (isSuperAdmin) {
+    if (isAdmin) {
       return {
-        title: 'Super Administrator',
-        tag: 'UNIVERSAL ROOT',
+        title: 'Master Administrator',
+        tag: 'UNIVERSAL ADMIN',
         gradient: 'linear-gradient(135deg, #f59e0b, #d97706)',
         shadow: 'rgba(245, 158, 11, 0.35)',
         icon: <Shield size={14} />
       };
     }
-    if (isCertifier) {
+    if (isCoLeads) {
       return {
-        title: 'Certificate Authority',
-        tag: 'CERTIFIER DESK',
+        title: 'Co-Lead Organizer',
+        tag: 'LEADERSHIP & OPS',
+        gradient: 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
+        shadow: 'rgba(139, 92, 246, 0.35)',
+        icon: <Shield size={14} />
+      };
+    }
+    if (isDocProvider) {
+      return {
+        title: 'Document Provider (Legal Advocate)',
+        tag: 'LEGAL & DOC AUTHORITY',
         gradient: 'linear-gradient(135deg, #10b981, #059669)',
         shadow: 'rgba(16, 185, 129, 0.35)',
         icon: <Award size={14} />
       };
     }
-    if (isStudent) {
+    if (isDeveloper) {
       return {
-        title: 'Student Member',
-        tag: 'STUDENT PORTAL',
-        gradient: 'linear-gradient(135deg, #0284c7, #0369a1)',
-        shadow: 'rgba(2, 132, 199, 0.35)',
-        icon: <User size={14} />
+        title: 'Developer (Feature Lab)',
+        tag: 'DEV & TECH LAB',
+        gradient: 'linear-gradient(135deg, #06b6d4, #0891b2)',
+        shadow: 'rgba(6, 182, 212, 0.35)',
+        icon: <Zap size={14} />
       };
     }
     return {
-      title: 'Chapter Lead Organizer',
-      tag: 'CHAPTER LEAD',
-      gradient: 'linear-gradient(135deg, #6366f1, #4f46e5)',
-      shadow: 'rgba(99, 102, 241, 0.35)',
-      icon: <Zap size={14} />
+      title: 'Core Team Member',
+      tag: 'CORE MEMBER',
+      gradient: 'linear-gradient(135deg, #0284c7, #0369a1)',
+      shadow: 'rgba(2, 132, 199, 0.35)',
+      icon: <User size={14} />
     };
   };
 
