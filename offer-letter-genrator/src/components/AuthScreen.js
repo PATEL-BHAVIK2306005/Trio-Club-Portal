@@ -1167,46 +1167,6 @@ export default function AuthScreen({
 
           {authMode === 'login' ? (
             <form className="itmbu-portal-form" onSubmit={handleLoginFormSubmit}>
-              
-              {/* Role Context Indicator (Secure: No credentials auto-filled) */}
-              <div style={{ marginBottom: '12px', background: 'rgba(255,255,255,0.03)', padding: '8px 10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <span style={{ fontSize: '10.5px', color: '#94a3b8', fontWeight: 600 }}>Active Role Mode:</span>
-                  <span style={{ fontSize: '10.5px', color: '#38bdf8', fontWeight: 700 }}>🔐 Secure Sign In</span>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '3px' }}>
-                  {[
-                    { id: 'ADMIN', label: '👑 Admin' },
-                    { id: 'CO-LEDS', label: '👔 Co-Leads' },
-                    { id: 'FACULTY_ADVISOR(MENTOR)', label: '🎓 Staff' },
-                    { id: 'TREASURER(FINANCE & SWAGS)', label: '💰 Finance' },
-                    { id: 'DOCUMENT-PROVIDER(LEGAL ADVOCATE)', label: '📜 Legal Doc' },
-                    { id: 'DEVLOPER(FOR ADDING NEW FEATURE)', label: '💻 Dev Lead' },
-                    { id: 'CORE TEAM MEMBER', label: '👥 Member' }
-                  ].map(preset => (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      onClick={() => handleRoleTierChange(preset.id)}
-                      style={{
-                        fontSize: '9px',
-                        fontWeight: 700,
-                        padding: '5px 1px',
-                        borderRadius: '5px',
-                        background: selectedRoleTier === preset.id ? 'rgba(56, 189, 248, 0.18)' : 'rgba(255,255,255,0.04)',
-                        border: selectedRoleTier === preset.id ? '1px solid #38bdf8' : '1px solid rgba(255,255,255,0.08)',
-                        color: selectedRoleTier === preset.id ? '#38bdf8' : '#94a3b8',
-                        cursor: 'pointer',
-                        textAlign: 'center',
-                        transition: 'all 0.15s'
-                      }}
-                    >
-                      {preset.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
               <div className="itmbu-field-group">
                 <label className="itmbu-form-label">
                   <span className="req-star">*</span> Username / Registered Email
