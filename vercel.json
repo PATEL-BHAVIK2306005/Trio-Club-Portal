@@ -2,14 +2,20 @@
   "buildCommand": "cd offer-letter-genrator && npm install --legacy-peer-deps && CI=false npm run build",
   "outputDirectory": "offer-letter-genrator/build",
   "env": {
-    "CI": "false"
+    "CI": "false",
+    "GENERATE_SOURCEMAP": "false"
   },
   "build": {
     "env": {
-      "CI": "false"
+      "CI": "false",
+      "GENERATE_SOURCEMAP": "false"
     }
   },
   "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    },
     {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
